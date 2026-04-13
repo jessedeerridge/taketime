@@ -61,10 +61,18 @@
   }
   .host-selecting-pop.hidden{display:none;}
 
+  .table-center{
+    position:relative;
+    width:min(92vw, 360px);
+    height:260px;
+    margin:20px auto 0;
+  }
   .player-circle{
-    position:relative;width:260px;height:260px;
-    margin:20px auto 0;border-radius:50%;
+    position:absolute;inset:0;
+    width:100%;height:100%;
+    margin:0;border-radius:50%;
     box-sizing:border-box;border:none;
+    z-index:2;
   }
   .player-circle::before{content:'';}
   .player-tag{
@@ -114,11 +122,13 @@
   }
 
   .stage-board-wrap{
-    margin:14px auto 0;
-    width:min(92vw, 360px);
+    position:absolute;inset:0;
+    margin:0;
+    width:100%;
     display:flex;
     justify-content:center;
     align-items:center;
+    z-index:1;
   }
 
   .my-hand-wrapper{margin-top:28px;text-align:center;}
@@ -143,16 +153,13 @@
   .dialog-box p{margin:0 0 12px;font-size:14px;line-height:1.6;}
   .dialog-buttons{display:flex;justify-content:flex-end;gap:8px;}
 
-  .host-settings-btn,
-  .stage-settings-btn{
+  .host-settings-btn{
     position:fixed;bottom:16px;width:44px;height:44px;border-radius:50%;
     border:1px solid #ddd;background:#fff;box-shadow:0 8px 20px rgba(0,0,0,.18);
     display:none;align-items:center;justify-content:center;font-size:22px;cursor:pointer;z-index:230;
   }
   .host-settings-btn{right:16px;}
-  .stage-settings-btn{right:66px;font-size:12px;font-weight:800;letter-spacing:.02em;}
-  .host-settings-btn.visible,
-  .stage-settings-btn.visible{display:flex;}
+  .host-settings-btn.visible{display:flex;}
 
   .start-pop,
   .stage-pop{
@@ -172,6 +179,8 @@
   .stage-pop-main{font-size:13px;line-height:1.5;}
   .start-pop-actions,
   .stage-pop-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:4px;flex-wrap:wrap;}
+  .start-pop-actions{flex-direction:column;align-items:flex-end;}
+  .start-pop-primary-actions{display:flex;gap:8px;}
   .stage-option-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
   .stage-option-btn.active{background:#111;color:#fff;border-color:#111;}
 
@@ -401,10 +410,11 @@
     <div id="roomInfoLobby" style="margin-bottom:8px;"></div>
     <p>ここにテーブルや情報が表示されます。</p>
 
-    <div id="playerCircle" class="player-circle"></div>
+    <div class="table-center">
+      <div id="playerCircle" class="player-circle"></div>
 
-    <div class="stage-board-wrap">
-      <svg id="stageBoard" viewBox="0 0 300 300" role="img" aria-label="正円と6つの正三角形（角を丸め・内側配置／外形のみ黒線＋内側リング＋6等分＋R2-R3を30等分＋inner1/3に画像＋指定なし三角＋中心ダイヤ＋中心線＋外向き曲線三角テーパー＋金線X：底辺innerR接触＋指定部屋に新半円ノッチ［白塗り］＋カード最前面回転＋room6扇状＋1-2でroom4扇状/room3テキスト）">
+      <div class="stage-board-wrap">
+        <svg id="stageBoard" viewBox="0 0 300 300" role="img" aria-label="正円と6つの正三角形（角を丸め・内側配置／外形のみ黒線＋内側リング＋6等分＋R2-R3を30等分＋inner1/3に画像＋指定なし三角＋中心ダイヤ＋中心線＋外向き曲線三角テーパー＋金線X：底辺innerR接触＋指定部屋に新半円ノッチ［白塗り］＋カード最前面回転＋room6扇状＋1-2でroom4扇状/room3テキスト）">
         <defs>
           <path id="eqTriPath" d=""/>
           <filter id="outerStroke" filterUnits="userSpaceOnUse">
@@ -538,7 +548,8 @@
         <g id="sectorHits" transform="translate(150,150)"></g>
         <g id="roomTexts" transform="translate(150,150)" style="pointer-events:none"></g>
         <g id="roomCards" style="pointer-events:none"></g>
-      </svg>
+        </svg>
+      </div>
     </div>
 
     <div class="my-hand-wrapper">
@@ -568,8 +579,6 @@
 </div>
 
 <button id="hostSettingsBtn" class="host-settings-btn" title="設定">⚙</button>
-<button id="stageSettingsBtn" class="stage-settings-btn" title="ステージ">STAGE</button>
-
 <button id="helpBtn" class="help-btn" title="正体カード一覧">？</button>
 
 <div id="helpBackdrop" class="help-pop-backdrop hidden">
@@ -592,8 +601,11 @@
     「リセット」で人数選択へ戻します。
   </div>
   <div class="start-pop-actions">
-    <button id="btnResetRoom" class="btn ghost">リセット</button>
-    <button id="btnGameStart" class="btn primary">スタート</button>
+    <div class="start-pop-primary-actions">
+      <button id="btnResetRoom" class="btn ghost">リセット</button>
+      <button id="btnGameStart" class="btn primary">スタート</button>
+    </div>
+    <button id="btnOpenStagePop" class="btn">ステージ選択</button>
   </div>
 </div>
 
@@ -674,10 +686,10 @@ const btnStartPopClose = document.getElementById('btnStartPopClose');
 const btnGameStart = document.getElementById('btnGameStart');
 const btnResetRoom = document.getElementById('btnResetRoom');
 
-const stageSettingsBtn = document.getElementById('stageSettingsBtn');
 const stagePop = document.getElementById('stagePop');
 const btnStagePopClose = document.getElementById('btnStagePopClose');
 const stageOptionGrid = document.getElementById('stageOptionGrid');
+const btnOpenStagePop = document.getElementById('btnOpenStagePop');
 
 const helpBtn = document.getElementById('helpBtn');
 const helpBackdrop = document.getElementById('helpBackdrop');
@@ -821,7 +833,6 @@ function updateHostUI(){
     hostSettingsBtn.classList.remove('visible');
     startPop.classList.add('hidden');
   }
-  stageSettingsBtn.classList.add('visible');
   helpBtn.classList.add('visible');
 }
 
@@ -1260,19 +1271,32 @@ function renderStageOptions(){
   });
 }
 
+function positionStagePopBelowStart(){
+  const rect = startPop.getBoundingClientRect();
+  stagePop.style.left = `${Math.max(12, rect.left)}px`;
+  stagePop.style.top = `${Math.min(window.innerHeight - stagePop.offsetHeight - 12, rect.bottom + 8)}px`;
+  stagePop.style.right = 'auto';
+  stagePop.style.bottom = 'auto';
+}
+
 function setStage(code){
   currentStage = STAGE_CODES.includes(code) ? code : '1-1';
   localStorage.setItem(STAGE_KEY, currentStage);
   window.dispatchEvent(new CustomEvent('mission:change', { detail:{ value: currentStage }}));
 }
 
-stageSettingsBtn.addEventListener('click', () => {
+btnOpenStagePop.addEventListener('click', () => {
   renderStageOptions();
   stagePop.classList.toggle('hidden');
-  startPop.classList.add('hidden');
+  if (!stagePop.classList.contains('hidden')) positionStagePopBelowStart();
 });
 btnStagePopClose.addEventListener('click', () => {
   stagePop.classList.add('hidden');
+});
+window.addEventListener('resize', () => {
+  if (!stagePop.classList.contains('hidden') && !startPop.classList.contains('hidden')){
+    positionStagePopBelowStart();
+  }
 });
 
 /* ===== ステージSVGロジック：元コードをそのまま移植 ===== */
