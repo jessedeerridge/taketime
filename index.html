@@ -179,6 +179,8 @@
     --clockMarkStroke: #5c3a21;
     --clockMarkStrokeW: 2.8;
     --clockMarkTextColor: #2b2b2b;
+    --clockMarkDeltaR: -2;
+    --clockMarkTextScale: 1.08;
 
   }
   body{
@@ -644,7 +646,7 @@ function getSpecifiedRoomsForMission(mission){
 }
 
 const STAGE_CLOCK_LABELS = {
-  '1-3': { 2: '2', 3: '1', 6: '20-30' },
+  '1-3': { 2: '2', 3: '1' },
 };
 function getClockLabelsForMission(mission){
   return STAGE_CLOCK_LABELS[mission] || null;
@@ -778,18 +780,14 @@ function renderClockMarks(mission){
   const stroke = csClock.getPropertyValue('--clockMarkStroke').trim() || '#5c3a21';
   const strokeW = Math.max(0.6, (parseFloat(csClock.getPropertyValue('--clockMarkStrokeW')) || 2.8) * scale);
   const textColor = csClock.getPropertyValue('--clockMarkTextColor').trim() || '#2b2b2b';
-  const roomTextColor = csClock.getPropertyValue('--roomTextColor').trim() || '#d4a373';
-  const roomTextSize = csClock.getPropertyValue('--roomTextSize').trim() || '12px';
-  const roomTextWeight = csClock.getPropertyValue('--roomTextWeight').trim() || '800';
-  const roomTextBg = csClock.getPropertyValue('--roomTextBg').trim() || '#000';
-  const roomTextBgOpacity = Math.max(0, Math.min(1, parseFloat(csClock.getPropertyValue('--roomTextBgOpacity')) || 1));
-
+  const deltaR = parseFloat(csClock.getPropertyValue('--clockMarkDeltaR')) || 0;
+  const textScale = parseFloat(csClock.getPropertyValue('--clockMarkTextScale')) || 1;
   Object.entries(labels).forEach(([roomStr, text])=>{
     const room = Number(roomStr);
     if(!(room >= 1 && room <= 6)) return;
 
     const midDeg = (room - 1) * 60 + 30;
-    const pos = polar((innerR + outerR) / 2 + 4, midDeg);
+    const pos = polar((innerR + outerR) / 2 + 4 + deltaR, midDeg);
 
     const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     g.setAttribute('transform', `translate(${pos.x},${pos.y})`);
@@ -820,19 +818,9 @@ function renderClockMarks(mission){
     t.textContent = text;
     t.setAttribute('x', '0');
     t.setAttribute('y', '0.8');
-    const useMission12Style = (mission === '1-3' && text === '20-30');
-    if (useMission12Style) {
-      const bg = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-      bg.setAttribute('cx', '0');
-      bg.setAttribute('cy', '0');
-      bg.setAttribute('r', String(roomBgR));
-      bg.setAttribute('fill', roomTextBg);
-      bg.setAttribute('fill-opacity', String(roomTextBgOpacity));
-      g.appendChild(bg);
-    }
-    t.setAttribute('fill', useMission12Style ? roomTextColor : textColor);
-    t.setAttribute('font-size', useMission12Style ? roomTextSize : String(Math.max(4, size * 0.34)));
-    t.setAttribute('font-weight', useMission12Style ? roomTextWeight : '700');
+    t.setAttribute('fill', textColor);
+    t.setAttribute('font-size', String(Math.max(4, size * 0.34 * textScale)));
+    t.setAttribute('font-weight', '700');
     t.setAttribute('text-anchor', 'middle');
     t.setAttribute('dominant-baseline', 'middle');
     g.appendChild(t);
@@ -1350,51 +1338,53 @@ function renderRoomTexts(mission){
   if(!g) return;
   while (g.firstChild) g.removeChild(g.firstChild);
 
-  if (mission !== '1-2') return;
-
   const csT = getComputedStyle(document.documentElement);
   const color  = csT.getPropertyValue('--roomTextColor').trim() || '#d4a373';
   const fsize  = csT.getPropertyValue('--roomTextSize').trim()  || '12px';
   const weight = csT.getPropertyValue('--roomTextWeight').trim()|| '800';
 
-  const room = 3;
-  const midDeg = (room-1)*60 + 30;
-
-  /* 表示位置：innerR2 と innerR の中間あたりに文字（既存） */
-  const delta = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--roomTextDeltaR')) || 0;
-  const rText = (innerR + innerR2) / 2 + delta;
-
-  const p = polar(rText, midDeg);
-
-  /* ▼▼ ここから追加：数字の背面に黒円を敷く ▼▼ */
+  /* ▼ 共通：数字の背面円 */
   const bgColor   = csT.getPropertyValue('--roomTextBg').trim() || '#000';
   const bgOpacity = Math.max(0, Math.min(1, parseFloat(csT.getPropertyValue('--roomTextBgOpacity')) || 1));
   const fsNum     = parseFloat(fsize) || 12;
-  /* CSSで明示されていればそれを優先、なければフォントサイズから自動算出（やや大きめ） */
   const rBgVar    = parseFloat(csT.getPropertyValue('--roomTextBgR'));
   const rBg       = Number.isNaN(rBgVar) ? (fsNum * 0.95) : rBgVar;
+  const delta = parseFloat(csT.getPropertyValue('--roomTextDeltaR')) || 0;
+  const rText = (innerR + innerR2) / 2 + delta;
 
-  const bgCircle = document.createElementNS('http://www.w3.org/2000/svg','circle');
-  bgCircle.setAttribute('cx', p.x.toFixed(2));
-  bgCircle.setAttribute('cy', p.y.toFixed(2));
-  bgCircle.setAttribute('r',  rBg.toFixed(2));
-  bgCircle.setAttribute('fill', bgColor);
-  bgCircle.setAttribute('fill-opacity', String(bgOpacity));
-  /* ※必要なら縁取り：bgCircle.setAttribute('stroke', '#000'); */
-  g.appendChild(bgCircle);
-  /* ▲▲ ここまで追加 ▲▲ */
+  const textSpecs = [];
+  if (mission === '1-2') {
+    textSpecs.push({ room: 3, label: '8-12', rotate: (midDeg)=>midDeg });
+  }
+  if (mission === '1-3') {
+    textSpecs.push({ room: 6, label: '20-30', rotate: (midDeg)=>midDeg + 180 });
+  }
+  if (textSpecs.length === 0) return;
 
-  const text = document.createElementNS('http://www.w3.org/2000/svg','text');
-  text.textContent = '8-12';
-  text.setAttribute('x', p.x.toFixed(2));
-  text.setAttribute('y', p.y.toFixed(2));
-  text.setAttribute('fill', color);
-  text.setAttribute('font-size', fsize);
-  text.setAttribute('font-weight', weight);
-  text.setAttribute('text-anchor', 'middle');
-  text.setAttribute('dominant-baseline', 'middle');
-  text.setAttribute('transform', `rotate(${midDeg}, ${p.x.toFixed(2)}, ${p.y.toFixed(2)})`);
-  g.appendChild(text);
+  textSpecs.forEach(({room, label, rotate})=>{
+    const midDeg = (room-1)*60 + 30;
+    const p = polar(rText, midDeg);
+
+    const bgCircle = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    bgCircle.setAttribute('cx', p.x.toFixed(2));
+    bgCircle.setAttribute('cy', p.y.toFixed(2));
+    bgCircle.setAttribute('r',  rBg.toFixed(2));
+    bgCircle.setAttribute('fill', bgColor);
+    bgCircle.setAttribute('fill-opacity', String(bgOpacity));
+    g.appendChild(bgCircle);
+
+    const text = document.createElementNS('http://www.w3.org/2000/svg','text');
+    text.textContent = label;
+    text.setAttribute('x', p.x.toFixed(2));
+    text.setAttribute('y', p.y.toFixed(2));
+    text.setAttribute('fill', color);
+    text.setAttribute('font-size', fsize);
+    text.setAttribute('font-weight', weight);
+    text.setAttribute('text-anchor', 'middle');
+    text.setAttribute('dominant-baseline', 'middle');
+    text.setAttribute('transform', `rotate(${rotate(midDeg)}, ${p.x.toFixed(2)}, ${p.y.toFixed(2)})`);
+    g.appendChild(text);
+  });
 }
 
 /* ================== レイヤー順（カード最前面） ================== */
@@ -1449,7 +1439,7 @@ function redrawAll(m){
   renderInnerTinyDiv();
   renderInfinity(m);
   renderCenterTopDiamond();
-  renderRoomTexts(m);        // ★ 1-2: room3 の「8-12」
+  renderRoomTexts(m);        // ★ 1-2: room3「8-12」/ 1-3: room6「20-30」
   renderRoomCards();         // ★ カード描画（1-1: room6 扇／1-2: room4 扇）
 }
 redrawAll((window.getCurrentMission && window.getCurrentMission()) || '');
