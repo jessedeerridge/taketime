@@ -113,7 +113,15 @@
     border:1px solid var(--black-card-border-soft);
   }
 
-  .my-hand-wrapper{margin-top:60px;text-align:center;}
+  .stage-board-wrap{
+    margin:14px auto 0;
+    width:min(92vw, 360px);
+    display:flex;
+    justify-content:center;
+    align-items:center;
+  }
+
+  .my-hand-wrapper{margin-top:28px;text-align:center;}
   .my-hand-title{display:none;}
   .my-hand{display:flex;justify-content:center;gap:8px;margin-top:6px;min-height:100px;}
   .my-card{
@@ -135,23 +143,37 @@
   .dialog-box p{margin:0 0 12px;font-size:14px;line-height:1.6;}
   .dialog-buttons{display:flex;justify-content:flex-end;gap:8px;}
 
-  .host-settings-btn{
-    position:fixed;right:16px;bottom:16px;width:44px;height:44px;border-radius:50%;
+  .host-settings-btn,
+  .stage-settings-btn{
+    position:fixed;bottom:16px;width:44px;height:44px;border-radius:50%;
     border:1px solid #ddd;background:#fff;box-shadow:0 8px 20px rgba(0,0,0,.18);
     display:none;align-items:center;justify-content:center;font-size:22px;cursor:pointer;z-index:230;
   }
-  .host-settings-btn.visible{display:flex;}
+  .host-settings-btn{right:16px;}
+  .stage-settings-btn{right:66px;font-size:12px;font-weight:800;letter-spacing:.02em;}
+  .host-settings-btn.visible,
+  .stage-settings-btn.visible{display:flex;}
 
-  .start-pop{
-    position:fixed;right:16px;bottom:72px;background:#fff;border:1px solid #ddd;border-radius:12px;
+  .start-pop,
+  .stage-pop{
+    position:fixed;background:#fff;border:1px solid #ddd;border-radius:12px;
     box-shadow:0 12px 28px rgba(0,0,0,.16);padding:10px 12px;z-index:240;min-width:260px;
     display:flex;flex-direction:column;gap:8px;
   }
-  .start-pop.hidden{display:none;}
-  .start-pop-header{display:flex;justify-content:space-between;align-items:center;gap:8px;}
-  .start-pop-title{font-size:14px;font-weight:600;}
-  .start-pop-main{font-size:13px;line-height:1.5;}
-  .start-pop-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:4px;flex-wrap:wrap;}
+  .start-pop{right:16px;bottom:72px;}
+  .stage-pop{right:66px;bottom:72px;min-width:220px;}
+  .start-pop.hidden,
+  .stage-pop.hidden{display:none;}
+  .start-pop-header,
+  .stage-pop-header{display:flex;justify-content:space-between;align-items:center;gap:8px;}
+  .start-pop-title,
+  .stage-pop-title{font-size:14px;font-weight:600;}
+  .start-pop-main,
+  .stage-pop-main{font-size:13px;line-height:1.5;}
+  .start-pop-actions,
+  .stage-pop-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:4px;flex-wrap:wrap;}
+  .stage-option-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+  .stage-option-btn.active{background:#111;color:#fff;border-color:#111;}
 
   #roomInfoLobby, #lobby h2, #lobby p {display:none;}
   #lobby.entered{
@@ -202,6 +224,159 @@
   .role-desc{flex:1 1 auto;}
   .role-desc .name{font-weight:900;margin-bottom:4px;}
   .role-desc .text{font-size:13px;line-height:1.55;color:#222;white-space:pre-wrap;}
+
+  /* ===== ステージSVG用：元コードの見た目をそのまま維持 ===== */
+  #stageBoard{
+    --size: 360;
+    --bg: transparent;
+    --light: #e6e3e3;
+    --circleFill: var(--light);
+    --triFill: var(--light);
+
+    --outline: 1;
+
+    --innerR: 65;
+    --innerR2: 57;
+    --innerR3: 52;
+
+    --innerR4: 20;
+    --innerR5: 14;
+    --orange: #ab5d1a;
+    --orangeFill: #ab5d1a;
+    --orangeRingOpacity: 1;
+    --ringStroke: #facc15;
+
+    --gold: #d4af37;
+    --bowlStrokeColor: var(--gold);
+
+    --img1Scale: 1; --img1OffX: 0px; --img1OffY: 0px;
+    --img3Scale: 1; --img3OffX: 0px; --img3OffY: 0px;
+
+    --markAlpha: 1;
+    --markStroke: #facc15;
+    --markStrokeW: 1.2;
+    --markLen: 17;
+    --markSpreadDeg: 18;
+
+    --diamondFill: #facc15;
+    --diamondStroke: none;
+    --diamondStrokeW: 0;
+    --diamondW: 2.5;
+    --diamondTop: 4;
+    --diamondBot: 2;
+    --diamondPos: 0.55;
+
+    --centerLineColor: var(--gold);
+    --centerLineW: 1.2;
+    --centerLineGap: 1.0;
+
+    --outTriStroke: #888;
+    --outTriOpacity: 1;
+    --outTriLen: 27;
+    --outTriSpreadDeg: 32;
+    --outTriDrawBase: 0;
+    --outTriInset: 0;
+    --outTriCurveK: 0.38;
+    --outTriBaseCurveK: 0.25;
+
+    --outTriBaseW: 2.6;
+    --outTriTipW:  0.00000001;
+    --outTriBaseW_B: 2.6;
+    --outTriTipW_B:  2.6;
+    --outTriBaseAsArc: 1;
+
+    --goldXScale: 1.2;
+    --goldXStrokeW: 0.6;
+
+    --bowl-dip: 9;
+    --bowl-halfW: 8;
+    --bowl-extra: 4;
+    --bowl-scale: 0.25;
+    --bowl-gap: -13;
+    --bowl-margin-deg: 8;
+    --bowl-stroke: 3;
+    --bowl-offset-x: 0;
+
+    --bowlFillColor: #fff;
+    --bowlFillOpacity: 1;
+    --bowl-cap-R: 130;
+
+    --innerTinyN: 20;
+    --innerTinyColor: #facc15;
+    --innerTinyW: 1.2;
+    --innerTinyOpacity: 1;
+
+    --centerTopColor: #facc15;
+    --centerTopW: 4;
+
+    --infinityColor: #fdba74;
+    --infinityOpacity: 0.95;
+
+    --tipDiaFill: #facc15;
+    --tipDiaStroke: #000;
+    --tipDiaStrokeW: 1;
+    --tipDiaW: 6;
+    --tipDiaH: 8;
+    --tipDiaOffset: 0;
+    --centerTopRotate: 4;
+
+    --cardW: 20;
+    --cardH: 27;
+    --cardR: 4;
+    --cardStroke: #9ca3af;
+    --cardStrokeW: 1;
+
+    --cardFaceCenter: 1;
+    --cardRoom1Deg: 0;
+    --cardRoom6Deg: 0;
+    --cardRoom4Deg: 0;
+
+    --cardRadiusBaseOffset: 0;
+    --cardRoom1Rad: -3;
+    --cardRoom6Rad: -3;
+    --cardRoom4Rad: -3;
+    --cardRoom1Tan: 0;
+    --cardRoom6Tan: 0;
+    --cardRoom4Tan: 0;
+
+    --cardLocalX: 0;
+    --cardLocalY: 0;
+
+    --room6FanCount: 3;
+    --room6FanSpreadDeg: 14;
+    --room6FanTanStep: 6;
+    --room6FanRadStep: -1;
+    --room6FanTopSide: 1;
+
+    --cardFillRoom1: #ffffff;
+    --cardFillRoom6: #a0522d;
+    --cardStrokeRoom6: #000000;
+    --cardFillRoom4: var(--cardFillRoom6);
+    --cardStrokeRoom4: var(--cardStrokeRoom6);
+
+    --roomTextColor: #d4a373;
+    --roomTextSize: 14px;
+    --roomTextWeight: 800;
+    --roomTextDeltaR: 12px;
+    --roomTextBg: #f7ac60;
+    --roomTextBgOpacity: 0.3;
+    --roomTextBgR: 12;
+
+    --clockMarkScale: 1;
+    --clockMarkSize: 44;
+    --clockMarkFill: #ffd8a8;
+    --clockMarkStroke: #5c3a21;
+    --clockMarkStrokeW: 2.8;
+    --clockMarkTextColor: #2b2b2b;
+    --clockMarkDeltaR: -8;
+    --clockMarkTextScale: 1.08;
+
+    width:min(92vw, calc(var(--size)*1px));
+    height:auto;
+    display:block;
+  }
+  #stageBoard .sharp{ stroke-linecap:butt; stroke-linejoin:miter; }
+  #stageBoard #sectorHits .sector { fill: rgba(255,255,0,0); cursor: pointer; pointer-events: fill; }
 </style>
 </head>
 <body>
@@ -227,6 +402,144 @@
     <p>ここにテーブルや情報が表示されます。</p>
 
     <div id="playerCircle" class="player-circle"></div>
+
+    <div class="stage-board-wrap">
+      <svg id="stageBoard" viewBox="0 0 300 300" role="img" aria-label="正円と6つの正三角形（角を丸め・内側配置／外形のみ黒線＋内側リング＋6等分＋R2-R3を30等分＋inner1/3に画像＋指定なし三角＋中心ダイヤ＋中心線＋外向き曲線三角テーパー＋金線X：底辺innerR接触＋指定部屋に新半円ノッチ［白塗り］＋カード最前面回転＋room6扇状＋1-2でroom4扇状/room3テキスト）">
+        <defs>
+          <path id="eqTriPath" d=""/>
+          <filter id="outerStroke" filterUnits="userSpaceOnUse">
+            <feMorphology in="SourceAlpha" operator="dilate" radius="1" result="dil"/>
+            <feMorphology in="SourceAlpha" operator="erode"  radius="1" result="ero"/>
+            <feComposite in="dil" in2="ero" operator="out" result="ring"/>
+            <feColorMatrix in="ring" type="matrix"
+              values="0 0 0 0 0
+                      0 0 0 0 0
+                      0 0 0 0 0
+                      0 0 0 1 0"
+              result="alpha"/>
+            <feFlood flood-color="#000" result="black"/>
+            <feComposite in="black" in2="alpha" operator="in" result="outline"/>
+            <feMerge><feMergeNode in="outline"/></feMerge>
+          </filter>
+
+          <line id="radialSeg6"  x1="0" y1="-90" x2="0" y2="-60" stroke="#000" stroke-width="var(--outline)" stroke-linecap="butt"/>
+          <line id="radialSeg30" x1="0" y1="-57" x2="0" y2="-52" stroke="var(--gold)" stroke-width="var(--outline)" stroke-linecap="butt"/>
+
+          <circle id="clipCircle1" cx="0" cy="0" r="60"/>
+          <circle id="clipCircle3" cx="0" cy="0" r="35"/>
+
+          <clipPath id="clipInner1" clipPathUnits="userSpaceOnUse"><use href="#clipCircle1"/></clipPath>
+          <clipPath id="clipInner3" clipPathUnits="userSpaceOnUse"><use href="#clipCircle3"/></clipPath>
+
+          <clipPath id="clipOuterUnion" clipPathUnits="userSpaceOnUse">
+            <g transform="translate(150,150)">
+              <use href="#eqTriPath" transform="rotate( 90)"/>
+              <use href="#eqTriPath" transform="rotate(150)"/>
+              <use href="#eqTriPath" transform="rotate(210)"/>
+              <use href="#eqTriPath" transform="rotate(270)"/>
+              <use href="#eqTriPath" transform="rotate(330)"/>
+              <use href="#eqTriPath" transform="rotate( 30)"/>
+              <circle r="90"/>
+            </g>
+          </clipPath>
+
+          <linearGradient id="goldXGrad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%"  stop-color="#fff6b0"/>
+            <stop offset="35%" stop-color="#ffd766"/>
+            <stop offset="70%" stop-color="#caa032"/>
+            <stop offset="100%" stop-color="#fff1a2"/>
+          </linearGradient>
+
+          <symbol id="notchedBowl" viewBox="0 0 110 65" overflow="visible">
+            <path id="bowlFill" fill="#fff" stroke="none"/>
+            <path id="bowlPath" fill="none" stroke="var(--bowlStrokeColor)" stroke-width="1.5"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+          </symbol>
+
+          <clipPath id="clipAnnulus45" clipPathUnits="userSpaceOnUse">
+            <path id="clipAnnulus45Path" d=""/>
+          </clipPath>
+
+          <line id="innerTinyLine" x1="0" y1="-20" x2="0" y2="-14"
+                stroke="var(--innerTinyColor)" stroke-width="var(--innerTinyW)"
+                stroke-linecap="butt" stroke-opacity="var(--innerTinyOpacity)"/>
+        </defs>
+
+        <g id="triBack" transform="translate(150,150)" class="sharp" aria-hidden="true">
+          <circle id="outerCircle" r="90" fill="var(--circleFill)"/>
+          <use href="#eqTriPath" transform="rotate( 30)" data-room="1"/>
+          <use href="#eqTriPath" transform="rotate( 90)" data-room="2"/>
+          <use href="#eqTriPath" transform="rotate(150)" data-room="3"/>
+          <use href="#eqTriPath" transform="rotate(210)" data-room="4"/>
+          <use href="#eqTriPath" transform="rotate(270)" data-room="5"/>
+          <use href="#eqTriPath" transform="rotate(330)" data-room="6"/>
+        </g>
+
+        <g transform="translate(150,150)" clip-path="url(#clipInner1)">
+          <image id="imgInner1" href="star.jpg" x="-60" y="-60" width="120" height="120" preserveAspectRatio="xMidYMid slice"/>
+        </g>
+        <g transform="translate(150,150)" clip-path="url(#clipInner3)">
+          <image id="imgInner3" href="sky.jpg" x="-35" y="-35" width="70" height="70" preserveAspectRatio="xMidYMid slice"/>
+        </g>
+
+        <g transform="translate(150,150)" id="unionForOutline" filter="url(#outerStroke)">
+          <g fill="#000">
+            <use href="#eqTriPath" transform="rotate( 90)"/>
+            <use href="#eqTriPath" transform="rotate( 30)"/>
+            <use href="#eqTriPath" transform="rotate(150)"/>
+            <use href="#eqTriPath" transform="rotate(210)"/>
+            <use href="#eqTriPath" transform="rotate(270)"/>
+            <use href="#eqTriPath" transform="rotate(330)"/>
+            <circle r="90"/>
+          </g>
+        </g>
+
+        <g transform="translate(150,150)" id="radials6"  style="pointer-events:none"></g>
+        <g transform="translate(150,150)" id="radials30" style="pointer-events:none"></g>
+
+        <g id="innerRingsBack" transform="translate(150,150)" class="sharp">
+          <circle id="innerRing"  r="60" fill="none" stroke="#000"        stroke-width="var(--outline)"/>
+          <circle id="innerRing3" r="35" fill="none" stroke="var(--gold)" stroke-width="var(--outline)"/>
+        </g>
+
+        <g transform="translate(150,150)" id="stageMarks" style="pointer-events:none"></g>
+        <g transform="translate(150,150)" id="stageOutward" style="pointer-events:none"></g>
+
+        <g id="innerRing2Front" transform="translate(150,150)" class="sharp">
+          <circle id="innerRing2" r="48" fill="none" stroke="var(--gold)" stroke-width="var(--outline)"/>
+        </g>
+
+        <g id="innerOrangeFill" transform="translate(150,150)" class="sharp">
+          <path id="orangeRingFill" fill="var(--orange)" fill-opacity="var(--orangeRingOpacity)" d=""/>
+          <circle id="orangeCenterFill" r="0" fill="var(--orange)" stroke="none"/>
+        </g>
+
+        <g id="innerTiny20" transform="translate(150,150)" class="sharp" style="pointer-events:none"></g>
+
+        <g id="innerRingsOrange" transform="translate(150,150)" class="sharp">
+          <circle id="innerRing4" r="0" fill="none" stroke="var(--ringStroke)" stroke-width="var(--outline)"/>
+          <circle id="innerRing5" r="0" fill="none" stroke="var(--ringStroke)" stroke-width="var(--outline)"/>
+        </g>
+
+        <g id="r5Infinity" transform="translate(150,150)" style="pointer-events:none"></g>
+        <g transform="translate(150,150)" id="stageSpecified" style="pointer-events:none"></g>
+        <g transform="translate(150,150)" id="stageClockMarks" style="pointer-events:none"></g>
+
+        <g transform="translate(150,150)" id="centerTopLineG" style="pointer-events:none">
+          <line id="centerTopLine" x1="0" y1="0" x2="0" y2="-90"
+                stroke="var(--centerTopColor)" stroke-width="var(--centerTopW)" stroke-linecap="round"/>
+        </g>
+        <g transform="translate(150,150)" id="centerTopDiamondG" style="pointer-events:none"></g>
+
+        <text id="missionText" x="292" y="22" text-anchor="end" font-size="18" font-weight="700"
+              font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', Meiryo, Arial, sans-serif"
+              fill="#111"></text>
+
+        <g id="sectorHits" transform="translate(150,150)"></g>
+        <g id="roomTexts" transform="translate(150,150)" style="pointer-events:none"></g>
+        <g id="roomCards" style="pointer-events:none"></g>
+      </svg>
+    </div>
 
     <div class="my-hand-wrapper">
       <div class="my-hand-title">自分のカード</div>
@@ -255,6 +568,7 @@
 </div>
 
 <button id="hostSettingsBtn" class="host-settings-btn" title="設定">⚙</button>
+<button id="stageSettingsBtn" class="stage-settings-btn" title="ステージ">STAGE</button>
 
 <button id="helpBtn" class="help-btn" title="正体カード一覧">？</button>
 
@@ -281,6 +595,17 @@
     <button id="btnResetRoom" class="btn ghost">リセット</button>
     <button id="btnGameStart" class="btn primary">スタート</button>
   </div>
+</div>
+
+<div id="stagePop" class="stage-pop hidden">
+  <div class="stage-pop-header">
+    <div class="stage-pop-title">ステージ選択</div>
+    <button id="btnStagePopClose" class="btn ghost" style="padding:2px 6px;font-size:12px;">×</button>
+  </div>
+  <div class="stage-pop-main">
+    表示するステージ番号を選んでください。
+  </div>
+  <div class="stage-option-grid" id="stageOptionGrid"></div>
 </div>
 
 <script type="module">
@@ -349,6 +674,11 @@ const btnStartPopClose = document.getElementById('btnStartPopClose');
 const btnGameStart = document.getElementById('btnGameStart');
 const btnResetRoom = document.getElementById('btnResetRoom');
 
+const stageSettingsBtn = document.getElementById('stageSettingsBtn');
+const stagePop = document.getElementById('stagePop');
+const btnStagePopClose = document.getElementById('btnStagePopClose');
+const stageOptionGrid = document.getElementById('stageOptionGrid');
+
 const helpBtn = document.getElementById('helpBtn');
 const helpBackdrop = document.getElementById('helpBackdrop');
 const btnHelpClose = document.getElementById('btnHelpClose');
@@ -360,6 +690,10 @@ const ROLE_HELP = [
   { name: "カード3", text: "うううう" },
   { name: "カード4", text: "うううう" },
 ];
+
+const STAGE_CODES = ['1-1', '1-2', '1-3', '2-3'];
+const STAGE_KEY = 'stageCode';
+let currentStage = localStorage.getItem(STAGE_KEY) || '1-1';
 
 let pendingSeatIndexToSteal = null;
 let pendingSeatPlayerIdToSteal = null;
@@ -487,6 +821,7 @@ function updateHostUI(){
     hostSettingsBtn.classList.remove('visible');
     startPop.classList.add('hidden');
   }
+  stageSettingsBtn.classList.add('visible');
   helpBtn.classList.add('visible');
 }
 
@@ -881,6 +1216,7 @@ async function dealInitialHands(){
 hostSettingsBtn.addEventListener('click', () => {
   if (!state.isHost) return;
   startPop.classList.toggle('hidden');
+  stagePop.classList.add('hidden');
 });
 
 btnStartPopClose.addEventListener('click', () => {
@@ -907,6 +1243,1046 @@ btnResetRoom.addEventListener('click', async () => {
   startPop.classList.add('hidden');
   syncSeatUI();
 });
+
+/* ===== ステージ選択UI ===== */
+function renderStageOptions(){
+  stageOptionGrid.innerHTML = '';
+  STAGE_CODES.forEach(code => {
+    const btn = document.createElement('button');
+    btn.className = 'btn stage-option-btn' + (code === currentStage ? ' active' : '');
+    btn.textContent = code;
+    btn.addEventListener('click', () => {
+      setStage(code);
+      renderStageOptions();
+      stagePop.classList.add('hidden');
+    });
+    stageOptionGrid.appendChild(btn);
+  });
+}
+
+function setStage(code){
+  currentStage = STAGE_CODES.includes(code) ? code : '1-1';
+  localStorage.setItem(STAGE_KEY, currentStage);
+  window.dispatchEvent(new CustomEvent('mission:change', { detail:{ value: currentStage }}));
+}
+
+stageSettingsBtn.addEventListener('click', () => {
+  renderStageOptions();
+  stagePop.classList.toggle('hidden');
+  startPop.classList.add('hidden');
+});
+btnStagePopClose.addEventListener('click', () => {
+  stagePop.classList.add('hidden');
+});
+
+/* ===== ステージSVGロジック：元コードをそのまま移植 ===== */
+const stageSvg = document.getElementById('stageBoard');
+
+/* ================== 基本三角（角丸・内向き配置） ================== */
+const SCALE  = 0.92;
+const RADIUS = 8;
+const OUTLINE = parseFloat(getComputedStyle(stageSvg).getPropertyValue('--outline')) || 2;
+
+const V1 = {x:  0.0,  y: -115.0};
+const V2 = {x: -30.0, y:  -75};
+const V3 = {x:  30.0, y:  -75};
+
+const scalePt = (p,k) => ({x:p.x*k, y:p.y*k});
+const v1 = scalePt(V1, SCALE);
+const v2 = scalePt(V2, SCALE);
+const v3 = scalePt(V3, SCALE);
+
+const d = RADIUS * Math.sqrt(3);
+function along(P, Q, dist){
+  const vx = Q.x - P.x, vy = Q.y - P.y;
+  const L = Math.hypot(vx, vy);
+  return { x: P.x + vx / L * dist, y: P.y + vy / L * dist };
+}
+const A1 = along(v1, v3, d), B1 = along(v1, v2, d);
+const A2 = along(v2, v1, d), B2 = along(v2, v3, d);
+const A3 = along(v3, v2, d), B3 = along(v3, v1, d);
+
+const dStr = [
+  `M ${B1.x},${B1.y}`,
+  `L ${A2.x},${A2.y}`,
+  `Q ${v2.x},${v2.y} ${B2.x},${B2.y}`,
+  `L ${A3.x},${A3.y}`,
+  `Q ${v3.x},${v3.y} ${B3.x},${B3.y}`,
+  `L ${A1.x},${A1.y}`,
+  `Q ${v1.x},${v1.y} ${B1.x},${B1.y} Z`
+].join(' ');
+stageSvg.querySelector('#eqTriPath').setAttribute('d', dStr);
+
+/* ============== 外形線フィルタ半径合わせ（黒輪郭） ============== */
+const filter = stageSvg.querySelector('#outerStroke');
+const nodes = filter.querySelectorAll('feMorphology');
+const radiusMorph = Math.max(OUTLINE/2, 0.5);
+nodes.forEach(el => el.setAttribute('radius', radiusMorph));
+
+const union = stageSvg.querySelector('#unionForOutline');
+const margin = OUTLINE * 2 + 4;
+const bbox = union.getBBox();
+filter.setAttribute('x', bbox.x - margin);
+filter.setAttribute('y', bbox.y - margin);
+filter.setAttribute('width',  bbox.width  + margin*2);
+filter.setAttribute('height', bbox.height + margin*2);
+
+/* ================== 半径など / スタイル参照 ================== */
+const cs = getComputedStyle(stageSvg);
+let innerR  = parseFloat(cs.getPropertyValue('--innerR'))  || 60;
+let innerR2 = parseFloat(cs.getPropertyValue('--innerR2')) || 48;
+let innerR3 = parseFloat(cs.getPropertyValue('--innerR3')) || 35;
+let innerR4 = parseFloat(cs.getPropertyValue('--innerR4')) || 28;
+let innerR5 = parseFloat(cs.getPropertyValue('--innerR5')) || 14;
+
+const outerR = 90;
+
+stageSvg.querySelector('#innerRing').setAttribute('r', innerR);
+stageSvg.querySelector('#innerRing2').setAttribute('r', innerR2);
+stageSvg.querySelector('#innerRing3').setAttribute('r', innerR3);
+
+const r1 = parseFloat(cs.getPropertyValue('--innerR'))  || 65;
+const r5css = parseFloat(cs.getPropertyValue('--innerR5')) || 20;
+const line = stageSvg.querySelector('#centerTopLine');
+line.setAttribute('y1', -r5css);
+line.setAttribute('y2', -r1);
+
+function updateOrangeGraphics(){
+  const cs2 = getComputedStyle(stageSvg);
+  innerR4 = parseFloat(cs2.getPropertyValue('--innerR4')) || innerR4;
+  innerR5 = parseFloat(cs2.getPropertyValue('--innerR5')) || innerR5;
+
+  stageSvg.querySelector('#innerRing4').setAttribute('r', innerR4);
+  stageSvg.querySelector('#innerRing5').setAttribute('r', innerR5);
+  stageSvg.querySelector('#orangeCenterFill').setAttribute('r', innerR5);
+
+  const dRing = [
+    `M ${ innerR4 } 0`,
+    `A ${ innerR4 } ${ innerR4 } 0 1 0 ${ -innerR4 } 0`,
+    `A ${ innerR4 } ${ innerR4 } 0 1 0 ${  innerR4 } 0`,
+    `M ${ innerR5 } 0`,
+    `A ${ innerR5 } ${ innerR5 } 0 1 1 ${ -innerR5 } 0`,
+    `A ${ innerR5 } ${ innerR5 } 0 1 1 ${  innerR5 } 0 Z`
+  ].join(' ');
+  const ringEl = stageSvg.querySelector('#orangeRingFill');
+  ringEl.setAttribute('d', dRing);
+  ringEl.setAttribute('fill-rule', 'evenodd');
+
+  const cpPath = stageSvg.querySelector('#clipAnnulus45Path');
+  if (cpPath) {
+    cpPath.setAttribute('d', dRing);
+    cpPath.setAttribute('fill-rule','evenodd');
+  }
+}
+updateOrangeGraphics();
+
+stageSvg.querySelector('#clipCircle1').setAttribute('r', innerR);
+stageSvg.querySelector('#clipCircle3').setAttribute('r', innerR3);
+
+/* ================== 放射線（6等分 / 30等分） ================== */
+const seg6 = stageSvg.querySelector('#radialSeg6');
+seg6.setAttribute('y1', -outerR);
+seg6.setAttribute('y2', -innerR);
+
+const radials6 = stageSvg.querySelector('#radials6');
+for(let i=0; i<6; i++){
+  const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+  use.setAttributeNS('http://www.w3.org/1999/xlink', 'href', '#radialSeg6');
+  use.setAttribute('transform', `rotate(${i*60})`);
+  radials6.appendChild(use);
+}
+
+const seg30 = stageSvg.querySelector('#radialSeg30');
+const rOuter = Math.max(innerR2, innerR3);
+const rInner = Math.min(innerR2, innerR3);
+seg30.setAttribute('y1', -rOuter);
+seg30.setAttribute('y2', -rInner);
+
+const radials30 = stageSvg.querySelector('#radials30');
+for(let i=0; i<30; i++){
+  const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+  use.setAttributeNS('http://www.w3.org/1999/xlink', 'href', '#radialSeg30');
+  use.setAttribute('transform', `rotate(${i*12})`);
+  radials30.appendChild(use);
+}
+
+/* ================== 画像フィット ================== */
+function applyImageFit(imgEl, radius, scaleVar, offXVar, offYVar){
+  const cs3 = getComputedStyle(stageSvg);
+  const scale = parseFloat(cs3.getPropertyValue(scaleVar)) || 1;
+  const base = 2 * radius * scale;
+  imgEl.setAttribute('width',  base);
+  imgEl.setAttribute('height', base);
+  const offX = parseFloat(cs3.getPropertyValue(offXVar)) || 0;
+  const offY = parseFloat(cs3.getPropertyValue(offYVar)) || 0;
+  imgEl.setAttribute('x', -base/2 + offX);
+  imgEl.setAttribute('y', -base/2 + offY);
+  imgEl.setAttribute('preserveAspectRatio', 'xMidYMid slice');
+}
+applyImageFit(stageSvg.querySelector('#imgInner1'), innerR,  '--img1Scale','--img1OffX','--img1OffY');
+applyImageFit(stageSvg.querySelector('#imgInner3'), innerR3, '--img3Scale','--img3OffX','--img3OffY');
+
+/* ================== 角度/座標ユーティリティ ================== */
+function polar(r, deg){
+  const rad = (deg - 90) * Math.PI/180;
+  return { x: r * Math.cos(rad), y: r * Math.sin(rad) };
+}
+function sectorPath(rIn, rOut, a0, a1){
+  const p1 = polar(rIn, a0), p2 = polar(rOut, a0);
+  const p3 = polar(rOut, a1), p4 = polar(rIn, a1);
+  const large = (a1 - a0) > 180 ? 1 : 0;
+  return [
+    `M ${p1.x},${p1.y}`,
+    `L ${p2.x},${p2.y}`,
+    `A ${rOut},${rOut} 0 ${large} 1 ${p3.x},${p3.y}`,
+    `L ${p4.x},${p4.y}`,
+    `A ${rIn},${rIn} 0 ${large} 0 ${p1.x},${p1.y}`,
+    'Z'
+  ].join(' ');
+}
+function clickAngleDeg(svgPoint, center){
+  const dx = svgPoint.x - center.x;
+  const dy = svgPoint.y - center.y;
+  let ang = Math.atan2(dy, dx) * 180/Math.PI;
+  ang = (ang + 90 + 360) % 360;
+  return ang;
+}
+
+/* ================== 6等分セクタ（当たり判定） ================== */
+(function setupSectors(){
+  const g = stageSvg.querySelector('#sectorHits');
+  const rIn  = innerR;
+  const rOut = outerR;
+
+  for(let i=0;i<6;i++){
+    const a0 = i*60;
+    const a1 = a0 + 60;
+    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('class','sector');
+    path.setAttribute('d', sectorPath(rIn, rOut, a0, a1));
+    path.dataset.room = String(i+1);
+    g.appendChild(path);
+  }
+
+  g.addEventListener('click', (ev)=>{
+    const target = ev.target.closest('.sector');
+    if(!target) return;
+    const roomNo = parseInt(target.dataset.room, 10) || 0;
+
+    const pt = stageSvg.createSVGPoint(); pt.x = ev.clientX; pt.y = ev.clientY;
+    const svgPt = pt.matrixTransform(stageSvg.getScreenCTM().inverse());
+    const ang = clickAngleDeg(svgPt, {x:150, y:150});
+
+    window.dispatchEvent(new CustomEvent('room:click', { detail: { room: roomNo, angle: ang }}));
+    console.log('[room click]', {roomNo, angle: Math.round(ang)});
+  });
+
+  window.flashRoom = ()=>{};
+})();
+
+/* ================== ステージ定義 ================== */
+const stageMarksG = stageSvg.querySelector('#stageMarks');
+const stageSpecifiedG = stageSvg.querySelector('#stageSpecified');
+const stageClockG = stageSvg.querySelector('#stageClockMarks');
+const missionTextEl = stageSvg.querySelector('#missionText');
+
+const STAGE_SPEC = {
+  '1-1': { specifiedRooms: [1,6] },
+  '1-2': { specifiedRooms: [3,4] },
+  '1-3': { specifiedRooms: [2,3,6] },
+  '2-3': { specifiedRooms: [2,3,6] },
+};
+function getSpecifiedRoomsForMission(mission){
+  const rec = STAGE_SPEC[mission];
+  return rec?.specifiedRooms || [];
+}
+
+const STAGE_CLOCK_LABELS = {
+  '1-3': { 2: '2', 3: '1' },
+};
+function getClockLabelsForMission(mission){
+  return STAGE_CLOCK_LABELS[mission] || null;
+}
+
+function renderStageMarks(mission){
+  while(stageMarksG.firstChild) stageMarksG.removeChild(stageMarksG.firstChild);
+
+  const specified = new Set(getSpecifiedRoomsForMission(mission));
+  const cs4 = getComputedStyle(stageSvg);
+  const rBase  = innerR;
+  const len    = parseFloat(cs4.getPropertyValue('--markLen')) || 12;
+  const spread = parseFloat(cs4.getPropertyValue('--markSpreadDeg')) || 18;
+
+  const stroke = cs4.getPropertyValue('--markStroke').trim() || '#facc15';
+  const sw     = parseFloat(cs4.getPropertyValue('--markStrokeW')) || 2;
+  const alpha  = parseFloat(cs4.getPropertyValue('--markAlpha')) || 1;
+
+  const diaFill   = cs4.getPropertyValue('--diamondFill').trim()   || '#facc15';
+  const diaStroke = cs4.getPropertyValue('--diamondStroke').trim() || 'none';
+  const diaSW     = parseFloat(cs4.getPropertyValue('--diamondStrokeW')) || 0;
+  const diaW      = Math.abs(parseFloat(cs4.getPropertyValue('--diamondW')) || 2.5);
+  const diaTop    = Math.abs(parseFloat(cs4.getPropertyValue('--diamondTop')) || 4);
+  const diaBot    = Math.abs(parseFloat(cs4.getPropertyValue('--diamondBot')) || 2);
+  const diaPos    = Math.min(0.95, Math.max(0.05, parseFloat(cs4.getPropertyValue('--diamondPos')) || 0.55));
+
+  const centerLineColor = cs4.getPropertyValue('--centerLineColor').trim() || stroke;
+  const centerLineW     = parseFloat(cs4.getPropertyValue('--centerLineW')) || sw;
+  const centerLineGap   = Math.max(0, parseFloat(cs4.getPropertyValue('--centerLineGap')) || 0);
+
+  const defs = stageSvg.querySelector('defs');
+
+  for(let room=1; room<=6; room++){
+    if(specified.has(room)) continue;
+
+    const midDeg = (room-1)*60 + 30;
+    const a0 = midDeg - spread/2;
+    const a1 = midDeg + spread/2;
+
+    const p0  = polar(rBase, a0);
+    const p1  = polar(rBase, a1);
+    const tip = polar(rBase - len, midDeg);
+
+    const dFill = `M ${p0.x},${p0.y} L ${tip.x},${tip.y} L ${p1.x},${p1.y} Z`;
+    const clipId = `markClip-${room}`;
+    const oldClip = stageSvg.querySelector(`#${clipId}`);
+    if (oldClip) oldClip.remove();
+
+    const cp = document.createElementNS('http://www.w3.org/2000/svg','clipPath');
+    cp.setAttribute('id', clipId);
+    const pathFill = document.createElementNS('http://www.w3.org/2000/svg','path');
+    pathFill.setAttribute('d', dFill);
+    cp.appendChild(pathFill);
+    defs.appendChild(cp);
+
+    const imgSize = Math.ceil(2 * rBase);
+    const img = document.createElementNS('http://www.w3.org/2000/svg','image');
+    img.setAttributeNS('http://www.w3.org/1999/xlink','href','star.jpg');
+    img.setAttribute('x', -imgSize/2);
+    img.setAttribute('y', -imgSize/2);
+    img.setAttribute('width',  imgSize);
+    img.setAttribute('height', imgSize);
+    img.setAttribute('preserveAspectRatio','xMidYMid slice');
+    img.setAttribute('clip-path', `url(#${clipId})`);
+    stageMarksG.appendChild(img);
+
+    const rCenter = rBase - len * diaPos;
+    const deltaDeg = (diaW / Math.max(1, rCenter)) * 180/Math.PI;
+    const ptTop    = polar(rCenter - diaTop,  midDeg);
+    const ptBottom = polar(rCenter + diaBot,  midDeg);
+    const ptLeft   = polar(rCenter,           midDeg - deltaDeg);
+    const ptRight  = polar(rCenter,           midDeg + deltaDeg);
+
+    const dDiamond = `M ${ptLeft.x},${ptLeft.y} L ${ptTop.x},${ptTop.y} L ${ptRight.x},${ptRight.y} L ${ptBottom.x},${ptBottom.y} Z`;
+    const diamond = document.createElementNS('http://www.w3.org/2000/svg','path');
+    diamond.setAttribute('d', dDiamond);
+    diamond.setAttribute('fill', diaFill);
+    diamond.setAttribute('stroke', diaStroke);
+    diamond.setAttribute('stroke-width', diaSW);
+    stageMarksG.appendChild(diamond);
+
+    const dLines = `M ${p0.x},${p0.y} L ${tip.x},${tip.y} M ${tip.x},${tip.y} L ${p1.x},${p1.y}`;
+    const pathStroke = document.createElementNS('http://www.w3.org/2000/svg','path');
+    pathStroke.setAttribute('d', dLines);
+    pathStroke.setAttribute('fill', 'none');
+    pathStroke.setAttribute('stroke', stroke);
+    pathStroke.setAttribute('stroke-width', sw);
+    pathStroke.setAttribute('stroke-opacity', alpha);
+    pathStroke.setAttribute('stroke-linecap', 'butt');
+    pathStroke.setAttribute('stroke-linejoin', 'miter');
+    pathStroke.setAttribute('data-room', String(room));
+    stageMarksG.appendChild(pathStroke);
+
+    const startR = Math.max(innerR - centerLineGap, 0);
+    const endR   = rCenter;
+    const pStart = polar(startR, midDeg);
+    const pEnd   = polar(endR,   midDeg);
+    const centerLine = document.createElementNS('http://www.w3.org/2000/svg','path');
+    centerLine.setAttribute('d', `M ${pStart.x},${pStart.y} L ${pEnd.x},${pEnd.y}`);
+    centerLine.setAttribute('fill', 'none');
+    centerLine.setAttribute('stroke', centerLineColor);
+    centerLine.setAttribute('stroke-width', centerLineW);
+    centerLine.setAttribute('stroke-linecap', 'butt');
+    centerLine.setAttribute('stroke-linejoin', 'miter');
+    stageMarksG.appendChild(centerLine);
+  }
+}
+
+function renderClockMarks(mission){
+  if(!stageClockG) return;
+  while(stageClockG.firstChild) stageClockG.removeChild(stageClockG.firstChild);
+
+  const labels = getClockLabelsForMission(mission);
+  if(!labels) return;
+
+  const csClock = getComputedStyle(stageSvg);
+  const scale = parseFloat(csClock.getPropertyValue('--clockMarkScale')) || 1;
+  const roomFs = parseFloat(csClock.getPropertyValue('--roomTextSize')) || 12;
+  const roomBgRVar = parseFloat(csClock.getPropertyValue('--roomTextBgR'));
+  const roomBgR = Number.isNaN(roomBgRVar) ? (roomFs * 0.95) : roomBgRVar;
+  const ringR = Math.max(4, roomBgR * scale);
+  const size = ringR * 2;
+  const tickOuter = ringR * 0.98;
+  const tickInner = ringR * 0.84;
+
+  const fill = csClock.getPropertyValue('--clockMarkFill').trim() || '#ffd8a8';
+  const stroke = csClock.getPropertyValue('--clockMarkStroke').trim() || '#5c3a21';
+  const strokeW = Math.max(0.6, (parseFloat(csClock.getPropertyValue('--clockMarkStrokeW')) || 2.8) * scale);
+  const textColor = csClock.getPropertyValue('--clockMarkTextColor').trim() || '#2b2b2b';
+  const deltaR = parseFloat(csClock.getPropertyValue('--clockMarkDeltaR')) || 0;
+  const textScale = parseFloat(csClock.getPropertyValue('--clockMarkTextScale')) || 1;
+
+  Object.entries(labels).forEach(([roomStr, text])=>{
+    const room = Number(roomStr);
+    if(!(room >= 1 && room <= 6)) return;
+
+    const midDeg = (room - 1) * 60 + 30;
+    const pos = polar((innerR + outerR) / 2 + 4 + deltaR, midDeg);
+
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.setAttribute('transform', `translate(${pos.x},${pos.y})`);
+
+    const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    c.setAttribute('cx', '0');
+    c.setAttribute('cy', '0');
+    c.setAttribute('r', ringR.toFixed(2));
+    c.setAttribute('fill', fill);
+    c.setAttribute('stroke', stroke);
+    c.setAttribute('stroke-width', strokeW.toFixed(2));
+    g.appendChild(c);
+
+    for(let i=0;i<12;i++){
+      const a = (i * 30) * Math.PI / 180;
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', (tickInner * Math.cos(a)).toFixed(2));
+      line.setAttribute('y1', (tickInner * Math.sin(a)).toFixed(2));
+      line.setAttribute('x2', (tickOuter * Math.cos(a)).toFixed(2));
+      line.setAttribute('y2', (tickOuter * Math.sin(a)).toFixed(2));
+      line.setAttribute('stroke', stroke);
+      line.setAttribute('stroke-width', Math.max(0.5, strokeW * 0.8).toFixed(2));
+      line.setAttribute('stroke-linecap', 'round');
+      g.appendChild(line);
+    }
+
+    const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    t.textContent = text;
+    t.setAttribute('x', '0');
+    t.setAttribute('y', '0.8');
+    t.setAttribute('fill', textColor);
+    t.setAttribute('font-size', String(Math.max(4, size * 0.34 * textScale)));
+    t.setAttribute('font-weight', '700');
+    t.setAttribute('text-anchor', 'middle');
+    t.setAttribute('dominant-baseline', 'middle');
+    g.appendChild(t);
+
+    stageClockG.appendChild(g);
+  });
+}
+
+function quadPoint(p0, c, p1, t){
+  const u=1-t;
+  return { x:u*u*p0.x + 2*u*t*c.x + t*t*p1.x, y:u*u*p0.y + 2*u*t*c.y + t*t*p1.y };
+}
+function quadTangent(p0, c, p1, t){
+  return { x:2*(1-t)*(c.x-p0.x)+2*t*(p1.x-c.x), y:2*(1-t)*(c.y-p0.y)+2*t*(p1.y-c.y) };
+}
+function taperedQuadRibbonPath(p0, c, p1, w0, w1, steps = 12){
+  const left = [], right = [];
+  function easeHalf(t){ return Math.min(t * 1.3, 1); }
+  for(let i=0; i<=steps; i++){
+    const t  = i / steps;
+    const te = easeHalf(t);
+    const p  = quadPoint(p0, c, p1, t);
+    const tg = quadTangent(p0, c, p1, t);
+    const L  = Math.hypot(tg.x, tg.y) || 1;
+    const nx = -tg.y / L, ny = tg.x / L;
+    const w  = (w0 + (w1 - w0) * te);
+    left.push({ x: p.x + nx * (w/2), y: p.y + ny * (w/2) });
+  }
+  for(let i=steps; i>=0; i--){
+    const t  = i / steps;
+    const te = easeHalf(t);
+    const p  = quadPoint(p0, c, p1, t);
+    const tg = quadTangent(p0, c, p1, t);
+    const L  = Math.hypot(tg.x, tg.y) || 1;
+    const nx = -tg.y / L, ny = tg.x / L;
+    const w  = (w0 + (w1 - w0) * te);
+    right.push({ x: p.x - nx * (w/2), y: p.y - ny * (w/2) });
+  }
+  const pts = [...left, ...right];
+  return 'M ' + pts.map(p => `${p.x},${p.y}`).join(' L ') + ' Z';
+}
+
+const stageOutG = stageSvg.querySelector('#stageOutward');
+
+function appendGoldX(parentG, triClipId, midDeg, len, rBase, spread){
+  const cs5  = getComputedStyle(stageSvg);
+  const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+  g.setAttribute('clip-path', `url(#${triClipId})`);
+
+  const kCSS  = parseFloat(cs5.getPropertyValue('--goldXScale')) || 0.56;
+  const chord = 2 * (rBase + len*0.58) * Math.sin((spread * Math.PI/180)/2);
+  const unitS = Math.min(len * 0.98, chord * 0.86) * kCSS;
+  const s     = unitS / 20;
+
+  const pos = polar(rBase + len * 0.56, midDeg);
+  const tr = `translate(${pos.x},${pos.y}) rotate(${midDeg}) scale(${s}) translate(${-10},${-12})`;
+
+  function mk(dStr){
+    const p = document.createElementNS('http://www.w3.org/2000/svg','path');
+    p.setAttribute('d', dStr);
+    p.setAttribute('fill', 'none');
+    p.setAttribute('stroke', '#facc15');
+    const baseW = parseFloat(cs5.getPropertyValue('--goldXStrokeW')) || 0.40;
+    p.setAttribute('stroke-width', baseW);
+    p.setAttribute('stroke-linecap','round');
+    p.setAttribute('stroke-linejoin','round');
+    p.setAttribute('transform', tr);
+    return p;
+  }
+
+  [
+    "M12 20 L8.951 16.515 Q5 12 8.180 6.912 L10 4",
+    "M14 20 L10.951 16.515 Q7 12 10.087 6.855 L10 7",
+    "M6  20 L9.049 16.515 Q13 12 9.913 6.855 L10 7",
+    "M8  20 L11.049 16.515 Q15 12 11.820 6.912 L10 4"
+  ].forEach(d => g.appendChild(mk(d)));
+
+  parentG.appendChild(g);
+}
+
+function renderOutwardMarks(mission){
+  while(stageOutG.firstChild) stageOutG.removeChild(stageOutG.firstChild);
+
+  const specified = new Set(getSpecifiedRoomsForMission(mission));
+
+  const cs6 = getComputedStyle(stageSvg);
+  const rBase    = innerR + (parseFloat(cs6.getPropertyValue('--outTriInset')) || 0);
+  const len      = Math.abs(parseFloat(cs6.getPropertyValue('--outTriLen')) || 16);
+  const spread   = Math.abs(parseFloat(cs6.getPropertyValue('--outTriSpreadDeg')) || 22);
+
+  const color   = cs6.getPropertyValue('--outTriStroke').trim() || '#111';
+  const opacity = parseFloat(cs6.getPropertyValue('--outTriOpacity')) || 1;
+
+  const kCurve  = Math.max(0, Math.min(1, parseFloat(cs6.getPropertyValue('--outTriCurveK')) || 0));
+  const baseW = Math.abs(parseFloat(cs6.getPropertyValue('--outTriBaseW')) || 2.6);
+  const tipW  = Math.abs(parseFloat(cs6.getPropertyValue('--outTriTipW'))  || 0.6);
+
+  const defs = stageSvg.querySelector('defs');
+
+  for(let room=1; room<=6; room++){
+    if(specified.has(room)) continue;
+
+    const midDeg = (room-1)*60 + 30;
+    const aL = midDeg - spread/2;
+    const aR = midDeg + spread/2;
+
+    const pL  = polar(rBase, aL);
+    const pR  = polar(rBase, aR);
+    const tip = polar(rBase + len, midDeg);
+
+    const cL = (()=>{ const midDegL = (aL + midDeg)/2;
+      const r = (rBase + (rBase+len))/2 + len * kCurve * 0.6; return polar(r, midDegL); })();
+    const cR = (()=>{ const midDegR = (aR + midDeg)/2;
+      const r = (rBase + (rBase+len))/2 + len * kCurve * 0.6; return polar(r, midDegR); })();
+
+    const dLeftRibbon  = taperedQuadRibbonPath(pL, cL, tip, baseW, tipW, 12);
+    const dRightRibbon = taperedQuadRibbonPath(pR, cR, tip, baseW, tipW, 12);
+
+    const leftRibbon = document.createElementNS('http://www.w3.org/2000/svg','path');
+    leftRibbon.setAttribute('d', dLeftRibbon);
+    leftRibbon.setAttribute('fill', color);
+    leftRibbon.setAttribute('fill-opacity', opacity);
+    stageOutG.appendChild(leftRibbon);
+
+    const rightRibbon = document.createElementNS('http://www.w3.org/2000/svg','path');
+    rightRibbon.setAttribute('d', dRightRibbon);
+    rightRibbon.setAttribute('fill', color);
+    rightRibbon.setAttribute('fill-opacity', opacity);
+    stageOutG.appendChild(rightRibbon);
+
+    const dTriArea = [
+      `M ${pL.x},${pL.y}`,
+      `Q ${cL.x},${cL.y} ${tip.x},${tip.y}`,
+      `Q ${cR.x},${cR.y} ${pR.x},${pR.y}`,
+      `A ${innerR},${innerR} 0 0 1 ${pL.x},${pL.y}`,
+      'Z'
+    ].join(' ');
+
+    const clipId = `outTriClip-${room}`;
+    const oldClip = stageSvg.querySelector(`#${clipId}`);
+    if (oldClip) oldClip.remove();
+
+    const cp = document.createElementNS('http://www.w3.org/2000/svg','clipPath');
+    cp.setAttribute('id', clipId);
+    const triPath = document.createElementNS('http://www.w3.org/2000/svg','path');
+    triPath.setAttribute('d', dTriArea);
+    cp.appendChild(triPath);
+    defs.appendChild(cp);
+
+    appendGoldX(stageOutG, clipId, midDeg, len, rBase, spread);
+  }
+}
+
+function makeBowlPaths({dip=9, halfW=8, extra=4}={}) {
+  const R0 = 45, Cx = 50, Cy = 5;
+  const R  = R0 + extra;
+  const xL = 5  - extra, yL = 5;
+  const xR = 95 + extra, yR = 5;
+
+  const yJoin = Cy + Math.sqrt(R0*R0 - halfW*halfW);
+  const xLJ   = Cx - halfW;
+  const xRJ   = Cx + halfW;
+
+  const xDeep = Cx;
+  const yDeep = Cy + R0 + dip;
+
+  const rS = Math.max(2, Math.min(20, 0.9*halfW + 0.6*dip));
+
+  const cs7 = getComputedStyle(stageSvg);
+  const L = xR - xL;
+  const halfChord = L / 2;
+
+  const capDeg = parseFloat(cs7.getPropertyValue('--bowl-cap-deg'));
+  const capSag = parseFloat(cs7.getPropertyValue('--bowl-cap-sag'));
+  let   Rcap   = parseFloat(cs7.getPropertyValue('--bowl-cap-R')) || 90;
+
+  if (!Number.isNaN(capDeg)) {
+    const th = Math.max(1, Math.min(359, capDeg)) * Math.PI/180;
+    Rcap = L / (2 * Math.sin(th/2));
+  } else if (!Number.isNaN(capSag)) {
+    const h = Math.max(0.5, capSag);
+    Rcap = (L*L) / (8*h) + h/2;
+  }
+  Rcap = Math.max(halfChord + 1e-3, Rcap);
+
+  let largeArcFlag = 0;
+  if (!Number.isNaN(capDeg) && capDeg > 180) largeArcFlag = 1;
+
+  const dFill =
+    `M ${xL} ${yL}` +
+    ` A ${R} ${R} 0 0 0 ${xLJ} ${yJoin}` +
+    ` A ${rS} ${rS} 0 0 1 ${xDeep} ${yDeep}` +
+    ` A ${rS} ${rS} 0 0 1 ${xRJ} ${yJoin}` +
+    ` A ${R} ${R} 0 0 0 ${xR} ${yR}` +
+    ` A ${Rcap} ${Rcap} 0 ${largeArcFlag} 0 ${xL} ${yL}` +
+     ` Z`;
+
+  const dStroke =
+    `M ${xL} ${yL}` +
+    ` A ${R} ${R} 0 0 0 ${xLJ} ${yJoin}` +
+    ` A ${rS} ${rS} 0 0 1 ${xDeep} ${yDeep}` +
+    ` A ${rS} ${rS} 0 0 1 ${xRJ} ${yJoin}` +
+    ` A ${R} ${R} 0 0 0 ${xR} ${yR}`;
+
+  return { dStroke, dFill };
+}
+
+(function setupBowlSymbol(){
+  const cs8 = getComputedStyle(stageSvg);
+  const dip   = parseFloat(cs8.getPropertyValue('--bowl-dip'))   || 9;
+  const halfW = parseFloat(cs8.getPropertyValue('--bowl-halfW')) || 8;
+  const extra = parseFloat(cs8.getPropertyValue('--bowl-extra')) || 4;
+  const { dStroke, dFill } = makeBowlPaths({dip, halfW, extra});
+
+  const pFill = stageSvg.querySelector('#bowlFill');
+  pFill.setAttribute('d', dFill);
+  pFill.setAttribute('fill', '#e0ffff');
+  pFill.setAttribute('stroke','none');
+
+  const pStroke = stageSvg.querySelector('#bowlPath');
+  pStroke.setAttribute('d', dStroke);
+  const sw = parseFloat(cs8.getPropertyValue('--bowl-stroke')) || 1.5;
+  pStroke.setAttribute('stroke-width', sw);
+  pStroke.setAttribute('fill', 'none');
+})();
+
+function renderEqTriBackFill(mission){
+  const triBack = stageSvg.querySelector('#triBack');
+  if(!triBack) return;
+  const specified = new Set(getSpecifiedRoomsForMission(mission));
+  const defaultFill = getComputedStyle(stageSvg).getPropertyValue('--triFill').trim() || '#ddd';
+
+  for(let room=1; room<=6; room++){
+    const use = triBack.querySelector(`use[data-room="${room}"]`);
+    if(!use) continue;
+    if(specified.has(room)){
+      use.setAttribute('fill', '#e0ffff');
+    }else{
+      use.setAttribute('fill', defaultFill);
+    }
+  }
+}
+
+function renderSpecifiedBowls(mission){
+  while(stageSpecifiedG.firstChild) stageSpecifiedG.removeChild(stageSpecifiedG.firstChild);
+
+  const specified = new Set(getSpecifiedRoomsForMission(mission));
+  if(specified.size === 0) return;
+
+  const cs9 = getComputedStyle(stageSvg);
+  const scale   = parseFloat(cs9.getPropertyValue('--bowl-scale')) || 0.52;
+  const gap     = parseFloat(cs9.getPropertyValue('--bowl-gap'))   || 1.8;
+  const offsetX = parseFloat(cs9.getPropertyValue('--bowl-offset-x')) || -21;
+
+  const VB_TOP = 5, VB_CX = 50;
+
+  const fillColor   = cs9.getPropertyValue('--bowlFillColor').trim() || '#fff';
+  const fillOpacity = Math.max(0, Math.min(1, parseFloat(cs9.getPropertyValue('--bowlFillOpacity')) || 1));
+
+  const defs = stageSvg.querySelector('defs');
+
+  specified.forEach(room=>{
+    const a0 = (room-1)*60;
+    const a1 = a0 + 60;
+
+    const dSector = sectorPath(innerR, outerR, a0, a1);
+
+    const Rtarget = outerR - gap;
+    const midDeg  = a0 + 30;
+    const pos = polar( Rtarget - (VB_TOP * scale), midDeg );
+    const bowlTr = `translate(${pos.x},${pos.y}) rotate(${midDeg}) translate(${(-VB_CX*scale + offsetX)},0) scale(${scale})`;
+
+    const maskId = `bowlMask-room${room}`;
+    const oldMask = stageSvg.querySelector(`#${maskId}`);
+    if (oldMask) oldMask.remove();
+
+    const mask = document.createElementNS('http://www.w3.org/2000/svg','mask');
+    mask.setAttribute('id', maskId);
+    mask.setAttribute('maskUnits','userSpaceOnUse');
+
+    const mWhite = document.createElementNS('http://www.w3.org/2000/svg','path');
+    mWhite.setAttribute('d', dSector);
+    mWhite.setAttribute('fill', '#fff');
+    mask.appendChild(mWhite);
+
+    const mBowl = document.createElementNS('http://www.w3.org/2000/svg','use');
+    mBowl.setAttributeNS('http://www.w3.org/1999/xlink','href', '#notchedBowl');
+    mBowl.setAttribute('transform', bowlTr);
+    mBowl.setAttribute('fill', '#000');
+    mBowl.setAttribute('stroke', 'none');
+    mask.appendChild(mBowl);
+
+    defs.appendChild(mask);
+
+    const sectorFill = document.createElementNS('http://www.w3.org/2000/svg','path');
+    sectorFill.setAttribute('d', dSector);
+    sectorFill.setAttribute('fill', fillColor);
+    sectorFill.setAttribute('fill-opacity', String(fillOpacity));
+    sectorFill.setAttribute('mask', `url(#${maskId})`);
+    sectorFill.setAttribute('clip-path', 'url(#clipOuterUnion)');
+    stageSpecifiedG.appendChild(sectorFill);
+
+    const use = document.createElementNS('http://www.w3.org/2000/svg','use');
+    use.setAttributeNS('http://www.w3.org/1999/xlink','href', '#notchedBowl');
+    use.setAttribute('transform', bowlTr);
+    use.setAttribute('aria-label', `指定部屋ノッチ room ${room}`);
+    stageSpecifiedG.appendChild(use);
+  });
+}
+
+function renderInnerTinyDiv() {
+  const g = stageSvg.querySelector('#innerTiny20');
+  if (!g) return;
+  while (g.firstChild) g.removeChild(g.firstChild);
+
+  const cs10 = getComputedStyle(stageSvg);
+  const N  = Math.max(1, parseInt(cs10.getPropertyValue('--innerTinyN')) || 20);
+
+  const r4 = parseFloat(cs10.getPropertyValue('--innerR4')) || 20;
+  const r5 = parseFloat(cs10.getPropertyValue('--innerR5')) || 14;
+
+  const tmpl = stageSvg.querySelector('#innerTinyLine');
+  tmpl.setAttribute('y1', -r4);
+  tmpl.setAttribute('y2', -r5);
+
+  g.setAttribute('clip-path', 'url(#clipAnnulus45)');
+
+  for (let i = 0; i < N; i++) {
+    const use = document.createElementNS('http://www.w3.org/2000/svg','use');
+    use.setAttributeNS('http://www.w3.org/1999/xlink','href','#innerTinyLine');
+    use.setAttribute('transform', `rotate(${(360/N)*i})`);
+    g.appendChild(use);
+  }
+}
+
+function renderInfinity(mission){
+  const g = stageSvg.querySelector('#r5Infinity');
+  if(!g) return;
+  while(g.firstChild) g.removeChild(g.firstChild);
+  if(mission !== '1-1') return;
+
+  const cs11 = getComputedStyle(stageSvg);
+  const r5 = parseFloat(cs11.getPropertyValue('--innerR5')) || 14;
+
+  const text = document.createElementNS('http://www.w3.org/2000/svg','text');
+  text.textContent = '∞';
+  const fontSize = Math.max(8, r5 * 1.2);
+  text.setAttribute('font-size', String(fontSize));
+  text.setAttribute('text-anchor', 'middle');
+  text.setAttribute('dominant-baseline', 'middle');
+  text.setAttribute('font-weight', '700');
+  text.setAttribute('fill', cs11.getPropertyValue('--infinityColor').trim() || '#fdba74');
+  text.setAttribute('fill-opacity', String(parseFloat(cs11.getPropertyValue('--infinityOpacity')) || 0.95));
+  text.setAttribute('x', '0');
+  text.setAttribute('y', '2');
+  g.appendChild(text);
+}
+
+function renderCenterTopDiamond(){
+  const g = stageSvg.querySelector('#centerTopDiamondG');
+  if(!g) return;
+  while(g.firstChild) g.removeChild(g.firstChild);
+
+  const cs12 = getComputedStyle(stageSvg);
+  const r1 = parseFloat(cs12.getPropertyValue('--innerR')) || 65;
+  const offset = parseFloat(cs12.getPropertyValue('--tipDiaOffset')) || 0;
+
+  const w = Math.abs(parseFloat(cs12.getPropertyValue('--tipDiaW')) || 6);
+  const h = Math.abs(parseFloat(cs12.getPropertyValue('--tipDiaH')) || 8);
+
+  const fill   = cs12.getPropertyValue('--tipDiaFill').trim()   || '#facc15';
+  const stroke = cs12.getPropertyValue('--tipDiaStroke').trim() || 'none';
+  const sw     = Math.max(0, parseFloat(cs12.getPropertyValue('--tipDiaStrokeW')) || 0);
+
+  const cx = 0;
+  const cy = -r1 - offset;
+
+  const pTop =   {x: cx,     y: cy - h};
+  const pRight = {x: cx + w, y: cy    };
+  const pBottom={x: cx,     y: cy + h};
+  const pLeft =  {x: cx - w, y: cy    };
+
+  const d = `M ${pLeft.x},${pLeft.y} L ${pTop.x},${pTop.y} L ${pRight.x},${pRight.y} L ${pBottom.x},${pBottom.y} Z`;
+  const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+  path.setAttribute('d', d);
+  path.setAttribute('fill', fill);
+  path.setAttribute('stroke', stroke);
+  path.setAttribute('stroke-width', sw);
+  g.appendChild(path);
+}
+
+function renderRoomCards(){
+  const g = stageSvg.querySelector('#roomCards');
+  if(!g) return;
+  while(g.firstChild) g.removeChild(g.firstChild);
+
+  const cs13 = getComputedStyle(stageSvg);
+  const cardW = parseFloat(cs13.getPropertyValue('--cardW')) || 26;
+  const cardH = parseFloat(cs13.getPropertyValue('--cardH')) || 36;
+  const cardR = parseFloat(cs13.getPropertyValue('--cardR')) || 4;
+
+  const fillRoom1   = cs13.getPropertyValue('--cardFillRoom1').trim()   || '#ffffff';
+  const fillRoom6   = cs13.getPropertyValue('--cardFillRoom6').trim()   || '#a0522d';
+  const strokeRoom1 = cs13.getPropertyValue('--cardStrokeRoom1').trim() || '#9ca3af';
+  const strokeRoom6 = cs13.getPropertyValue('--cardStrokeRoom6').trim() || '#000000';
+  const fillRoom4   = cs13.getPropertyValue('--cardFillRoom4').trim()   || fillRoom6;
+  const strokeRoom4 = cs13.getPropertyValue('--cardStrokeRoom4').trim() || strokeRoom6;
+
+  const sw = parseFloat(cs13.getPropertyValue('--cardStrokeW')) || 1;
+
+  const roomAdjust = {
+    1: parseFloat(cs13.getPropertyValue('--cardRoom1Deg')) || 0,
+    4: parseFloat(cs13.getPropertyValue('--cardRoom4Deg')) || 0,
+    6: parseFloat(cs13.getPropertyValue('--cardRoom6Deg')) || 0
+  };
+  const faceCenter = (parseFloat(cs13.getPropertyValue('--cardFaceCenter')) || 0) == 1;
+  const inwardBase = faceCenter ? 180 : 0;
+
+  const baseOffset = parseFloat(cs13.getPropertyValue('--cardRadiusBaseOffset')) || 0;
+  const roomRad = {
+    1: parseFloat(cs13.getPropertyValue('--cardRoom1Rad')) || 0,
+    4: parseFloat(cs13.getPropertyValue('--cardRoom4Rad')) || 0,
+    6: parseFloat(cs13.getPropertyValue('--cardRoom6Rad')) || 0
+  };
+  const roomTan = {
+    1: parseFloat(cs13.getPropertyValue('--cardRoom1Tan')) || 0,
+    4: parseFloat(cs13.getPropertyValue('--cardRoom4Tan')) || 0,
+    6: parseFloat(cs13.getPropertyValue('--cardRoom6Tan')) || 0
+  };
+  const localX = parseFloat(cs13.getPropertyValue('--cardLocalX')) || 0;
+  const localY = parseFloat(cs13.getPropertyValue('--cardLocalY')) || 0;
+
+  const rBase = (outerR + innerR) / 2 + baseOffset;
+  const mission = currentStage;
+
+  function getFillStrokeFor(room){
+    if(room===6) return {fill: fillRoom6, stroke: strokeRoom6};
+    if(room===4 && mission==='1-2') return {fill: fillRoom4, stroke: strokeRoom4};
+    return {fill: fillRoom1, stroke: strokeRoom1};
+  }
+
+  function appendCardAt(room, extraTan=0, extraRad=0, extraRot=0){
+    const midDeg = (room-1)*60 + 30;
+    const tr = [
+      'translate(150,150)',
+      `rotate(${midDeg})`,
+      `translate(${(roomTan[room]||0) + extraTan}, 0)`,
+      `translate(0, ${-(rBase + (roomRad[room]||0) + extraRad)})`,
+      `rotate(${inwardBase + (roomAdjust[room]||0) + extraRot})`,
+      `translate(${localX}, ${localY})`
+    ].join(' ');
+
+    const {fill, stroke} = getFillStrokeFor(room);
+
+    const cardG = document.createElementNS('http://www.w3.org/2000/svg','g');
+    cardG.setAttribute('transform', tr);
+
+    const rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    rect.setAttribute('x', (-cardW/2).toFixed(3));
+    rect.setAttribute('y', (-cardH/2).toFixed(3));
+    rect.setAttribute('width',  cardW);
+    rect.setAttribute('height', cardH);
+    rect.setAttribute('rx', cardR);
+    rect.setAttribute('ry', cardR);
+    rect.setAttribute('fill',   fill);
+    rect.setAttribute('stroke', stroke);
+    rect.setAttribute('stroke-width', sw);
+    cardG.appendChild(rect);
+
+    g.appendChild(cardG);
+  }
+
+  const specifiedRooms = new Set(getSpecifiedRoomsForMission(mission));
+
+  if (mission==='1-1'){
+    if (specifiedRooms.has(1)) appendCardAt(1);
+    if (specifiedRooms.has(6)) {
+      const fanN   = Math.max(1, Math.round(parseFloat(cs13.getPropertyValue('--room6FanCount')) || 3));
+      const spread = parseFloat(cs13.getPropertyValue('--room6FanSpreadDeg')) || 14;
+      const stepT  = parseFloat(cs13.getPropertyValue('--room6FanTanStep'))   || 6;
+      const stepR  = parseFloat(cs13.getPropertyValue('--room6FanRadStep'))   || -1;
+      const indices = [...Array(fanN).keys()].map(i => i - (fanN-1)/2);
+      const topSide = parseFloat(cs13.getPropertyValue('--room6FanTopSide')) || 1;
+      const drawOrder = (topSide >= 0) ? indices : [...indices].reverse();
+      drawOrder.forEach(idx => appendCardAt(6, idx*stepT, idx*stepR, idx*spread));
+    }
+  }
+
+  if (mission==='1-2'){
+    if (specifiedRooms.has(4)) {
+      const fanN   = Math.max(1, Math.round(parseFloat(cs13.getPropertyValue('--room6FanCount')) || 3));
+      const spread = parseFloat(cs13.getPropertyValue('--room6FanSpreadDeg')) || 14;
+      const stepT  = parseFloat(cs13.getPropertyValue('--room6FanTanStep'))   || 6;
+      const stepR  = parseFloat(cs13.getPropertyValue('--room6FanRadStep'))   || -1;
+      const indices = [...Array(fanN).keys()].map(i => i - (fanN-1)/2);
+      const topSide = -1;
+      const drawOrder = (topSide >= 0) ? indices : [...indices].reverse();
+      drawOrder.forEach(idx => appendCardAt(4, idx*stepT, idx*stepR, idx*spread));
+    }
+  }
+}
+
+function renderRoomTexts(mission){
+  const g = stageSvg.querySelector('#roomTexts');
+  if(!g) return;
+  while (g.firstChild) g.removeChild(g.firstChild);
+
+  const csT = getComputedStyle(stageSvg);
+  const color  = csT.getPropertyValue('--roomTextColor').trim() || '#d4a373';
+  const fsize  = csT.getPropertyValue('--roomTextSize').trim()  || '12px';
+  const weight = csT.getPropertyValue('--roomTextWeight').trim()|| '800';
+
+  const bgColor   = csT.getPropertyValue('--roomTextBg').trim() || '#000';
+  const bgOpacity = Math.max(0, Math.min(1, parseFloat(csT.getPropertyValue('--roomTextBgOpacity')) || 1));
+  const fsNum     = parseFloat(fsize) || 12;
+  const rBgVar    = parseFloat(csT.getPropertyValue('--roomTextBgR'));
+  const rBg       = Number.isNaN(rBgVar) ? (fsNum * 0.95) : rBgVar;
+  const delta = parseFloat(csT.getPropertyValue('--roomTextDeltaR')) || 0;
+  const rText = (innerR + innerR2) / 2 + delta;
+
+  const textSpecs = [];
+  if (mission === '1-2') {
+    textSpecs.push({ room: 3, label: '8-12', rotate: (midDeg)=>midDeg });
+  }
+  if (mission === '1-3') {
+    textSpecs.push({ room: 6, label: '20-30', rotate: (midDeg)=>midDeg + 180 });
+  }
+  if (textSpecs.length === 0) return;
+
+  textSpecs.forEach(({room, label, rotate})=>{
+    const midDeg = (room-1)*60 + 30;
+    const p = polar(rText, midDeg);
+
+    const bgCircle = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    bgCircle.setAttribute('cx', p.x.toFixed(2));
+    bgCircle.setAttribute('cy', p.y.toFixed(2));
+    bgCircle.setAttribute('r',  rBg.toFixed(2));
+    bgCircle.setAttribute('fill', bgColor);
+    bgCircle.setAttribute('fill-opacity', String(bgOpacity));
+    g.appendChild(bgCircle);
+
+    const text = document.createElementNS('http://www.w3.org/2000/svg','text');
+    text.textContent = label;
+    text.setAttribute('x', p.x.toFixed(2));
+    text.setAttribute('y', p.y.toFixed(2));
+    text.setAttribute('fill', color);
+    text.setAttribute('font-size', fsize);
+    text.setAttribute('font-weight', weight);
+    text.setAttribute('text-anchor', 'middle');
+    text.setAttribute('dominant-baseline', 'middle');
+    text.setAttribute('transform', `rotate(${rotate(midDeg)}, ${p.x.toFixed(2)}, ${p.y.toFixed(2)})`);
+    g.appendChild(text);
+  });
+}
+
+(function ensureLayerOrder(){
+  const back  = stageSvg.querySelector('#innerRingsBack');
+  const marks = stageSvg.querySelector('#stageMarks');
+  const outG  = stageSvg.querySelector('#stageOutward');
+  const r2    = stageSvg.querySelector('#innerRing2Front');
+  const orangeFill   = stageSvg.querySelector('#innerOrangeFill');
+  const tiny20       = stageSvg.querySelector('#innerTiny20');
+  const orangeStroke = stageSvg.querySelector('#innerRingsOrange');
+  const infinityG    = stageSvg.querySelector('#r5Infinity');
+  const spec         = stageSvg.querySelector('#stageSpecified');
+  const clockMarks   = stageSvg.querySelector('#stageClockMarks');
+  const centerLineG  = stageSvg.querySelector('#centerTopLineG');
+  const tipG         = stageSvg.querySelector('#centerTopDiamondG');
+  const roomTexts    = stageSvg.querySelector('#roomTexts');
+  const cardsG       = stageSvg.querySelector('#roomCards');
+
+  const rot = parseFloat(getComputedStyle(stageSvg).getPropertyValue('--centerTopRotate')) || 0;
+  centerLineG?.setAttribute('transform', `translate(150,150) rotate(${rot})`);
+  tipG?.setAttribute('transform',         `translate(150,150) rotate(${rot})`);
+
+  if (!back || !marks || !outG || !r2 || !orangeFill || !tiny20 || !orangeStroke || !infinityG || !spec || !clockMarks || !centerLineG || !tipG || !roomTexts || !cardsG) return;
+
+  if (back.nextSibling !== marks)        stageSvg.insertBefore(marks, back.nextSibling);
+  if (marks.nextSibling !== outG)        stageSvg.insertBefore(outG,  marks.nextSibling);
+  if (outG.nextSibling !== r2)           stageSvg.insertBefore(r2,    outG.nextSibling);
+  if (r2.nextSibling !== tipG)           stageSvg.insertBefore(tipG,  r2.nextSibling);
+  if (tipG.nextSibling !== centerLineG)  stageSvg.insertBefore(centerLineG, tipG.nextSibling);
+  if (centerLineG.nextSibling !== orangeFill)   stageSvg.insertBefore(orangeFill,   centerLineG.nextSibling);
+  if (orangeFill.nextSibling !== tiny20)        stageSvg.insertBefore(tiny20,       orangeFill.nextSibling);
+  if (tiny20.nextSibling !== orangeStroke)      stageSvg.insertBefore(orangeStroke, tiny20.nextSibling);
+  if (orangeStroke.nextSibling !== infinityG)   stageSvg.insertBefore(infinityG,    orangeStroke.nextSibling);
+  if (infinityG.nextSibling !== spec)           stageSvg.insertBefore(spec,         infinityG.nextSibling);
+  if (spec.nextSibling !== clockMarks)          stageSvg.insertBefore(clockMarks,   spec.nextSibling);
+  if (clockMarks.nextSibling !== roomTexts)     stageSvg.insertBefore(roomTexts,    clockMarks.nextSibling);
+
+  if (stageSvg.lastElementChild !== cardsG) stageSvg.appendChild(cardsG);
+})();
+
+function redrawAll(m){
+  currentStage = m || currentStage || '1-1';
+  missionTextEl.textContent = currentStage;
+  renderEqTriBackFill(currentStage);
+  renderStageMarks(currentStage);
+  renderOutwardMarks(currentStage);
+  renderSpecifiedBowls(currentStage);
+  renderClockMarks(currentStage);
+  updateOrangeGraphics();
+  renderInnerTinyDiv();
+  renderInfinity(currentStage);
+  renderCenterTopDiamond();
+  renderRoomTexts(currentStage);
+  renderRoomCards();
+}
+window.addEventListener('mission:change', (e)=>{
+  redrawAll(e.detail?.value || currentStage);
+});
+redrawAll(currentStage);
+renderStageOptions();
 </script>
 
 </body>
