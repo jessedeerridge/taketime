@@ -131,9 +131,9 @@
     z-index:1;
   }
 
-  .my-hand-wrapper{margin-top:6px;text-align:center;}
+  .my-hand-wrapper{margin-top:46px;text-align:center;}
   .my-hand-title{display:none;}
-  .my-hand{display:flex;justify-content:center;gap:8px;margin-top:6px;min-height:88px;}
+  .my-hand{display:flex;justify-content:center;gap:8px;margin-top:2px;min-height:64px;}
   .my-card{
     width:60px;height:90px;border-radius:8px;border:1px solid #ddd;background:#fff;
     display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:600;
@@ -1013,13 +1013,13 @@ function updateMyHandPosition(){
   const tableCenter = document.querySelector('.table-center');
   const meTag = playerCircle.querySelector('.player-tag.me');
   if(!tableCenter || !meTag){
-    myHandWrapperEl.style.marginTop = '6px';
+    myHandWrapperEl.style.marginTop = '46px';
     return;
   }
 
   const tableRect = tableCenter.getBoundingClientRect();
   const meRect = meTag.getBoundingClientRect();
-  const marginTop = Math.max(6, (meRect.bottom - tableRect.bottom) + 6);
+  const marginTop = Math.max(46, (meRect.bottom - tableRect.bottom) + 46);
   myHandWrapperEl.style.marginTop = `${Math.round(marginTop)}px`;
 }
 
@@ -1046,21 +1046,21 @@ function renderPlayerCircle(players){
 
     if (!isMe) {
       if (n === 4) {
-        if (k === 1) x += 12;
-        if (k === 3) x -= 12;
+        if (k === 1) x -= 20;
+        if (k === 3) x += 20;
       } else if (n === 3) {
-        if (k === 1) x += 14;
-        if (k === 2) x -= 14;
+        if (k === 1) x -= 22;
+        if (k === 2) x += 22;
       }
     }
 
-    x = Math.max(14, Math.min(86, x));
+    x = Math.max(8, Math.min(92, x));
 
     const tag = document.createElement('div');
     tag.className = 'player-tag' + (isMe ? ' me' : '');
     tag.textContent = p.name;
     tag.style.left = `${x}%`;
-    tag.style.top = isMe ? `${y}%` : `calc(${y}% - 45px)`;
+    tag.style.top = isMe ? `calc(${y}% + 40px)` : `calc(${y}% - 45px)`;
 
     tag.onclick = () => {
       if (p.id === state.userId) return;
