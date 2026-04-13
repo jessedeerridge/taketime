@@ -1040,14 +1040,25 @@ function renderPlayerCircle(players){
     const k = (meIndex === -1) ? idx : (idx - meIndex + n) % n;
     const angle = anchorAngle + step * k;
 
-    const x = 50 + radius * Math.cos(angle);
+    let x = 50 + radius * Math.cos(angle);
     const y = 50 + radius * Math.sin(angle);
+    const isMe = p.id === state.userId;
+
+    if (!isMe) {
+      if (n === 4) {
+        if (k === 1) x += 4;
+        if (k === 3) x -= 4;
+      } else if (n === 3) {
+        if (k === 1) x += 5;
+        if (k === 2) x -= 5;
+      }
+    }
 
     const tag = document.createElement('div');
-    tag.className = 'player-tag' + (p.id === state.userId ? ' me' : '');
+    tag.className = 'player-tag' + (isMe ? ' me' : '');
     tag.textContent = p.name;
     tag.style.left = `${x}%`;
-    tag.style.top = `${y}%`;
+    tag.style.top = isMe ? `${y}%` : `calc(${y}% - 30px)`;
 
     tag.onclick = () => {
       if (p.id === state.userId) return;
