@@ -131,9 +131,9 @@
     z-index:1;
   }
 
-  .my-hand-wrapper{margin-top:28px;text-align:center;}
+  .my-hand-wrapper{margin-top:10px;text-align:center;}
   .my-hand-title{display:none;}
-  .my-hand{display:flex;justify-content:center;gap:8px;margin-top:6px;min-height:100px;transform:translateY(10px);}
+  .my-hand{display:flex;justify-content:center;gap:8px;margin-top:6px;min-height:100px;}
   .my-card{
     width:60px;height:90px;border-radius:8px;border:1px solid #ddd;background:#fff;
     display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:600;
@@ -372,7 +372,7 @@
     --roomTextBgR: 12;
 
     --roomGuideCenterR: 74;
-    --roomGuideR: 13;
+    --roomGuideR: 18;
     --roomGuideStroke: #8b6b4f;
     --roomGuideStrokeW: 1.4;
     --roomGuideDash: 2.2 4;
@@ -681,6 +681,7 @@ const seatLabel = seatPop.querySelector('label');
 
 const playerCircle = document.getElementById('playerCircle');
 const myHandEl = document.getElementById('myHand');
+const myHandWrapperEl = document.querySelector('.my-hand-wrapper');
 
 const kickDialog = document.getElementById('kickDialog');
 const kickMessage = document.getElementById('kickMessage');
@@ -1006,9 +1007,28 @@ function renderSeatTabs(){
   }
 }
 
+function updateMyHandPosition(){
+  if(!myHandWrapperEl) return;
+
+  const tableCenter = document.querySelector('.table-center');
+  const meTag = playerCircle.querySelector('.player-tag.me');
+  if(!tableCenter || !meTag){
+    myHandWrapperEl.style.marginTop = '10px';
+    return;
+  }
+
+  const tableRect = tableCenter.getBoundingClientRect();
+  const meRect = meTag.getBoundingClientRect();
+  const marginTop = Math.max(10, (meRect.bottom - tableRect.bottom) + 10);
+  myHandWrapperEl.style.marginTop = `${Math.round(marginTop)}px`;
+}
+
 function renderPlayerCircle(players){
   playerCircle.innerHTML = '';
-  if (!players.length) return;
+  if (!players.length){
+    updateMyHandPosition();
+    return;
+  }
 
   const n = players.length;
   const radius = 70;
@@ -1068,6 +1088,8 @@ function renderPlayerCircle(players){
 
     playerCircle.appendChild(tag);
   });
+
+  updateMyHandPosition();
 }
 
 const urlParams = new URLSearchParams(window.location.search);
@@ -1305,6 +1327,7 @@ window.addEventListener('resize', () => {
     positionStagePopBelowStart();
   }
 });
+window.addEventListener('resize', updateMyHandPosition);
 
 /* ===== ステージSVGロジック：元コードをそのまま移植 ===== */
 const stageSvg = document.getElementById('stageBoard');
