@@ -373,6 +373,7 @@
 
     --roomGuideCenterR: 90;
     --roomGuideR: 35;
+    --roomGuideOuterGap: 8;
     --roomGuideStroke: #8b6b4f;
     --roomGuideStrokeW: 1.4;
     --roomGuideDash: 2.2 4;
@@ -1225,6 +1226,9 @@ btnKickYes.addEventListener('click', async (e) => {
 
   if (currentHostId && pendingSeatPlayerIdToSteal && currentHostId === pendingSeatPlayerIdToSteal) {
     await update(ref(db, `rooms/${state.roomCode}`), { hostId: state.userId });
+    state.room.hostId = state.userId;
+    state.isHost = true;
+    updateHostUI();
   }
 
   state.seatedTable = seatIndex;
@@ -2255,6 +2259,7 @@ function renderRoomGuideCircles(){
   const csGuide = getComputedStyle(stageSvg);
   const centerR = parseFloat(csGuide.getPropertyValue('--roomGuideCenterR')) || ((innerR + outerR) / 2);
   const guideR = parseFloat(csGuide.getPropertyValue('--roomGuideR')) || Math.max(8, (outerR - innerR) / 2 - 2);
+  const outerGap = parseFloat(csGuide.getPropertyValue('--roomGuideOuterGap')) || 8;
   const stroke = csGuide.getPropertyValue('--roomGuideStroke').trim() || '#7c5a3a';
   const strokeW = parseFloat(csGuide.getPropertyValue('--roomGuideStrokeW')) || 1.4;
   const dash = csGuide.getPropertyValue('--roomGuideDash').trim() || '2 3';
@@ -2262,6 +2267,10 @@ function renderRoomGuideCircles(){
   for(let room=1; room<=6; room++){
     const midDeg = (room-1)*60 + 30;
     const p = polar(centerR, midDeg);
+
+    const outerCenterR = centerR + (guideR * 2) + outerGap;
+    const pOuter = polar(outerCenterR, midDeg);
+
     const circle = document.createElementNS('http://www.w3.org/2000/svg','circle');
     circle.setAttribute('cx', p.x.toFixed(2));
     circle.setAttribute('cy', p.y.toFixed(2));
@@ -2272,6 +2281,17 @@ function renderRoomGuideCircles(){
     circle.setAttribute('stroke-dasharray', dash);
     circle.setAttribute('stroke-linecap', 'round');
     g.appendChild(circle);
+
+    const outerCircle = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    outerCircle.setAttribute('cx', pOuter.x.toFixed(2));
+    outerCircle.setAttribute('cy', pOuter.y.toFixed(2));
+    outerCircle.setAttribute('r', guideR.toFixed(2));
+    outerCircle.setAttribute('fill', 'none');
+    outerCircle.setAttribute('stroke', stroke);
+    outerCircle.setAttribute('stroke-width', String(strokeW));
+    outerCircle.setAttribute('stroke-dasharray', dash);
+    outerCircle.setAttribute('stroke-linecap', 'round');
+    g.appendChild(outerCircle);
   }
 }
 
