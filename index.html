@@ -65,7 +65,7 @@
     position:relative;
     width:min(92vw, 360px);
     height:260px;
-    margin:20px auto 0;
+    margin:0 auto 0;
   }
   .player-circle{
     position:absolute;inset:0;
@@ -1046,11 +1046,11 @@ function renderPlayerCircle(players){
 
     if (!isMe) {
       if (n === 4) {
-        if (k === 1) x += 4;
-        if (k === 3) x -= 4;
+        if (k === 1) x += 8;
+        if (k === 3) x -= 8;
       } else if (n === 3) {
-        if (k === 1) x += 5;
-        if (k === 2) x -= 5;
+        if (k === 1) x += 10;
+        if (k === 2) x -= 10;
       }
     }
 
@@ -1058,7 +1058,7 @@ function renderPlayerCircle(players){
     tag.className = 'player-tag' + (isMe ? ' me' : '');
     tag.textContent = p.name;
     tag.style.left = `${x}%`;
-    tag.style.top = isMe ? `${y}%` : `calc(${y}% - 30px)`;
+    tag.style.top = isMe ? `${y}%` : `calc(${y}% - 45px)`;
 
     tag.onclick = () => {
       if (p.id === state.userId) return;
