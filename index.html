@@ -131,7 +131,7 @@
     z-index:1;
   }
 
-  .my-hand-wrapper{margin-top:28px;text-align:center;}
+  .my-hand-wrapper{margin-top:10px;text-align:center;}
   .my-hand-title{display:none;}
   .my-hand{display:flex;justify-content:center;gap:8px;margin-top:6px;min-height:100px;}
   .my-card{
@@ -371,6 +371,12 @@
     --roomTextBgOpacity: 0.3;
     --roomTextBgR: 12;
 
+    --roomGuideCenterR: 90;
+    --roomGuideR: 35;
+    --roomGuideStroke: #8b6b4f;
+    --roomGuideStrokeW: 1.4;
+    --roomGuideDash: 2.2 4;
+
     --clockMarkScale: 1;
     --clockMarkSize: 44;
     --clockMarkFill: #ffd8a8;
@@ -546,6 +552,7 @@
               fill="#111"></text>
 
         <g id="sectorHits" transform="translate(150,150)"></g>
+        <g id="roomGuideCircles" transform="translate(150,150)" style="pointer-events:none"></g>
         <g id="roomTexts" transform="translate(150,150)" style="pointer-events:none"></g>
         <g id="roomCards" style="pointer-events:none"></g>
         </svg>
@@ -674,6 +681,7 @@ const seatLabel = seatPop.querySelector('label');
 
 const playerCircle = document.getElementById('playerCircle');
 const myHandEl = document.getElementById('myHand');
+const myHandWrapperEl = document.querySelector('.my-hand-wrapper');
 
 const kickDialog = document.getElementById('kickDialog');
 const kickMessage = document.getElementById('kickMessage');
@@ -999,9 +1007,28 @@ function renderSeatTabs(){
   }
 }
 
+function updateMyHandPosition(){
+  if(!myHandWrapperEl) return;
+
+  const tableCenter = document.querySelector('.table-center');
+  const meTag = playerCircle.querySelector('.player-tag.me');
+  if(!tableCenter || !meTag){
+    myHandWrapperEl.style.marginTop = '10px';
+    return;
+  }
+
+  const tableRect = tableCenter.getBoundingClientRect();
+  const meRect = meTag.getBoundingClientRect();
+  const marginTop = Math.max(10, (meRect.bottom - tableRect.bottom) + 10);
+  myHandWrapperEl.style.marginTop = `${Math.round(marginTop)}px`;
+}
+
 function renderPlayerCircle(players){
   playerCircle.innerHTML = '';
-  if (!players.length) return;
+  if (!players.length){
+    updateMyHandPosition();
+    return;
+  }
 
   const n = players.length;
   const radius = 70;
@@ -1061,6 +1088,8 @@ function renderPlayerCircle(players){
 
     playerCircle.appendChild(tag);
   });
+
+  updateMyHandPosition();
 }
 
 const urlParams = new URLSearchParams(window.location.search);
@@ -1298,6 +1327,7 @@ window.addEventListener('resize', () => {
     positionStagePopBelowStart();
   }
 });
+window.addEventListener('resize', updateMyHandPosition);
 
 /* ===== ステージSVGロジック：元コードをそのまま移植 ===== */
 const stageSvg = document.getElementById('stageBoard');
@@ -2196,6 +2226,34 @@ function renderRoomCards(){
   }
 }
 
+function renderRoomGuideCircles(){
+  const g = stageSvg.querySelector('#roomGuideCircles');
+  if(!g) return;
+  while(g.firstChild) g.removeChild(g.firstChild);
+
+  const csGuide = getComputedStyle(stageSvg);
+  const centerR = parseFloat(csGuide.getPropertyValue('--roomGuideCenterR')) || ((innerR + outerR) / 2);
+  const guideR = parseFloat(csGuide.getPropertyValue('--roomGuideR')) || Math.max(8, (outerR - innerR) / 2 - 2);
+  const stroke = csGuide.getPropertyValue('--roomGuideStroke').trim() || '#7c5a3a';
+  const strokeW = parseFloat(csGuide.getPropertyValue('--roomGuideStrokeW')) || 1.4;
+  const dash = csGuide.getPropertyValue('--roomGuideDash').trim() || '2 3';
+
+  for(let room=1; room<=6; room++){
+    const midDeg = (room-1)*60 + 30;
+    const p = polar(centerR, midDeg);
+    const circle = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    circle.setAttribute('cx', p.x.toFixed(2));
+    circle.setAttribute('cy', p.y.toFixed(2));
+    circle.setAttribute('r', guideR.toFixed(2));
+    circle.setAttribute('fill', 'none');
+    circle.setAttribute('stroke', stroke);
+    circle.setAttribute('stroke-width', String(strokeW));
+    circle.setAttribute('stroke-dasharray', dash);
+    circle.setAttribute('stroke-linecap', 'round');
+    g.appendChild(circle);
+  }
+}
+
 function renderRoomTexts(mission){
   const g = stageSvg.querySelector('#roomTexts');
   if(!g) return;
@@ -2262,6 +2320,7 @@ function renderRoomTexts(mission){
   const clockMarks   = stageSvg.querySelector('#stageClockMarks');
   const centerLineG  = stageSvg.querySelector('#centerTopLineG');
   const tipG         = stageSvg.querySelector('#centerTopDiamondG');
+  const roomGuideCircles = stageSvg.querySelector('#roomGuideCircles');
   const roomTexts    = stageSvg.querySelector('#roomTexts');
   const cardsG       = stageSvg.querySelector('#roomCards');
 
@@ -2269,7 +2328,7 @@ function renderRoomTexts(mission){
   centerLineG?.setAttribute('transform', `translate(150,150) rotate(${rot})`);
   tipG?.setAttribute('transform',         `translate(150,150) rotate(${rot})`);
 
-  if (!back || !marks || !outG || !r2 || !orangeFill || !tiny20 || !orangeStroke || !infinityG || !spec || !clockMarks || !centerLineG || !tipG || !roomTexts || !cardsG) return;
+  if (!back || !marks || !outG || !r2 || !orangeFill || !tiny20 || !orangeStroke || !infinityG || !spec || !clockMarks || !centerLineG || !tipG || !roomGuideCircles || !roomTexts || !cardsG) return;
 
   if (back.nextSibling !== marks)        stageSvg.insertBefore(marks, back.nextSibling);
   if (marks.nextSibling !== outG)        stageSvg.insertBefore(outG,  marks.nextSibling);
@@ -2282,7 +2341,8 @@ function renderRoomTexts(mission){
   if (orangeStroke.nextSibling !== infinityG)   stageSvg.insertBefore(infinityG,    orangeStroke.nextSibling);
   if (infinityG.nextSibling !== spec)           stageSvg.insertBefore(spec,         infinityG.nextSibling);
   if (spec.nextSibling !== clockMarks)          stageSvg.insertBefore(clockMarks,   spec.nextSibling);
-  if (clockMarks.nextSibling !== roomTexts)     stageSvg.insertBefore(roomTexts,    clockMarks.nextSibling);
+  if (clockMarks.nextSibling !== roomGuideCircles) stageSvg.insertBefore(roomGuideCircles, clockMarks.nextSibling);
+  if (roomGuideCircles.nextSibling !== roomTexts) stageSvg.insertBefore(roomTexts, roomGuideCircles.nextSibling);
 
   if (stageSvg.lastElementChild !== cardsG) stageSvg.appendChild(cardsG);
 })();
@@ -2299,6 +2359,7 @@ function redrawAll(m){
   renderInnerTinyDiv();
   renderInfinity(currentStage);
   renderCenterTopDiamond();
+  renderRoomGuideCircles();
   renderRoomTexts(currentStage);
   renderRoomCards();
 }
