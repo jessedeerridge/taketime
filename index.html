@@ -1,1438 +1,913 @@
-
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>正円＋正三角形×6（12時線最前面＋∞中央＋カード最前面回転＋room6扇状3枚＠1-1／フラッシュ無効＋1-2対応）</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>テンプレ</title>
 <style>
   :root{
-    --size: 360;
-    --bg: #f7f7fb;
-    --light: #e6e3e3;
-    --circleFill: var(--light);
-    --triFill: var(--light);
-
-    /* 外形の黒線の太さ（px） */
-    --outline: 1;
-
-    /* 内側リング半径 */
-    --innerR: 65;   /* inner1 */
-    --innerR2: 57;  /* inner2（前面） */
-    --innerR3: 52;  /* inner3（背面） */
-
-    /* ★ 中心リング r4/r5（塗り＝オレンジ、枠＝黄色） */
-    --innerR4: 20;                  /* r4（外） */
-    --innerR5: 14;                  /* r5（内） */
-    --orange: #ab5d1a;              /* r4-r5 のリング塗り（オレンジ） */
-    --orangeFill: #ab5d1a;          /* r5 内側塗り（オレンジ） */
-    --orangeRingOpacity: 1;         /* r4-r5 のリング塗り不透明度 */
-    --ringStroke: #facc15;          /* ★ r4/r5 の枠線色（黄色） */
-
-    /* 金色（リングR2/R3と30等分線用） */
-    --gold: #d4af37;
-    --bowlStrokeColor: var(--gold);
-
-    /* 画像敷き込み（inner1 / inner3） */
-    --img1Scale: 1; --img1OffX: 0px; --img1OffY: 0px;
-    --img3Scale: 1; --img3OffX: 0px; --img3OffY: 0px;
-
-    /* ▼ 指定なし部屋マーク */
-    --markAlpha: 1;
-    --markStroke: #facc15;
-    --markStrokeW: 1.2;
-    --markLen: 17;
-    --markSpreadDeg: 18;
-
-    /* ▼ 中心ダイヤ（各部屋の内向きマーク用） */
-    --diamondFill: #facc15;
-    --diamondStroke: none;
-    --diamondStrokeW: 0;
-    --diamondW: 2.5;
-    --diamondTop: 4;
-    --diamondBot: 2;
-    --diamondPos: 0.55;
-
-    /* ▼ ダイヤ中心へ伸ばす線 */
-    --centerLineColor: var(--gold);
-    --centerLineW: 1.2;
-    --centerLineGap: 1.0;
-
-    /* ★ 外向き「曲線」三角（テーパー塗り） */
-    --outTriStroke: #888;
-    --outTriOpacity: 1;
-    --outTriLen: 27;
-    --outTriSpreadDeg: 32;
-    --outTriDrawBase: 0;
-    --outTriInset: 0;
-    --outTriCurveK: 0.38;
-    --outTriBaseCurveK: 0.25;
-
-    /* テーパー幅 */
-    --outTriBaseW: 2.6;
-    --outTriTipW:  0.00000001;
-    --outTriBaseW_B: 2.6;
-    --outTriTipW_B:  2.6;
-
-    /* 底辺を innerR の円弧にする（クリップ用） */
-    --outTriBaseAsArc: 1;
-
-    /* ★ 金線X（20x20設計）のスケール＆太さ */
-    --goldXScale: 1.2;
-    --goldXStrokeW: 0.6;
-
-    /* ★ 指定部屋用：新“半円ノッチ”形状・配置（スケール/位置は従来と同じ変数を使用） */
-    --bowl-dip: 9;
-    --bowl-halfW: 8;
-    --bowl-extra: 4;
-    --bowl-scale: 0.25;
-    --bowl-gap: -13;
-    --bowl-margin-deg: 8;
-    --bowl-stroke: 3;
-    --bowl-offset-x: 0;
-
-    /* ▼ 指定部屋の部屋全体塗り（白） */
-    --bowlFillColor: #fff;
-    --bowlFillOpacity: 1;
-
-    /* 上側キャップ弧設定（必要に応じて） */
-    --bowl-cap-R: 130;
-
-    /* ★ 中心リング（r4-r5）20等分ライン（黄色） */
-    --innerTinyN: 20;
-    --innerTinyColor: #facc15;
-    --innerTinyW: 1.2;
-    --innerTinyOpacity: 1;
-
-    /* ▼ 中心→上外円の直線（※要件：最前面、濃い黄色、太く） */
-    --centerTopColor: #facc15;
-    --centerTopW: 4;
-
-    /* ▼ r5 内の「∞」 */
-    --infinityColor: #fdba74;
-    --infinityOpacity: 0.95;
-
-    /* ★ 12時線「先端ダイヤ」 */
-    --tipDiaFill: #facc15;
-    --tipDiaStroke: #000;
-    --tipDiaStrokeW: 1;
-    --tipDiaW: 6;
-    --tipDiaH: 8;
-    --tipDiaOffset: 0;
-    --centerTopRotate: 4;
-
-    /* ★★ カード（room別） */
-    --cardW: 20;             /* 幅(px) */
-    --cardH: 27;             /* 高さ(px) */
-    --cardR: 4;              /* 角丸(px) */
-    --cardStroke: #9ca3af;   /* 灰色枠 */
-    --cardStrokeW: 1;
-
-    /* ★ カードの向き制御 */
-    --cardFaceCenter: 1;   /* 1 = 中心を向く（自動）；0 = 自動なし */
-    --cardRoom1Deg: 0;     /* ルーム1の微調整（度） */
-    --cardRoom6Deg: 0;     /* ルーム6の微調整（度） */
-    --cardRoom4Deg: 0;     /* ルーム4の微調整（度） */
-
-    /* カード位置の微調整（px） */
-    --cardRadiusBaseOffset: 0;   /* 全カードを内外にまとめて移動（+で外側へ） */
-    --cardRoom1Rad: -3;
-    --cardRoom6Rad: -3;
-    --cardRoom4Rad: -3;
-    --cardRoom1Tan: 0;
-    --cardRoom6Tan: 0;
-    --cardRoom4Tan: 0;
-
-    /* カードのローカル（長方形）座標での微調整（px） */
-    --cardLocalX: 0;             /* 右(+)・左(-) に微調整 */
-    --cardLocalY: 0;             /* 下(+)・上(-) に微調整 */
-
-    /* ▼▼ room6 扇状（1-1 のみ適用） */
-    --room6FanCount: 3;          /* 3枚 */
-    --room6FanSpreadDeg: 14;     /* 各カードの回転差（度） */
-    --room6FanTanStep: 6;        /* 接線方向のズラし(px) */
-    --room6FanRadStep: -1;       /* 半径方向のズラし(px)（重なり軽減） */
-    --room6FanTopSide: 1;        /* どちら側を最前面にするか：1=右側(+) / -1=左側(-) */
-
-    /* ★ カード色（room別） */
-    --cardFillRoom1: #ffffff;      /* 白 */
-    --cardFillRoom6: #a0522d;      /* 茶（サドルブラウン） */
-    --cardStrokeRoom6: #000000;    /* 茶カードの枠＝黒 */
-    /* room4 も 1-2 では茶カードにする（room6の色を流用） */
-    --cardFillRoom4: var(--cardFillRoom6);
-    --cardStrokeRoom4: var(--cardStrokeRoom6);
-
-    /* ★ room テキスト（1-2 の room3 用） */
-    --roomTextColor: #d4a373;      /* 明るい茶色 */
-    --roomTextSize: 14px;
-    --roomTextWeight: 800;
---roomTextDeltaR: 12px; 
-/* ▼ room テキストの背面円 */
---roomTextBg: #f7ac60;          /* 背面円の色（黒） */
---roomTextBgOpacity: 0.3;      /* 不透明度（必要なら 0.6 等に） */
---roomTextBgR: 12;           /* 円の半径(px)・未指定時はフォントサイズから自動算出 */
-
+    --black-card:#0b1530;
+    --black-card-border-soft:#58606f;
   }
-  body{
-    margin:0;
-    min-height:100dvh;
-    display:grid;
-    place-items:center;
-    background:var(--bg);
-  }
-  svg{ width:min(92vw, calc(var(--size)*1px)); height:auto; display:block; }
-  .sharp{ stroke-linecap:butt; stroke-linejoin:miter; }
 
-  /* ▼ 右上ミッション入力（固定HUD） */
-  #hud{
-    position:fixed; top:10px; right:12px; z-index:9999;
-    display:flex; align-items:center; gap:.5rem;
-    padding:.5rem .65rem; background:#fff;
-    border:1px solid #e5e7eb; border-radius:.75rem;
-    box-shadow:0 6px 18px rgba(0,0,0,.08);
-    backdrop-filter: blur(3px);
-    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", "Hiragino Kaku Gothic ProN", Meiryo, Arial, sans-serif;
-  }
-  #hud label{ font-size:.85rem; font-weight:700; color:#111; letter-spacing:.02em; }
-  #missionInput{
-    width:7.5rem; padding:.45rem .6rem; font-size:.95rem;
-    border:1px solid #cbd5e1; border-radius:.6rem; outline:none; background:#fff;
-  }
-  #missionInput:focus{ border-color:#111; box-shadow:0 0 0 2px rgba(0,0,0,.05); }
-  #missionStatus{ font-size:.8rem; color:#64748b; }
+  html, body{height:100%; overflow:hidden;}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#fff;color:#111;}
+  header{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid #eee; position:sticky; top:0; z-index:400; background:#fff;}
+  h1{margin:0;font-size:18px;}
+  .small{font-size:12px;opacity:.75;}
+  .join-box{display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:12px; position:relative; z-index:2;}
+  .join-box input{padding:8px;border:1px solid #ddd;border-radius:6px;font-size:16px;}
+  .btn{padding:6px 10px;border:1px solid #ddd;border-radius:6px;background:#f8f8f8;cursor:pointer;}
+  .btn.primary{background:#111;color:#fff;border-color:#111;}
+  .btn.ghost{background:transparent;}
+  .hidden{display:none;}
+  #lobby{padding:20px;border-top:1px solid #eee; position:relative; z-index:2;}
+  .copy-btn.copied, .btn.ghost.copied{background:#16a34a;color:#fff;border-color:#16a34a;}
 
-  /* ▼ 6等分セクタ：常に透明、クリック時のフラッシュ演出なし */
-  #sectorHits .sector { fill: rgba(255,255,0,0); cursor: pointer; pointer-events: fill; }
+  main{
+    position:relative;
+    height:calc(100vh - 60px);
+    overflow:auto;
+    -webkit-overflow-scrolling:touch;
+    background-size:cover;
+    background-position:center;
+    background-repeat:no-repeat;
+  }
+  main.prejoin{ background-image:url('maemain.jpg'); }
+  main.joined{ background-image:url('maingazo.jpg'); }
+
+  .seat-pop{
+    position:fixed;left:50%;bottom:10px;transform:translateX(-50%);
+    background:orange;border:1px solid #eee;border-radius:12px;
+    box-shadow:0 12px 28px rgba(0,0,0,.12);
+    padding:10px;z-index:220;display:flex;flex-direction:column;gap:10px;min-width:280px;
+  }
+  .seat-pop.hidden{display:none;}
+  .seat-pop .row{display:flex;gap:8px;align-items:center;}
+  .seat-pop label{width:84px;font-size:13px;}
+  .seat-pop .tabs{display:flex;gap:6px;flex-wrap:wrap;}
+  .tab{padding:6px 10px;border:1px solid #ddd;border-radius:999px;cursor:pointer;user-select:none;position:relative;}
+  .tab.disabled{opacity:.45; pointer-events:none;}
+  .tab.disabled::after{content:'✕';position:absolute;inset:0;display:grid;place-items:center;font-size:18px;font-weight:700;color:#b91c1c;pointer-events:none;}
+  .tab.active{background:#111;color:#fff;border-color:#111;}
+
+  .host-selecting-pop{
+    position:fixed;left:50%;bottom:10px;transform:translateX(-50%);
+    background:rgba(20,20,20,.92);color:#fff;
+    padding:12px 16px;border-radius:14px;
+    box-shadow:0 18px 40px rgba(0,0,0,.35);
+    z-index:225;font-weight:800;white-space:nowrap;
+    pointer-events:none;
+  }
+  .host-selecting-pop.hidden{display:none;}
+
+  .player-circle{
+    position:relative;width:260px;height:260px;
+    margin:20px auto 0;border-radius:50%;
+    box-sizing:border-box;border:none;
+  }
+  .player-circle::before{content:'';}
+  .player-tag{
+    position:absolute;transform:translate(-50%,-50%);
+    padding:4px 8px;border-radius:999px;background:#f8f8f8;
+    border:1px solid #ddd;font-size:12px;white-space:nowrap;
+  }
+  .player-tag.me{ background:#111;color:#fff;border-color:#111; }
+
+  .player-tag .mini-hand{
+    position:absolute;left:50%;top:100%;
+    transform:translate(-50%,3px);
+    width:92px;height:48px;pointer-events:none;
+  }
+  .player-tag .mini-card{
+    position:absolute;left:50%;top:0;
+    width:24px;height:33px;
+    border-radius:5px;
+    font-size:10px;display:flex;align-items:center;justify-content:center;
+    transform-origin:bottom center;
+    box-shadow:0 2px 6px rgba(0,0,0,.15);
+    box-sizing:border-box;
+  }
+
+  .player-tag .mini-card.back-white{
+    background:
+      repeating-linear-gradient(
+        135deg,
+        #ffffff 0px,
+        #ffffff 4px,
+        #e5e7eb 4px,
+        #e5e7eb 8px
+      );
+    border:1px solid #cfcfcf;
+  }
+
+  .player-tag .mini-card.back-black{
+    background:
+      repeating-linear-gradient(
+        135deg,
+        var(--black-card) 0px,
+        var(--black-card) 4px,
+        #1a274d 4px,
+        #1a274d 8px
+      );
+    border:1px solid var(--black-card-border-soft);
+  }
+
+  .my-hand-wrapper{margin-top:60px;text-align:center;}
+  .my-hand-title{display:none;}
+  .my-hand{display:flex;justify-content:center;gap:8px;margin-top:6px;min-height:100px;}
+  .my-card{
+    width:60px;height:90px;border-radius:8px;border:1px solid #ddd;background:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:600;
+    box-shadow:0 4px 12px rgba(0,0,0,.15);
+  }
+
+  .dialog-backdrop{
+    position:fixed;inset:0;background:rgba(0,0,0,.35);
+    display:flex;align-items:center;justify-content:center;z-index:300;
+  }
+  .dialog-backdrop.hidden{display:none;}
+  .dialog-box{
+    background:#fff;border-radius:12px;padding:16px 18px;
+    box-shadow:0 18px 40px rgba(0,0,0,.35);
+    max-width:320px;width:calc(100% - 40px);
+  }
+  .dialog-box p{margin:0 0 12px;font-size:14px;line-height:1.6;}
+  .dialog-buttons{display:flex;justify-content:flex-end;gap:8px;}
+
+  .host-settings-btn{
+    position:fixed;right:16px;bottom:16px;width:44px;height:44px;border-radius:50%;
+    border:1px solid #ddd;background:#fff;box-shadow:0 8px 20px rgba(0,0,0,.18);
+    display:none;align-items:center;justify-content:center;font-size:22px;cursor:pointer;z-index:230;
+  }
+  .host-settings-btn.visible{display:flex;}
+
+  .start-pop{
+    position:fixed;right:16px;bottom:72px;background:#fff;border:1px solid #ddd;border-radius:12px;
+    box-shadow:0 12px 28px rgba(0,0,0,.16);padding:10px 12px;z-index:240;min-width:260px;
+    display:flex;flex-direction:column;gap:8px;
+  }
+  .start-pop.hidden{display:none;}
+  .start-pop-header{display:flex;justify-content:space-between;align-items:center;gap:8px;}
+  .start-pop-title{font-size:14px;font-weight:600;}
+  .start-pop-main{font-size:13px;line-height:1.5;}
+  .start-pop-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:4px;flex-wrap:wrap;}
+
+  #roomInfoLobby, #lobby h2, #lobby p {display:none;}
+  #lobby.entered{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    min-height:calc(100vh - 60px);
+  }
+
+  .help-btn{
+    position:fixed;left:16px;bottom:16px;width:44px;height:44px;border-radius:50%;
+    border:1px solid #111;background:#111;color:#fff;
+    box-shadow:0 8px 20px rgba(0,0,0,.18);
+    display:none;align-items:center;justify-content:center;
+    font-size:22px;font-weight:800;cursor:pointer;z-index:230;
+  }
+  .help-btn.visible{display:flex;}
+
+  .help-pop-backdrop{
+    position:fixed;inset:0;background:rgba(0,0,0,.35);
+    display:flex;align-items:flex-end;justify-content:center;
+    z-index:310;
+    padding:16px;
+  }
+  .help-pop-backdrop.hidden{display:none;}
+  .help-pop{
+    width:min(520px, calc(100% - 0px));
+    max-height:min(70vh, 640px);
+    background:#fff;border:1px solid #ddd;border-radius:16px;
+    box-shadow:0 18px 40px rgba(0,0,0,.35);
+    overflow:hidden;
+  }
+  .help-pop-header{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:10px 12px;border-bottom:1px solid #eee;
+  }
+  .help-pop-title{font-weight:800;font-size:14px;}
+  .help-pop-body{padding:12px;overflow:auto;max-height:calc(70vh - 48px);}
+  .role-row{
+    display:flex;gap:12px;align-items:flex-start;
+    padding:10px 0;
+  }
+  .role-card{
+    width:72px;height:108px;border-radius:10px;border:1px solid #ddd;background:#f8f8f8;
+    box-shadow:0 6px 16px rgba(0,0,0,.10);
+    flex:0 0 auto;
+    display:flex;align-items:center;justify-content:center;
+    font-size:12px;font-weight:700;color:#444;
+  }
+  .role-desc{flex:1 1 auto;}
+  .role-desc .name{font-weight:900;margin-bottom:4px;}
+  .role-desc .text{font-size:13px;line-height:1.55;color:#222;white-space:pre-wrap;}
 </style>
 </head>
 <body>
 
-<!-- ▼ 右上：ミッション入力 -->
-<div id="hud" role="group" aria-label="ミッション入力">
-  <label for="missionInput">ミッション</label>
-  <input id="missionInput" type="text" inputmode="text" autocomplete="off"
-         placeholder="1-1 / 1-2 など" aria-describedby="missionStatus"
-         maxlength="12" />
-  <span id="missionStatus" aria-live="polite"></span>
+<header>
+  <h1>テンプレ</h1>
+  <div style="display:flex;align-items:center;gap:6px;">
+    <div class="small" id="roomInfo"></div>
+    <button class="btn ghost" id="copyLinkBtn">COPY</button>
+  </div>
+</header>
+
+<main id="main" class="prejoin">
+  <div class="join-box" id="joinBox">
+    <input id="userName" placeholder="名前（未入力で自動）" maxlength="4" />
+    <input id="roomCode" placeholder="ルームコード（未入力で自動生成）" maxlength="12" />
+    <button class="btn primary" id="btnJoin">入室</button>
+  </div>
+
+  <div id="lobby" class="hidden">
+    <h2>ロビー</h2>
+    <div id="roomInfoLobby" style="margin-bottom:8px;"></div>
+    <p>ここにテーブルや情報が表示されます。</p>
+
+    <div id="playerCircle" class="player-circle"></div>
+
+    <div class="my-hand-wrapper">
+      <div class="my-hand-title">自分のカード</div>
+      <div id="myHand" class="my-hand"></div>
+    </div>
+  </div>
+</main>
+
+<div id="hostSelectingPop" class="host-selecting-pop hidden">ホストが人数を選択中</div>
+
+<div id="seatPop" class="seat-pop hidden">
+  <div class="row"><label>席を選択</label><div id="seatTabs" class="tabs"></div></div>
+  <div class="row" style="justify-content:flex-end">
+    <button class="btn small ghost" id="btnSeatCancel">観戦</button>
+  </div>
 </div>
 
-<svg viewBox="0 0 300 300" role="img" aria-label="正円と6つの正三角形（角を丸め・内側配置／外形のみ黒線＋内側リング＋6等分＋R2-R3を30等分＋inner1/3に画像＋指定なし三角＋中心ダイヤ＋中心線＋外向き曲線三角テーパー＋金線X：底辺innerR接触＋指定部屋に新半円ノッチ［白塗り］＋カード最前面回転＋room6扇状＋1-2でroom4扇状/room3テキスト）">
-  <defs>
-    <path id="eqTriPath" d=""/>
-    <filter id="outerStroke" filterUnits="userSpaceOnUse">
-      <feMorphology in="SourceAlpha" operator="dilate" radius="1" result="dil"/>
-      <feMorphology in="SourceAlpha" operator="erode"  radius="1" result="ero"/>
-      <feComposite in="dil" in2="ero" operator="out" result="ring"/>
-      <feColorMatrix in="ring" type="matrix"
-        values="0 0 0 0 0
-                0 0 0 0 0
-                0 0 0 0 0
-                0 0 0 1 0"
-        result="alpha"/>
-      <feFlood flood-color="#000" result="black"/>
-      <feComposite in="black" in2="alpha" operator="in" result="outline"/>
-      <feMerge><feMergeNode in="outline"/></feMerge>
-    </filter>
+<div id="kickDialog" class="dialog-backdrop hidden">
+  <div class="dialog-box" id="kickDialogBox">
+    <p id="kickMessage">既存のプレイヤーを追い出して、着席しますか？</p>
+    <div class="dialog-buttons">
+      <button class="btn ghost" id="btnKickNo">いいえ</button>
+      <button class="btn primary" id="btnKickYes">はい</button>
+    </div>
+  </div>
+</div>
 
-    <line id="radialSeg6"  x1="0" y1="-90" x2="0" y2="-60" stroke="#000" stroke-width="var(--outline)" stroke-linecap="butt"/>
-    <line id="radialSeg30" x1="0" y1="-57" x2="0" y2="-52" stroke="var(--gold)" stroke-width="var(--outline)" stroke-linecap="butt"/>
+<button id="hostSettingsBtn" class="host-settings-btn" title="設定">⚙</button>
 
-    <circle id="clipCircle1" cx="0" cy="0" r="60"/>
-    <circle id="clipCircle3" cx="0" cy="0" r="35"/>
+<button id="helpBtn" class="help-btn" title="正体カード一覧">？</button>
 
-    <clipPath id="clipInner1" clipPathUnits="userSpaceOnUse"><use href="#clipCircle1"/></clipPath>
-    <clipPath id="clipInner3" clipPathUnits="userSpaceOnUse"><use href="#clipCircle3"/></clipPath>
+<div id="helpBackdrop" class="help-pop-backdrop hidden">
+  <div class="help-pop" role="dialog" aria-modal="true" aria-label="正体カード一覧">
+    <div class="help-pop-header">
+      <div class="help-pop-title">正体カード</div>
+      <button id="btnHelpClose" class="btn ghost" style="padding:2px 6px;font-size:12px;">×</button>
+    </div>
+    <div class="help-pop-body" id="helpBody"></div>
+  </div>
+</div>
 
-    <clipPath id="clipOuterUnion" clipPathUnits="userSpaceOnUse">
-      <g transform="translate(150,150)">
-        <use href="#eqTriPath" transform="rotate( 90)"/>
-        <use href="#eqTriPath" transform="rotate(150)"/>
-        <use href="#eqTriPath" transform="rotate(210)"/>
-        <use href="#eqTriPath" transform="rotate(270)"/>
-        <use href="#eqTriPath" transform="rotate(330)"/>
-        <use href="#eqTriPath" transform="rotate( 30)"/>
-        <circle r="90"/>
-      </g>
-    </clipPath>
+<div id="startPop" class="start-pop hidden">
+  <div class="start-pop-header">
+    <div class="start-pop-title">ホスト設定</div>
+    <button id="btnStartPopClose" class="btn ghost" style="padding:2px 6px;font-size:12px;">×</button>
+  </div>
+  <div class="start-pop-main">
+    「スタート」で全プレイヤーにカードを配布。<br>
+    「リセット」で人数選択へ戻します。
+  </div>
+  <div class="start-pop-actions">
+    <button id="btnResetRoom" class="btn ghost">リセット</button>
+    <button id="btnGameStart" class="btn primary">スタート</button>
+  </div>
+</div>
 
-    <linearGradient id="goldXGrad" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%"  stop-color="#fff6b0"/>
-      <stop offset="35%" stop-color="#ffd766"/>
-      <stop offset="70%" stop-color="#caa032"/>
-      <stop offset="100%" stop-color="#fff1a2"/>
-    </linearGradient>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import {
+  getDatabase, ref, set, get, update, onDisconnect, onValue, remove
+} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
 
-    <symbol id="notchedBowl" viewBox="0 0 110 65" overflow="visible">
-      <path id="bowlFill" fill="#fff" stroke="none"/>
-      <path id="bowlPath" fill="none" stroke="var(--bowlStrokeColor)" stroke-width="1.5"
-            stroke-linecap="round" stroke-linejoin="round"/>
-    </symbol>
-
-    <clipPath id="clipAnnulus45" clipPathUnits="userSpaceOnUse">
-      <path id="clipAnnulus45Path" d=""/>
-    </clipPath>
-
-    <line id="innerTinyLine" x1="0" y1="-20" x2="0" y2="-14"
-          stroke="var(--innerTinyColor)" stroke-width="var(--innerTinyW)"
-          stroke-linecap="butt" stroke-opacity="var(--innerTinyOpacity)"/>
-  </defs>
-
-  <!-- 背面：円と三角 -->
-  <g id="triBack" transform="translate(150,150)" class="sharp" aria-hidden="true">
-    <circle id="outerCircle" r="90" fill="var(--circleFill)"/>
-    <use href="#eqTriPath" transform="rotate( 30)" data-room="1"/>
-    <use href="#eqTriPath" transform="rotate( 90)" data-room="2"/>
-    <use href="#eqTriPath" transform="rotate(150)" data-room="3"/>
-    <use href="#eqTriPath" transform="rotate(210)" data-room="4"/>
-    <use href="#eqTriPath" transform="rotate(270)" data-room="5"/>
-    <use href="#eqTriPath" transform="rotate(330)" data-room="6"/>
-  </g>
-
-  <!-- inner1 / inner3 画像 -->
-  <g transform="translate(150,150)" clip-path="url(#clipInner1)">
-    <image id="imgInner1" href="star.jpg" x="-60" y="-60" width="120" height="120" preserveAspectRatio="xMidYMid slice"/>
-  </g>
-  <g transform="translate(150,150)" clip-path="url(#clipInner3)">
-    <image id="imgInner3" href="sky.jpg" x="-35" y="-35" width="70" height="70" preserveAspectRatio="xMidYMid slice"/>
-  </g>
-
-  <!-- 外形輪郭 -->
-  <g transform="translate(150,150)" id="unionForOutline" filter="url(#outerStroke)">
-    <g fill="#000">
-      <use href="#eqTriPath" transform="rotate( 90)"/>
-      <use href="#eqTriPath" transform="rotate( 30)"/>
-      <use href="#eqTriPath" transform="rotate(150)"/>
-      <use href="#eqTriPath" transform="rotate(210)"/>
-      <use href="#eqTriPath" transform="rotate(270)"/>
-      <use href="#eqTriPath" transform="rotate(330)"/>
-      <circle r="90"/>
-    </g>
-  </g>
-
-  <!-- 放射線 -->
-  <g transform="translate(150,150)" id="radials6"  style="pointer-events:none"></g>
-  <g transform="translate(150,150)" id="radials30" style="pointer-events:none"></g>
-
-  <!-- 背面リング -->
-  <g id="innerRingsBack" transform="translate(150,150)" class="sharp">
-    <circle id="innerRing"  r="60" fill="none" stroke="#000"        stroke-width="var(--outline)"/>
-    <circle id="innerRing3" r="35" fill="none" stroke="var(--gold)" stroke-width="var(--outline)"/>
-  </g>
-
-  <!-- 指定なしマーク -->
-  <g transform="translate(150,150)" id="stageMarks" style="pointer-events:none"></g>
-
-  <!-- 外向き曲線三角＋金線X -->
-  <g transform="translate(150,150)" id="stageOutward" style="pointer-events:none"></g>
-
-  <!-- 前面リング innerR2 -->
-  <g id="innerRing2Front" transform="translate(150,150)" class="sharp">
-    <circle id="innerRing2" r="48" fill="none" stroke="var(--gold)" stroke-width="var(--outline)"/>
-  </g>
-
-  <!-- 中心オレンジ塗り -->
-  <g id="innerOrangeFill" transform="translate(150,150)" class="sharp">
-    <path id="orangeRingFill" fill="var(--orange)" fill-opacity="var(--orangeRingOpacity)" d=""/>
-    <circle id="orangeCenterFill" r="0" fill="var(--orange)" stroke="none"/>
-  </g>
-
-  <!-- r4-r5 黄色20等分ライン -->
-  <g id="innerTiny20" transform="translate(150,150)" class="sharp" style="pointer-events:none"></g>
-
-  <!-- r4/r5 枠線（黄色） -->
-  <g id="innerRingsOrange" transform="translate(150,150)" class="sharp">
-    <circle id="innerRing4" r="0" fill="none" stroke="var(--ringStroke)" stroke-width="var(--outline)"/>
-    <circle id="innerRing5" r="0" fill="none" stroke="var(--ringStroke)" stroke-width="var(--outline)"/>
-  </g>
-
-  <!-- r5 の「∞」 -->
-  <g id="r5Infinity" transform="translate(150,150)" style="pointer-events:none"></g>
-
-  <!-- 指定あり部屋：半円ノッチ -->
-  <g transform="translate(150,150)" id="stageSpecified" style="pointer-events:none"></g>
-
-  <!-- 12時線（太い黄色／最前） -->
-  <g transform="translate(150,150)" id="centerTopLineG" style="pointer-events:none">
-    <line id="centerTopLine" x1="0" y1="0" x2="0" y2="-90"
-          stroke="var(--centerTopColor)" stroke-width="var(--centerTopW)" stroke-linecap="round"/>
-  </g>
-  <!-- 12時線の先端ダイヤ -->
-  <g transform="translate(150,150)" id="centerTopDiamondG" style="pointer-events:none"></g>
-
-  <!-- SVG右上にミッション表示 -->
-  <text id="missionText" x="292" y="22" text-anchor="end" font-size="18" font-weight="700"
-        font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', Meiryo, Arial, sans-serif"
-        fill="#111"></text>
-
-  <!-- クリック当たり判定（フラッシュなし） -->
-  <g id="sectorHits" transform="translate(150,150)"></g>
-
-  <!-- ★ 1-2: room3 の文字描画用 -->
-  <g id="roomTexts" transform="translate(150,150)" style="pointer-events:none"></g>
-
-  <!-- ★★ 最前面：room1 / room4 / room6 のカード（中心回転を適用） -->
-  <g id="roomCards" style="pointer-events:none"></g>
-</svg>
-
-<script>
-/* ================== 基本三角（角丸・内向き配置） ================== */
-const SCALE  = 0.92;
-const RADIUS = 8;
-const OUTLINE = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--outline')) || 2;
-
-const V1 = {x:  0.0,  y: -115.0};
-const V2 = {x: -30.0, y:  -75};
-const V3 = {x:  30.0, y:  -75};
-
-const scalePt = (p,k) => ({x:p.x*k, y:p.y*k});
-const v1 = scalePt(V1, SCALE);
-const v2 = scalePt(V2, SCALE);
-const v3 = scalePt(V3, SCALE);
-
-const d = RADIUS * Math.sqrt(3);
-function along(P, Q, dist){
-  const vx = Q.x - P.x, vy = Q.y - P.y;
-  const L = Math.hypot(vx, vy);
-  return { x: P.x + vx / L * dist, y: P.y + vy / L * dist };
-}
-const A1 = along(v1, v3, d), B1 = along(v1, v2, d);
-const A2 = along(v2, v1, d), B2 = along(v2, v3, d);
-const A3 = along(v3, v2, d), B3 = along(v3, v1, d);
-
-const dStr = [
-  `M ${B1.x},${B1.y}`,
-  `L ${A2.x},${A2.y}`,
-  `Q ${v2.x},${v2.y} ${B2.x},${B2.y}`,
-  `L ${A3.x},${A3.y}`,
-  `Q ${v3.x},${v3.y} ${B3.x},${B3.y}`,
-  `L ${A1.x},${A1.y}`,
-  `Q ${v1.x},${v1.y} ${B1.x},${B1.y} Z`
-].join(' ');
-document.getElementById('eqTriPath').setAttribute('d', dStr);
-
-/* ============== 外形線フィルタ半径合わせ（黒輪郭） ============== */
-const filter = document.getElementById('outerStroke');
-const nodes = filter.querySelectorAll('feMorphology');
-const radiusMorph = Math.max(OUTLINE/2, 0.5);
-nodes.forEach(el => el.setAttribute('radius', radiusMorph));
-
-const union = document.getElementById('unionForOutline');
-const margin = OUTLINE * 2 + 4;
-const bbox = union.getBBox();
-filter.setAttribute('x', bbox.x - margin);
-filter.setAttribute('y', bbox.y - margin);
-filter.setAttribute('width',  bbox.width  + margin*2);
-filter.setAttribute('height', bbox.height + margin*2);
-
-/* ================== 半径など / スタイル参照 ================== */
-const cs = getComputedStyle(document.documentElement);
-let innerR  = parseFloat(cs.getPropertyValue('--innerR'))  || 60;
-let innerR2 = parseFloat(cs.getPropertyValue('--innerR2')) || 48;
-let innerR3 = parseFloat(cs.getPropertyValue('--innerR3')) || 35;
-/* ★ r4/r5 */
-let innerR4 = parseFloat(cs.getPropertyValue('--innerR4')) || 28;
-let innerR5 = parseFloat(cs.getPropertyValue('--innerR5')) || 14;
-
-const outerR = 90;
-
-/* 既存リング反映 */
-document.getElementById('innerRing').setAttribute('r', innerR);
-document.getElementById('innerRing2').setAttribute('r', innerR2);
-document.getElementById('innerRing3').setAttribute('r', innerR3);
-
-/* ★ 12時方向の直線の長さ（r5→r1） */
-const r1 = parseFloat(cs.getPropertyValue('--innerR'))  || 65;  // innerR が r1
-const r5css = parseFloat(cs.getPropertyValue('--innerR5')) || 20;
-
-const line = document.getElementById('centerTopLine');
-line.setAttribute('y1', -r5css);
-line.setAttribute('y2', -r1);
-
-/* ===== オレンジ塗り・枠の描画関数 ===== */
-function updateOrangeGraphics(){
-  const cs2 = getComputedStyle(document.documentElement);
-  innerR4 = parseFloat(cs2.getPropertyValue('--innerR4')) || innerR4;
-  innerR5 = parseFloat(cs2.getPropertyValue('--innerR5')) || innerR5;
-
-  document.getElementById('innerRing4').setAttribute('r', innerR4);
-  document.getElementById('innerRing5').setAttribute('r', innerR5);
-  document.getElementById('orangeCenterFill').setAttribute('r', innerR5);
-
-  const dRing = [
-    `M ${ innerR4 } 0`,
-    `A ${ innerR4 } ${ innerR4 } 0 1 0 ${ -innerR4 } 0`,
-    `A ${ innerR4 } ${ innerR4 } 0 1 0 ${  innerR4 } 0`,
-    `M ${ innerR5 } 0`,
-    `A ${ innerR5 } ${ innerR5 } 0 1 1 ${ -innerR5 } 0`,
-    `A ${ innerR5 } ${ innerR5 } 0 1 1 ${  innerR5 } 0 Z`
-  ].join(' ');
-  const ringEl = document.getElementById('orangeRingFill');
-  ringEl.setAttribute('d', dRing);
-  ringEl.setAttribute('fill-rule', 'evenodd');
-
-  const cpPath = document.getElementById('clipAnnulus45Path');
-  if (cpPath) {
-    cpPath.setAttribute('d', dRing);
-    cpPath.setAttribute('fill-rule','evenodd');
-  }
-}
-updateOrangeGraphics();
-
-document.getElementById('clipCircle1').setAttribute('r', innerR);
-document.getElementById('clipCircle3').setAttribute('r', innerR3);
-
-/* ================== 放射線（6等分 / 30等分） ================== */
-const seg6 = document.getElementById('radialSeg6');
-seg6.setAttribute('y1', -outerR);
-seg6.setAttribute('y2', -innerR);
-
-const radials6 = document.getElementById('radials6');
-for(let i=0; i<6; i++){
-  const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
-  use.setAttributeNS('http://www.w3.org/1999/xlink', 'href', '#radialSeg6');
-  use.setAttribute('transform', `rotate(${i*60})`);
-  radials6.appendChild(use);
-}
-
-const seg30 = document.getElementById('radialSeg30');
-const rOuter = Math.max(innerR2, innerR3);
-const rInner = Math.min(innerR2, innerR3);
-seg30.setAttribute('y1', -rOuter);
-seg30.setAttribute('y2', -rInner);
-
-const radials30 = document.getElementById('radials30');
-for(let i=0; i<30; i++){
-  const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
-  use.setAttributeNS('http://www.w3.org/1999/xlink', 'href', '#radialSeg30');
-  use.setAttribute('transform', `rotate(${i*12})`);
-  radials30.appendChild(use);
-}
-
-/* ================== 画像フィット ================== */
-function applyImageFit(imgEl, radius, scaleVar, offXVar, offYVar){
-  const cs3 = getComputedStyle(document.documentElement);
-  const scale = parseFloat(cs3.getPropertyValue(scaleVar)) || 1;
-  const base = 2 * radius * scale;
-  imgEl.setAttribute('width',  base);
-  imgEl.setAttribute('height', base);
-  const offX = parseFloat(cs3.getPropertyValue(offXVar)) || 0;
-  const offY = parseFloat(cs3.getPropertyValue(offYVar)) || 0;
-  imgEl.setAttribute('x', -base/2 + offX);
-  imgEl.setAttribute('y', -base/2 + offY);
-  imgEl.setAttribute('preserveAspectRatio', 'xMidYMid slice');
-}
-applyImageFit(document.getElementById('imgInner1'), innerR,  '--img1Scale','--img1OffX','--img1OffY');
-applyImageFit(document.getElementById('imgInner3'), innerR3, '--img3Scale','--img3OffX','--img3OffY');
-
-/* ================== ミッション入出力 ================== */
-const KEY = 'missionCode';
-const $input = document.getElementById('missionInput');
-const $status = document.getElementById('missionStatus');
-const $text = document.getElementById('missionText');
-
-const params = new URLSearchParams(location.search);
-const urlMission = params.get('m');
-const saved = localStorage.getItem(KEY);
-const initial = (urlMission && urlMission.trim()) || (saved && saved.trim()) || '';
-
-function sanitizeMission(v){
-  return (v || '').replace(/[^0-9A-Za-z.\-\/_]/g, '').slice(0, 12);
-}
-function setMission(value, {silent=false}={}){
-  const val = sanitizeMission(value);
-  $input.value = val;
-  $text.textContent = val || '';
-  document.documentElement.setAttribute('data-mission', val);
-  localStorage.setItem(KEY, val);
-  if(!silent){ window.dispatchEvent(new CustomEvent('mission:change', {detail:{value:val}})); }
-  $status.textContent = val ? '保存しました' : '';
-  if(val){ clearTimeout(setMission._t); setMission._t = setTimeout(()=>{ $status.textContent=''; }, 800); }
-}
-setMission(initial, {silent:true});
-let t = 0;
-$input.addEventListener('input', () => { clearTimeout(t); t = setTimeout(()=> setMission($input.value), 200); });
-$input.addEventListener('keydown', (e)=>{ if(e.key === 'Enter'){ setMission($input.value); $input.blur(); } });
-window.getCurrentMission = () => localStorage.getItem(KEY) || '' ;
-
-/* ================== 角度/座標ユーティリティ ================== */
-function polar(r, deg){
-  const rad = (deg - 90) * Math.PI/180; // 0°=12時方向
-  return { x: r * Math.cos(rad), y: r * Math.sin(rad) };
-}
-function sectorPath(rIn, rOut, a0, a1){
-  const p1 = polar(rIn, a0), p2 = polar(rOut, a0);
-  const p3 = polar(rOut, a1), p4 = polar(rIn, a1);
-  const large = (a1 - a0) > 180 ? 1 : 0;
-  return [
-    `M ${p1.x},${p1.y}`,
-    `L ${p2.x},${p2.y}`,
-    `A ${rOut},${rOut} 0 ${large} 1 ${p3.x},${p3.y}`,
-    `L ${p4.x},${p4.y}`,
-    `A ${rIn},${rIn} 0 ${large} 0 ${p1.x},${p1.y}`,
-    'Z'
-  ].join(' ');
-}
-function clickAngleDeg(svgPoint, center){
-  const dx = svgPoint.x - center.x;
-  const dy = svgPoint.y - center.y;
-  let ang = Math.atan2(dy, dx) * 180/Math.PI;  // 0°=3時
-  ang = (ang + 90 + 360) % 360;                // 12時基準
-  return ang;
-}
-
-/* ================== 6等分セクタ（当たり判定） ================== */
-(function setupSectors(){
-  const g = document.getElementById('sectorHits');
-  const rIn  = innerR;
-  const rOut = outerR;
-
-  for(let i=0;i<6;i++){
-    const a0 = i*60;
-    const a1 = a0 + 60;
-    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
-    path.setAttribute('class','sector');
-    path.setAttribute('d', sectorPath(rIn, rOut, a0, a1));
-    path.dataset.room = String(i+1);
-    g.appendChild(path);
-  }
-
-  const svgEl = document.querySelector('svg');
-  g.addEventListener('click', (ev)=>{
-    const target = ev.target.closest('.sector');
-    if(!target) return;
-    const roomNo = parseInt(target.dataset.room, 10) || 0;
-
-    const pt = svgEl.createSVGPoint(); pt.x = ev.clientX; pt.y = ev.clientY;
-    const svgPt = pt.matrixTransform(svgEl.getScreenCTM().inverse());
-    const ang = clickAngleDeg(svgPt, {x:150, y:150});
-
-    /* フラッシュ演出は削除 */
-    window.dispatchEvent(new CustomEvent('room:click', { detail: { room: roomNo, angle: ang }}));
-    console.log('[room click]', {roomNo, angle: Math.round(ang)});
-  });
-
-  /* API互換のためのダミー（必要なら残す） */
-  window.flashRoom = (/*n*/)=>{};
-})();
-
-/* ================== ステージ定義 ================== */
-const stageMarksG = document.getElementById('stageMarks');
-const stageSpecifiedG = document.getElementById('stageSpecified');
-
-/* ★ 1-2 を room3/room4 指定に */
-const STAGE_SPEC = {
-  '1-1': { specifiedRooms: [1,6] },
-  '1-2': { specifiedRooms: [3,4] },  // ← 指定部屋（白塗り＆ノッチ）
-  '2-3': { specifiedRooms: [2,3,6] },
+const firebaseConfig = {
+  apiKey: "AIzaSyDUP1foVQnitM45do_UtYLkcc9gvgQC-xw",
+  authDomain: "timebomb-3b0c7.firebaseapp.com",
+  databaseURL: "https://timebomb-3b0c7-default-rtdb.firebaseio.com",
+  projectId: "timebomb-3b0c7",
+  storageBucket: "timebomb-3b0c7.firebasestorage.app",
+  messagingSenderId: "532935786630",
+  appId: "1:532935786630:web:ef1f97c862bfaad67d1107",
+  measurementId: "G-K8NRR8K64Y"
 };
-function getSpecifiedRoomsForMission(mission){
-  const rec = STAGE_SPEC[mission];
-  return rec?.specifiedRooms || [];
+
+const app = initializeApp(firebaseConfig);
+const db  = getDatabase(app);
+
+const savedUserId = sessionStorage.getItem('bbUserId') || crypto.randomUUID();
+sessionStorage.setItem('bbUserId', savedUserId);
+
+const state = {
+  userId: savedUserId,
+  userName: null,
+  roomCode: null,
+  seatedTable: null,
+  isHost: false,
+  hands: {},
+  room: {},
+  tables: {},
+  joined: false
+};
+
+const mainEl = document.getElementById('main');
+const joinBox = document.getElementById('joinBox');
+const inputName = document.getElementById('userName');
+const inputCode = document.getElementById('roomCode');
+const btnJoin = document.getElementById('btnJoin');
+const lobby = document.getElementById('lobby');
+const roomInfo = document.getElementById('roomInfo');
+const roomInfoLobby = document.getElementById('roomInfoLobby');
+const copyLinkBtn = document.getElementById('copyLinkBtn');
+
+const hostSelectingPop = document.getElementById('hostSelectingPop');
+
+const seatPop = document.getElementById('seatPop');
+const seatTabs = document.getElementById('seatTabs');
+const btnSeatCancel = document.getElementById('btnSeatCancel');
+const seatLabel = seatPop.querySelector('label');
+
+const playerCircle = document.getElementById('playerCircle');
+const myHandEl = document.getElementById('myHand');
+
+const kickDialog = document.getElementById('kickDialog');
+const kickMessage = document.getElementById('kickMessage');
+const btnKickYes = document.getElementById('btnKickYes');
+const btnKickNo = document.getElementById('btnKickNo');
+
+const hostSettingsBtn = document.getElementById('hostSettingsBtn');
+const startPop = document.getElementById('startPop');
+const btnStartPopClose = document.getElementById('btnStartPopClose');
+const btnGameStart = document.getElementById('btnGameStart');
+const btnResetRoom = document.getElementById('btnResetRoom');
+
+const helpBtn = document.getElementById('helpBtn');
+const helpBackdrop = document.getElementById('helpBackdrop');
+const btnHelpClose = document.getElementById('btnHelpClose');
+const helpBody = document.getElementById('helpBody');
+
+const ROLE_HELP = [
+  { name: "カード1", text: "ああああ" },
+  { name: "カード2", text: "いいいい" },
+  { name: "カード3", text: "うううう" },
+  { name: "カード4", text: "うううう" },
+];
+
+let pendingSeatIndexToSteal = null;
+let pendingSeatPlayerIdToSteal = null;
+let latestPlayers = [];
+let joinInProgress = false;
+
+function randomInt(max){
+  return Math.floor(Math.random() * max);
 }
 
-/* ================== 指定なしマーク描画 ================== */
-/* …（既存：renderStageMarks, renderOutwardMarks, makeBowlPaths, setupBowlSymbol, renderEqTriBackFill, renderSpecifiedBowls, renderInnerTinyDiv, renderInfinity, renderCenterTopDiamond はそのまま） */
-/* ……長いため省略せず下に全関数が続きます（元コードのまま） */
-function renderStageMarks(mission){
-  while(stageMarksG.firstChild) stageMarksG.removeChild(stageMarksG.firstChild);
-
-  const specified = new Set(getSpecifiedRoomsForMission(mission));
-  const cs4 = getComputedStyle(document.documentElement);
-  const rBase  = innerR;
-  const len    = parseFloat(cs4.getPropertyValue('--markLen')) || 12;
-  const spread = parseFloat(cs4.getPropertyValue('--markSpreadDeg')) || 18;
-
-  const stroke = cs4.getPropertyValue('--markStroke').trim() || '#facc15';
-  const sw     = parseFloat(cs4.getPropertyValue('--markStrokeW')) || 2;
-  const alpha  = parseFloat(cs4.getPropertyValue('--markAlpha')) || 1;
-
-  const diaFill   = cs4.getPropertyValue('--diamondFill').trim()   || '#facc15';
-  const diaStroke = cs4.getPropertyValue('--diamondStroke').trim() || 'none';
-  const diaSW     = parseFloat(cs4.getPropertyValue('--diamondStrokeW')) || 0;
-  const diaW      = Math.abs(parseFloat(cs4.getPropertyValue('--diamondW')) || 2.5);
-  const diaTop    = Math.abs(parseFloat(cs4.getPropertyValue('--diamondTop')) || 4);
-  const diaBot    = Math.abs(parseFloat(cs4.getPropertyValue('--diamondBot')) || 2);
-  const diaPos    = Math.min(0.95, Math.max(0.05, parseFloat(cs4.getPropertyValue('--diamondPos')) || 0.55));
-
-  const centerLineColor = cs4.getPropertyValue('--centerLineColor').trim() || stroke;
-  const centerLineW     = parseFloat(cs4.getPropertyValue('--centerLineW')) || sw;
-  const centerLineGap   = Math.max(0, parseFloat(cs4.getPropertyValue('--centerLineGap')) || 0);
-
-  const svg = document.querySelector('svg');
-  const defs = svg.querySelector('defs') || svg.insertBefore(
-    document.createElementNS('http://www.w3.org/2000/svg','defs'), svg.firstChild
-  );
-
-  for(let room=1; room<=6; room++){
-    if(specified.has(room)) continue;
-
-    const midDeg = (room-1)*60 + 30;
-    const a0 = midDeg - spread/2;
-    const a1 = midDeg + spread/2;
-
-    const p0  = polar(rBase, a0);
-    const p1  = polar(rBase, a1);
-    const tip = polar(rBase - len, midDeg);
-
-    const dFill = `M ${p0.x},${p0.y} L ${tip.x},${tip.y} L ${p1.x},${p1.y} Z`;
-    const clipId = `markClip-${room}`;
-    const cp = document.createElementNS('http://www.w3.org/2000/svg','clipPath');
-    cp.setAttribute('id', clipId);
-    const pathFill = document.createElementNS('http://www.w3.org/2000/svg','path');
-    pathFill.setAttribute('d', dFill);
-    cp.appendChild(pathFill);
-    svg.querySelector('defs').appendChild(cp);
-
-    const imgSize = Math.ceil(2 * rBase);
-    const img = document.createElementNS('http://www.w3.org/2000/svg','image');
-    img.setAttributeNS('http://www.w3.org/1999/xlink','href','star.jpg');
-    img.setAttribute('x', -imgSize/2);
-    img.setAttribute('y', -imgSize/2);
-    img.setAttribute('width',  imgSize);
-    img.setAttribute('height', imgSize);
-    img.setAttribute('preserveAspectRatio','xMidYMid slice');
-    img.setAttribute('clip-path', `url(#${clipId})`);
-    stageMarksG.appendChild(img);
-
-    const rCenter = rBase - len * diaPos;
-    const deltaDeg = (diaW / Math.max(1, rCenter)) * 180/Math.PI;
-    const ptTop    = polar(rCenter - diaTop,  midDeg);
-    const ptBottom = polar(rCenter + diaBot,  midDeg);
-    const ptLeft   = polar(rCenter,           midDeg - deltaDeg);
-    const ptRight  = polar(rCenter,           midDeg + deltaDeg);
-
-    const dDiamond = `M ${ptLeft.x},${ptLeft.y} L ${ptTop.x},${ptTop.y} L ${ptRight.x},${ptRight.y} L ${ptBottom.x},${ptBottom.y} Z`;
-    const diamond = document.createElementNS('http://www.w3.org/2000/svg','path');
-    diamond.setAttribute('d', dDiamond);
-    diamond.setAttribute('fill', diaFill);
-    diamond.setAttribute('stroke', diaStroke);
-    diamond.setAttribute('stroke-width', diaSW);
-    stageMarksG.appendChild(diamond);
-
-    const dLines = `M ${p0.x},${p0.y} L ${tip.x},${tip.y} M ${tip.x},${tip.y} L ${p1.x},${p1.y}`;
-    const pathStroke = document.createElementNS('http://www.w3.org/2000/svg','path');
-    pathStroke.setAttribute('d', dLines);
-    pathStroke.setAttribute('fill', 'none');
-    pathStroke.setAttribute('stroke', stroke);
-    pathStroke.setAttribute('stroke-width', sw);
-    pathStroke.setAttribute('stroke-opacity', alpha);
-    pathStroke.setAttribute('stroke-linecap', 'butt');
-    pathStroke.setAttribute('stroke-linejoin', 'miter');
-    pathStroke.setAttribute('data-room', String(room));
-    stageMarksG.appendChild(pathStroke);
-
-    const startR = Math.max(innerR - centerLineGap, 0);
-    const endR   = rCenter;
-    const pStart = polar(startR, midDeg);
-    const pEnd   = polar(endR,   midDeg);
-    const centerLine = document.createElementNS('http://www.w3.org/2000/svg','path');
-    centerLine.setAttribute('d', `M ${pStart.x},${pStart.y} L ${pEnd.x},${pEnd.y}`);
-    centerLine.setAttribute('fill', 'none');
-    centerLine.setAttribute('stroke', centerLineColor);
-    centerLine.setAttribute('stroke-width', centerLineW);
-    centerLine.setAttribute('stroke-linecap', 'butt');
-    centerLine.setAttribute('stroke-linejoin', 'miter');
-    stageMarksG.appendChild(centerLine);
+function generateRandomHiraganaName(length = 3){
+  const chars = [
+    'あ','い','う','え','お',
+    'か','き','く','け','こ',
+    'さ','し','す','せ','そ',
+    'た','ち','つ','て','と',
+    'な','に','ぬ','ね','の',
+    'は','ひ','ふ','へ','ほ',
+    'ま','み','む','め','も',
+    'や','ゆ','よ',
+    'ら','り','る','れ','ろ',
+    'わ','を','ん'
+  ];
+  let name = '';
+  for(let i = 0; i < length; i++){
+    name += chars[randomInt(chars.length)];
   }
+  return name;
 }
 
-function quadPoint(p0, c, p1, t){
-  const u=1-t;
-  return { x:u*u*p0.x + 2*u*t*c.x + t*t*p1.x, y:u*u*p0.y + 2*u*t*c.y + t*t*p1.y };
-}
-function quadTangent(p0, c, p1, t){
-  return { x:2*(1-t)*(c.x-p0.x)+2*t*(p1.x-c.x), y:2*(1-t)*(c.y-p0.y)+2*t*(p1.y-c.y) };
-}
-function taperedQuadRibbonPath(p0, c, p1, w0, w1, steps = 12){
-  const left = [], right = [];
-  function easeHalf(t){ return Math.min(t * 1.3, 1); }
-  for(let i=0; i<=steps; i++){
-    const t  = i / steps;
-    const te = easeHalf(t);
-    const p  = quadPoint(p0, c, p1, t);
-    const tg = quadTangent(p0, c, p1, t);
-    const L  = Math.hypot(tg.x, tg.y) || 1;
-    const nx = -tg.y / L, ny = tg.x / L;
-    const w  = (w0 + (w1 - w0) * te);
-    left.push({ x: p.x + nx * (w/2), y: p.y + ny * (w/2) });
+function generateRoomCode(length = 5){
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let code = '';
+  for(let i = 0; i < length; i++){
+    code += chars.charAt(randomInt(chars.length));
   }
-  for(let i=steps; i>=0; i--){
-    const t  = i / steps;
-    const te = easeHalf(t);
-    const p  = quadPoint(p0, c, p1, t);
-    const tg = quadTangent(p0, c, p1, t);
-    const L  = Math.hypot(tg.x, tg.y) || 1;
-    const nx = -tg.y / L, ny = tg.x / L;
-    const w  = (w0 + (w1 - w0) * te);
-    right.push({ x: p.x - nx * (w/2), y: p.y - ny * (w/2) });
-  }
-  const pts = [...left, ...right];
-  return 'M ' + pts.map(p => `${p.x},${p.y}`).join(' L ') + ' Z';
+  return code;
 }
 
-const stageOutG = document.getElementById('stageOutward');
-
-function appendGoldX(parentG, triClipId, midDeg, len, rBase, spread){
-  const cs5  = getComputedStyle(document.documentElement);
-  const g = document.createElementNS('http://www.w3.org/2000/svg','g');
-  g.setAttribute('clip-path', `url(#${triClipId})`);
-
-  const kCSS  = parseFloat(cs5.getPropertyValue('--goldXScale')) || 0.56;
-  const chord = 2 * (rBase + len*0.58) * Math.sin((spread * Math.PI/180)/2);
-  const unitS = Math.min(len * 0.98, chord * 0.86) * kCSS;
-  const s     = unitS / 20;
-
-  const pos = polar(rBase + len * 0.56, midDeg);
-  const tr = `translate(${pos.x},${pos.y}) rotate(${midDeg}) scale(${s}) translate(${-10},${-12})`;
-
-  function mk(dStr){
-    const p = document.createElementNS('http://www.w3.org/2000/svg','path');
-    p.setAttribute('d', dStr);
-    p.setAttribute('fill', 'none');
-    p.setAttribute('stroke', '#facc15');
-    const baseW = parseFloat(cs5.getPropertyValue('--goldXStrokeW')) || 0.40;
-    p.setAttribute('stroke-width', baseW);
-    p.setAttribute('stroke-linecap','round');
-    p.setAttribute('stroke-linejoin','round');
-    p.setAttribute('transform', tr);
-    return p;
-  }
-
-  [
-    "M12 20 L8.951 16.515 Q5 12 8.180 6.912 L10 4",
-    "M14 20 L10.951 16.515 Q7 12 10.087 6.855 L10 7",
-    "M6  20 L9.049 16.515 Q13 12 9.913 6.855 L10 7",
-    "M8  20 L11.049 16.515 Q15 12 11.820 6.912 L10 4"
-  ].forEach(d => g.appendChild(mk(d)));
-
-  parentG.appendChild(g);
+function createDeck24(){
+  const deck = [];
+  for(let i = 1; i <= 12; i++) deck.push({ num: i, color: 'white' });
+  for(let i = 1; i <= 12; i++) deck.push({ num: i, color: 'black' });
+  return deck;
 }
 
-function renderOutwardMarks(mission){
-  while(stageOutG.firstChild) stageOutG.removeChild(stageOutG.firstChild);
-
-  const specified = new Set(getSpecifiedRoomsForMission(mission));
-
-  const cs6 = getComputedStyle(document.documentElement);
-  const rBase    = innerR + (parseFloat(cs6.getPropertyValue('--outTriInset')) || 0);
-  const len      = Math.abs(parseFloat(cs6.getPropertyValue('--outTriLen')) || 16);
-  const spread   = Math.abs(parseFloat(cs6.getPropertyValue('--outTriSpreadDeg')) || 22);
-
-  const color   = cs6.getPropertyValue('--outTriStroke').trim() || '#111';
-  const opacity = parseFloat(cs6.getPropertyValue('--outTriOpacity')) || 1;
-
-  const kCurve  = Math.max(0, Math.min(1, parseFloat(cs6.getPropertyValue('--outTriCurveK')) || 0));
-  const baseW = Math.abs(parseFloat(cs6.getPropertyValue('--outTriBaseW')) || 2.6);
-  const tipW  = Math.abs(parseFloat(cs6.getPropertyValue('--outTriTipW'))  || 0.6);
-
-  const svg = document.querySelector('svg');
-  const defs = svg.querySelector('defs');
-
-  for(let room=1; room<=6; room++){
-    if(specified.has(room)) continue;
-
-    const midDeg = (room-1)*60 + 30;
-    const aL = midDeg - spread/2;
-    const aR = midDeg + spread/2;
-
-    const pL  = polar(rBase, aL);
-    const pR  = polar(rBase, aR);
-    const tip = polar(rBase + len, midDeg);
-
-    const cL = (()=>{ const midDegL = (aL + midDeg)/2;
-      const r = (rBase + (rBase+len))/2 + len * kCurve * 0.6; return polar(r, midDegL); })();
-    const cR = (()=>{ const midDegR = (aR + midDeg)/2;
-      const r = (rBase + (rBase+len))/2 + len * kCurve * 0.6; return polar(r, midDegR); })();
-
-    const dLeftRibbon  = taperedQuadRibbonPath(pL, cL, tip, baseW, tipW, 12);
-    const dRightRibbon = taperedQuadRibbonPath(pR, cR, tip, baseW, tipW, 12);
-
-    const leftRibbon = document.createElementNS('http://www.w3.org/2000/svg','path');
-    leftRibbon.setAttribute('d', dLeftRibbon);
-    leftRibbon.setAttribute('fill', color);
-    leftRibbon.setAttribute('fill-opacity', opacity);
-    stageOutG.appendChild(leftRibbon);
-
-    const rightRibbon = document.createElementNS('http://www.w3.org/2000/svg','path');
-    rightRibbon.setAttribute('d', dRightRibbon);
-    rightRibbon.setAttribute('fill', color);
-    rightRibbon.setAttribute('fill-opacity', opacity);
-    stageOutG.appendChild(rightRibbon);
-
-    const dTriArea = [
-      `M ${pL.x},${pL.y}`,
-      `Q ${cL.x},${cL.y} ${tip.x},${tip.y}`,
-      `Q ${cR.x},${cR.y} ${pR.x},${pR.y}`,
-      `A ${innerR},${innerR} 0 0 1 ${pL.x},${pL.y}`,
-      'Z'
-    ].join(' ');
-
-    const clipId = `outTriClip-${room}`;
-    const cp = document.createElementNS('http://www.w3.org/2000/svg','clipPath');
-    cp.setAttribute('id', clipId);
-    const triPath = document.createElementNS('http://www.w3.org/2000/svg','path');
-    triPath.setAttribute('d', dTriArea);
-    cp.appendChild(triPath);
-    defs.appendChild(cp);
-
-    appendGoldX(stageOutG, clipId, midDeg, len, rBase, spread);
+function shuffleArray(arr){
+  const a = [...arr];
+  for(let i = a.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
   }
+  return a;
 }
 
-/* ================== 指定あり部屋：新“半円ノッチ” ================== */
-function makeBowlPaths({dip=9, halfW=8, extra=4}={}) {
-  const R0 = 45, Cx = 50, Cy = 5;
-  const R  = R0 + extra;
-  const xL = 5  - extra, yL = 5;
-  const xR = 95 + extra, yR = 5;
-
-  const yJoin = Cy + Math.sqrt(R0*R0 - halfW*halfW);
-  const xLJ   = Cx - halfW;
-  const xRJ   = Cx + halfW;
-
-  const xDeep = Cx;
-  const yDeep = Cy + R0 + dip;
-
-  const rS = Math.max(2, Math.min(20, 0.9*halfW + 0.6*dip));
-
-  const cs7 = getComputedStyle(document.documentElement);
-  const L = xR - xL;
-  const halfChord = L / 2;
-
-  const capDeg = parseFloat(cs7.getPropertyValue('--bowl-cap-deg'));
-  const capSag = parseFloat(cs7.getPropertyValue('--bowl-cap-sag'));
-  let   Rcap   = parseFloat(cs7.getPropertyValue('--bowl-cap-R')) || 90;
-
-  if (!Number.isNaN(capDeg)) {
-    const th = Math.max(1, Math.min(359, capDeg)) * Math.PI/180;
-    Rcap = L / (2 * Math.sin(th/2));
-  } else if (!Number.isNaN(capSag)) {
-    const h = Math.max(0.5, capSag);
-    Rcap = (L*L) / (8*h) + h/2;
-  }
-  Rcap = Math.max(halfChord + 1e-3, Rcap);
-
-  let largeArcFlag = 0;
-  if (!Number.isNaN(capDeg) && capDeg > 180) largeArcFlag = 1;
-
-  const dFill =
-    `M ${xL} ${yL}` +
-    ` A ${R} ${R} 0 0 0 ${xLJ} ${yJoin}` +
-    ` A ${rS} ${rS} 0 0 1 ${xDeep} ${yDeep}` +
-    ` A ${rS} ${rS} 0 0 1 ${xRJ} ${yJoin}` +
-    ` A ${R} ${R} 0 0 0 ${xR} ${yR}` +
-    ` A ${Rcap} ${Rcap} 0 ${largeArcFlag} 0 ${xL} ${yL}` +
-     ` Z`;
-
-  const dStroke =
-    `M ${xL} ${yL}` +
-    ` A ${R} ${R} 0 0 0 ${xLJ} ${yJoin}` +
-    ` A ${rS} ${rS} 0 0 1 ${xDeep} ${yDeep}` +
-    ` A ${rS} ${rS} 0 0 1 ${xRJ} ${yJoin}` +
-    ` A ${R} ${R} 0 0 0 ${xR} ${yR}`;
-
-  return { dStroke, dFill };
+function normalizeName(raw){
+  const trimmed = (raw || '').trim();
+  if (trimmed) return trimmed.slice(0, 4);
+  return generateRandomHiraganaName(3);
 }
 
-(function setupBowlSymbol(){
-  const cs8 = getComputedStyle(document.documentElement);
-  const dip   = parseFloat(cs8.getPropertyValue('--bowl-dip'))   || 9;
-  const halfW = parseFloat(cs8.getPropertyValue('--bowl-halfW')) || 8;
-  const extra = parseFloat(cs8.getPropertyValue('--bowl-extra')) || 4;
-  const { dStroke, dFill } = makeBowlPaths({dip, halfW, extra});
-
-  const pFill = document.getElementById('bowlFill');
-  pFill.setAttribute('d', dFill);
-  pFill.setAttribute('fill', '#e0ffff');
-  pFill.setAttribute('stroke','none');
-
-  const pStroke = document.getElementById('bowlPath');
-  pStroke.setAttribute('d', dStroke);
-  const sw = parseFloat(cs8.getPropertyValue('--bowl-stroke')) || 1.5;
-  pStroke.setAttribute('stroke-width', sw);
-  pStroke.setAttribute('fill', 'none');
-})();
-
-/* ================== 背面 eqTriPath の塗り替え ================== */
-function renderEqTriBackFill(mission){
-  const triBack = document.getElementById('triBack');
-  if(!triBack) return;
-  const specified = new Set(getSpecifiedRoomsForMission(mission));
-  const defaultFill = getComputedStyle(document.documentElement).getPropertyValue('--triFill').trim() || '#ddd';
-
-  for(let room=1; room<=6; room++){
-    const use = triBack.querySelector(`use[data-room="${room}"]`);
-    if(!use) continue;
-    if(specified.has(room)){
-      use.setAttribute('fill', '#e0ffff');  // 指定は白系
-    }else{
-      use.setAttribute('fill', defaultFill);
-    }
-  }
+function normalizeRoomCode(raw){
+  const trimmed = (raw || '').trim().toUpperCase();
+  if (trimmed) return trimmed;
+  return generateRoomCode(5);
 }
 
-/* ================== 指定あり部屋：半円ノッチ描画 ================== */
-function renderSpecifiedBowls(mission){
-  while(stageSpecifiedG.firstChild) stageSpecifiedG.removeChild(stageSpecifiedG.firstChild);
+function setJoinButtonBusy(isBusy){
+  btnJoin.disabled = isBusy;
+  btnJoin.style.opacity = isBusy ? '.7' : '1';
+  btnJoin.style.cursor = isBusy ? 'default' : 'pointer';
+}
 
-  const specified = new Set(getSpecifiedRoomsForMission(mission));
-  if(specified.size === 0) return;
+function renderHelpList(){
+  helpBody.innerHTML = '';
+  ROLE_HELP.forEach((r, idx) => {
+    const row = document.createElement('div');
+    row.className = 'role-row';
 
-  const cs9 = getComputedStyle(document.documentElement);
-  const scale   = parseFloat(cs9.getPropertyValue('--bowl-scale')) || 0.52;
-  const gap     = parseFloat(cs9.getPropertyValue('--bowl-gap'))   || 1.8;
-  const offsetX = parseFloat(cs9.getPropertyValue('--bowl-offset-x')) || -21;
+    const card = document.createElement('div');
+    card.className = 'role-card';
+    card.textContent = `CARD ${idx+1}`;
 
-  const VB_TOP = 5, VB_CX = 50;
+    const desc = document.createElement('div');
+    desc.className = 'role-desc';
+    desc.innerHTML = `
+      <div class="name">${r.name}</div>
+      <div class="text">${r.text}</div>
+    `;
 
-  const fillColor   = cs9.getPropertyValue('--bowlFillColor').trim() || '#fff';
-  const fillOpacity = Math.max(0, Math.min(1, parseFloat(cs9.getPropertyValue('--bowlFillOpacity')) || 1));
-
-  const svg  = document.querySelector('svg');
-  const defs = svg.querySelector('defs') || svg.insertBefore(
-    document.createElementNS('http://www.w3.org/2000/svg','defs'), svg.firstChild
-  );
-
-  specified.forEach(room=>{
-    const a0 = (room-1)*60;
-    const a1 = a0 + 60;
-
-    const dSector = sectorPath(innerR, outerR, a0, a1);
-
-    const Rtarget = outerR - gap;
-    const midDeg  = a0 + 30;
-    const pos = polar( Rtarget - (VB_TOP * scale), midDeg );
-    const bowlTr = `translate(${pos.x},${pos.y}) rotate(${midDeg}) translate(${(-VB_CX*scale + offsetX)},0) scale(${scale})`;
-
-    const maskId = `bowlMask-room${room}`;
-    const mask = document.createElementNS('http://www.w3.org/2000/svg','mask');
-    mask.setAttribute('id', maskId);
-    mask.setAttribute('maskUnits','userSpaceOnUse');
-
-    const mWhite = document.createElementNS('http://www.w3.org/2000/svg','path');
-    mWhite.setAttribute('d', dSector);
-    mWhite.setAttribute('fill', '#fff');
-    mask.appendChild(mWhite);
-
-    const mBowl = document.createElementNS('http://www.w3.org/2000/svg','use');
-    mBowl.setAttributeNS('http://www.w3.org/1999/xlink','href', '#notchedBowl');
-    mBowl.setAttribute('transform', bowlTr);
-    mBowl.setAttribute('fill', '#000');
-    mBowl.setAttribute('stroke', 'none');
-    mask.appendChild(mBowl);
-
-    defs.appendChild(mask);
-
-    const sectorFill = document.createElementNS('http://www.w3.org/2000/svg','path');
-    sectorFill.setAttribute('d', dSector);
-    sectorFill.setAttribute('fill', fillColor);
-    sectorFill.setAttribute('fill-opacity', String(fillOpacity));
-    sectorFill.setAttribute('mask', `url(#${maskId})`);
-    sectorFill.setAttribute('clip-path', 'url(#clipOuterUnion)');
-    stageSpecifiedG.appendChild(sectorFill);
-
-    const use = document.createElementNS('http://www.w3.org/2000/svg','use');
-    use.setAttributeNS('http://www.w3.org/1999/xlink','href', '#notchedBowl');
-    use.setAttribute('transform', bowlTr);
-    use.setAttribute('aria-label', `指定部屋ノッチ room ${room}`);
-    stageSpecifiedG.appendChild(use);
+    row.appendChild(card);
+    row.appendChild(desc);
+    helpBody.appendChild(row);
   });
 }
 
-/* ================== r4-5 の黄色20等分 ================== */
-function renderInnerTinyDiv() {
-  const g = document.getElementById('innerTiny20');
-  if (!g) return;
-  while (g.firstChild) g.removeChild(g.firstChild);
+function openHelp(){
+  renderHelpList();
+  helpBackdrop.classList.remove('hidden');
+}
+function closeHelp(){
+  helpBackdrop.classList.add('hidden');
+}
+helpBtn.addEventListener('click', () => {
+  if (joinBox.classList.contains('hidden')) openHelp();
+});
+btnHelpClose.addEventListener('click', closeHelp);
+helpBackdrop.addEventListener('click', (e) => {
+  if (e.target === helpBackdrop) closeHelp();
+});
 
-  const cs10 = getComputedStyle(document.documentElement);
-  const N  = Math.max(1, parseInt(cs10.getPropertyValue('--innerTinyN')) || 20);
+function refreshRoomLabels(){
+  if (!state.roomCode || !state.userName) return;
+  const label = state.isHost ? '（ホスト）' : '';
+  const infoText = ` ${state.roomCode},  ${state.userName}${label}`;
+  roomInfo.textContent = infoText;
+  roomInfoLobby.textContent = infoText;
+}
 
-  const r4 = parseFloat(cs10.getPropertyValue('--innerR4')) || 20;
-  const r5 = parseFloat(cs10.getPropertyValue('--innerR5')) || 14;
-
-  const tmpl = document.getElementById('innerTinyLine');
-  tmpl.setAttribute('y1', -r4);
-  tmpl.setAttribute('y2', -r5);
-
-  g.setAttribute('clip-path', 'url(#clipAnnulus45)');
-
-  for (let i = 0; i < N; i++) {
-    const use = document.createElementNS('http://www.w3.org/2000/svg','use');
-    use.setAttributeNS('http://www.w3.org/1999/xlink','href','#innerTinyLine');
-    use.setAttribute('transform', `rotate(${(360/N)*i})`);
-    g.appendChild(use);
+function updateHostUI(){
+  refreshRoomLabels();
+  if (state.isHost){
+    hostSettingsBtn.classList.add('visible');
+  } else {
+    hostSettingsBtn.classList.remove('visible');
+    startPop.classList.add('hidden');
   }
+  helpBtn.classList.add('visible');
 }
 
-/* ================== 1-1：r5 に「∞」 ================== */
-function renderInfinity(mission){
-  const g = document.getElementById('r5Infinity');
-  if(!g) return;
-  while(g.firstChild) g.removeChild(g.firstChild);
-  if(mission !== '1-1') return;
+function enterLobbyUI(){
+  mainEl.classList.remove('prejoin');
+  mainEl.classList.add('joined');
 
-  const cs11 = getComputedStyle(document.documentElement);
-  const r5 = parseFloat(cs11.getPropertyValue('--innerR5')) || 14;
-
-  const text = document.createElementNS('http://www.w3.org/2000/svg','text');
-  text.textContent = '∞';
-  const fontSize = Math.max(8, r5 * 1.2);
-  text.setAttribute('font-size', String(fontSize));
-  text.setAttribute('text-anchor', 'middle');
-  text.setAttribute('dominant-baseline', 'middle');
-  text.setAttribute('font-weight', '700');
-  text.setAttribute('fill', cs11.getPropertyValue('--infinityColor').trim() || '#fdba74');
-  text.setAttribute('fill-opacity', String(parseFloat(cs11.getPropertyValue('--infinityOpacity')) || 0.95));
-  text.setAttribute('x', '0');
-  text.setAttribute('y', '2');
-  g.appendChild(text);
+  joinBox.classList.add('hidden');
+  lobby.classList.remove('hidden');
+  lobby.classList.add('entered');
 }
 
-/* ================== 12時線の先端ダイヤ ================== */
-function renderCenterTopDiamond(){
-  const g = document.getElementById('centerTopDiamondG');
-  if(!g) return;
-  while(g.firstChild) g.removeChild(g.firstChild);
+function subscribeRoom(){
+  const roomRef = ref(db, `rooms/${state.roomCode}`);
+  onValue(roomRef, snap => {
+    state.room = snap.val() || {};
+    state.isHost = (state.room.hostId === state.userId);
+    updateHostUI();
 
-  const cs12 = getComputedStyle(document.documentElement);
-  const r1 = parseFloat(cs12.getPropertyValue('--innerR')) || 65;
-  const offset = parseFloat(cs12.getPropertyValue('--tipDiaOffset')) || 0;
+    const waiting = (!state.isHost && !state.room.maxPlayers);
+    hostSelectingPop.classList.toggle('hidden', !waiting);
 
-  const w = Math.abs(parseFloat(cs12.getPropertyValue('--tipDiaW')) || 6);
-  const h = Math.abs(parseFloat(cs12.getPropertyValue('--tipDiaH')) || 8);
-
-  const fill   = cs12.getPropertyValue('--tipDiaFill').trim()   || '#facc15';
-  const stroke = cs12.getPropertyValue('--tipDiaStroke').trim() || 'none';
-  const sw     = Math.max(0, parseFloat(cs12.getPropertyValue('--tipDiaStrokeW')) || 0);
-
-  const cx = 0;
-  const cy = -r1 - offset;
-
-  const pTop =   {x: cx,     y: cy - h};
-  const pRight = {x: cx + w, y: cy    };
-  const pBottom={x: cx,     y: cy + h};
-  const pLeft =  {x: cx - w, y: cy    };
-
-  const d = `M ${pLeft.x},${pLeft.y} L ${pTop.x},${pTop.y} L ${pRight.x},${pRight.y} L ${pBottom.x},${pBottom.y} Z`;
-  const path = document.createElementNS('http://www.w3.org/2000/svg','path');
-  path.setAttribute('d', d);
-  path.setAttribute('fill', fill);
-  path.setAttribute('stroke', stroke);
-  path.setAttribute('stroke-width', sw);
-  g.appendChild(path);
+    syncSeatUI();
+  });
 }
 
-/* ================== ★★ room1 / room4 / room6：カード ================== */
-function renderRoomCards(){
-  const g = document.getElementById('roomCards');
-  if(!g) return;
-  while(g.firstChild) g.removeChild(g.firstChild);
+function subscribeHands(){
+  const handsRef = ref(db, `rooms/${state.roomCode}/hands`);
+  onValue(handsRef, snap => {
+    state.hands = snap.val() || {};
+    renderHands();
+  });
+}
 
-  const cs13 = getComputedStyle(document.documentElement);
-  const cardW = parseFloat(cs13.getPropertyValue('--cardW')) || 26;
-  const cardH = parseFloat(cs13.getPropertyValue('--cardH')) || 36;
-  const cardR = parseFloat(cs13.getPropertyValue('--cardR')) || 4;
+function subscribePlayers(){
+  const tablesRef = ref(db, `rooms/${state.roomCode}/tables`);
+  onValue(tablesRef, snap => {
+    const data = snap.val() || {};
+    state.tables = data;
 
-  /* ▼ room別塗り色と枠色を取得（room4 は 1-2 で茶色扱い） */
-  const fillRoom1   = cs13.getPropertyValue('--cardFillRoom1').trim()   || '#ffffff';
-  const fillRoom6   = cs13.getPropertyValue('--cardFillRoom6').trim()   || '#a0522d';
-  const strokeRoom1 = cs13.getPropertyValue('--cardStrokeRoom1').trim() || '#9ca3af';
-  const strokeRoom6 = cs13.getPropertyValue('--cardStrokeRoom6').trim() || '#000000';
-  const fillRoom4   = cs13.getPropertyValue('--cardFillRoom4').trim()   || fillRoom6;
-  const strokeRoom4 = cs13.getPropertyValue('--cardStrokeRoom4').trim() || strokeRoom6;
+    const players = Object.entries(data)
+      .map(([seatIndex, t]) => (t && t.playerId ? {
+        id: t.playerId,
+        name: t.playerName || '名無し',
+        seatIndex: Number(seatIndex)
+      } : null))
+      .filter(Boolean)
+      .sort((a,b) => a.seatIndex - b.seatIndex);
 
-  const sw = parseFloat(cs13.getPropertyValue('--cardStrokeW')) || 1;
+    latestPlayers = players;
 
-  const roomAdjust = {
-    1: parseFloat(cs13.getPropertyValue('--cardRoom1Deg')) || 0,
-    4: parseFloat(cs13.getPropertyValue('--cardRoom4Deg')) || 0,
-    6: parseFloat(cs13.getPropertyValue('--cardRoom6Deg')) || 0
-  };
-  const faceCenter = (parseFloat(cs13.getPropertyValue('--cardFaceCenter')) || 0) == 1;
-  const inwardBase = faceCenter ? 180 : 0;
-
-  const baseOffset = parseFloat(cs13.getPropertyValue('--cardRadiusBaseOffset')) || 0;
-  const roomRad = {
-    1: parseFloat(cs13.getPropertyValue('--cardRoom1Rad')) || 0,
-    4: parseFloat(cs13.getPropertyValue('--cardRoom4Rad')) || 0,
-    6: parseFloat(cs13.getPropertyValue('--cardRoom6Rad')) || 0
-  };
-  const roomTan = {
-    1: parseFloat(cs13.getPropertyValue('--cardRoom1Tan')) || 0,
-    4: parseFloat(cs13.getPropertyValue('--cardRoom4Tan')) || 0,
-    6: parseFloat(cs13.getPropertyValue('--cardRoom6Tan')) || 0
-  };
-  const localX = parseFloat(cs13.getPropertyValue('--cardLocalX')) || 0;
-  const localY = parseFloat(cs13.getPropertyValue('--cardLocalY')) || 0;
-
-  const rBase = (outerR + innerR) / 2 + baseOffset;
-  const mission = document.documentElement.getAttribute('data-mission') || '';
-
-  function getFillStrokeFor(room){
-    if(room===6) return {fill: fillRoom6, stroke: strokeRoom6};
-    if(room===4 && mission==='1-2') return {fill: fillRoom4, stroke: strokeRoom4};
-    return {fill: fillRoom1, stroke: strokeRoom1};
+    const mySeat = players.find(p => p.id === state.userId);
+    if (mySeat) {
+      state.seatedTable = mySeat.seatIndex;
+      seatPop.classList.add('hidden');
+    } else {
+      state.seatedTable = null;
     }
 
-  function appendCardAt(room, extraTan=0, extraRad=0, extraRot=0){
-    const midDeg = (room-1)*60 + 30;
-    const tr = [
-      'translate(150,150)',
-      `rotate(${midDeg})`,
-      `translate(${(roomTan[room]||0) + extraTan}, 0)`,
-      `translate(0, ${-(rBase + (roomRad[room]||0) + extraRad)})`,
-      `rotate(${inwardBase + (roomAdjust[room]||0) + extraRot})`,
-      `translate(${localX}, ${localY})`
-    ].join(' ');
+    syncSeatUI();
+    renderPlayerCircle(players);
+  });
+}
 
-    const {fill, stroke} = getFillStrokeFor(room);
+function renderMyHand(){
+  myHandEl.innerHTML = '';
+  const myId = state.userId;
+  const handData = state.hands[myId];
+  if (!handData || !Array.isArray(handData.cards)) return;
 
-    const cardG = document.createElementNS('http://www.w3.org/2000/svg','g');
-    cardG.setAttribute('transform', tr);
+  handData.cards.forEach(cardData => {
+    const card = document.createElement('div');
+    card.className = 'my-card';
 
-    const rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
-    rect.setAttribute('x', (-cardW/2).toFixed(3));
-    rect.setAttribute('y', (-cardH/2).toFixed(3));
-    rect.setAttribute('width',  cardW);
-    rect.setAttribute('height', cardH);
-    rect.setAttribute('rx', cardR);
-    rect.setAttribute('ry', cardR);
-    rect.setAttribute('fill',   fill);
-    rect.setAttribute('stroke', stroke);
-    rect.setAttribute('stroke-width', sw);
-    cardG.appendChild(rect);
+    const num = cardData.num;
+    const color = cardData.color;
 
-    g.appendChild(cardG);
+    card.textContent = num;
+    card.style.background = color === 'black' ? '#0b1530' : '#fff';
+    card.style.color = color === 'black' ? '#fff' : '#111';
+    card.style.border = color === 'black' ? '1px solid #0b1530' : '1px solid #ddd';
+
+    myHandEl.appendChild(card);
+  });
+}
+
+function renderHands(){
+  renderMyHand();
+  if (latestPlayers.length) renderPlayerCircle(latestPlayers);
+}
+
+function syncSeatUI(){
+  if (!state.roomCode || !state.joined) return;
+
+  const maxPlayers = state.room.maxPlayers || null;
+
+  if (!state.isHost && !maxPlayers){
+    seatPop.classList.add('hidden');
+    return;
   }
+  if (state.seatedTable !== null){
+    seatPop.classList.add('hidden');
+    return;
+  }
+  renderSeatTabs();
+  seatPop.classList.remove('hidden');
+}
 
-  const specifiedRooms = new Set(getSpecifiedRoomsForMission(mission));
+function renderSeatTabs(){
+  seatTabs.innerHTML = '';
 
-  /* 1-1: room1 1枚、room6 3枚扇 */
-  if (mission==='1-1'){
-    if (specifiedRooms.has(1)) appendCardAt(1);
-    if (specifiedRooms.has(6)) {
-      const fanN   = Math.max(1, Math.round(parseFloat(cs13.getPropertyValue('--room6FanCount')) || 3));
-      const spread = parseFloat(cs13.getPropertyValue('--room6FanSpreadDeg')) || 14;
-      const stepT  = parseFloat(cs13.getPropertyValue('--room6FanTanStep'))   || 6;
-      const stepR  = parseFloat(cs13.getPropertyValue('--room6FanRadStep'))   || -1;
-      const indices = [...Array(fanN).keys()].map(i => i - (fanN-1)/2);
-      const topSide = parseFloat(cs13.getPropertyValue('--room6FanTopSide')) || 1;
-      const drawOrder = (topSide >= 0) ? indices : [...indices].reverse();
-      drawOrder.forEach(idx => appendCardAt(6, idx*stepT, idx*stepR, idx*spread));
+  const maxPlayers = state.room.maxPlayers || null;
+
+  if (state.isHost && !maxPlayers){
+    seatLabel.textContent = '人数を選択';
+
+    for(let i = 2; i <= 8; i++){
+      const tab = document.createElement('div');
+      tab.className = 'tab';
+      tab.textContent = i;
+
+      tab.onclick = async () => {
+        const updates = {
+          maxPlayers: i,
+          [`tables/1`]: {
+            playerId: state.userId,
+            playerName: state.userName
+          }
+        };
+        await update(ref(db, `rooms/${state.roomCode}`), updates);
+        state.seatedTable = 1;
+        seatPop.classList.add('hidden');
+      };
+
+      seatTabs.appendChild(tab);
     }
+    return;
   }
 
-  /* 1-2: room4 に茶カード3枚（room6 扇のパラメータ流用） */
-  if (mission==='1-2'){
-    if (specifiedRooms.has(4)) {
-      const fanN   = Math.max(1, Math.round(parseFloat(cs13.getPropertyValue('--room6FanCount')) || 3));
-      const spread = parseFloat(cs13.getPropertyValue('--room6FanSpreadDeg')) || 14;
-      const stepT  = parseFloat(cs13.getPropertyValue('--room6FanTanStep'))   || 6;
-      const stepR  = parseFloat(cs13.getPropertyValue('--room6FanRadStep'))   || -1;
-      const indices = [...Array(fanN).keys()].map(i => i - (fanN-1)/2);
-      /* room4 は左右の見映えのため、最前面側は左寄り(-1)にしてもOK。必要なら変数化 */
-      const topSide = -1;
-      const drawOrder = (topSide >= 0) ? indices : [...indices].reverse();
-      drawOrder.forEach(idx => appendCardAt(4, idx*stepT, idx*stepR, idx*spread));
+  seatLabel.textContent = '席を選択';
+
+  const effectiveMax = maxPlayers || 8;
+  const tables = state.tables || {};
+
+  for(let i = 1; i <= effectiveMax; i++){
+    const tab = document.createElement('div');
+    tab.className = 'tab';
+    tab.textContent = i;
+
+    const t = tables[i];
+    if(t && t.playerId) tab.classList.add('disabled');
+
+    tab.onclick = async () => {
+      if(tab.classList.contains('disabled')) return;
+      await set(ref(db, `rooms/${state.roomCode}/tables/${i}`), {
+        playerId: state.userId,
+        playerName: state.userName
+      });
+      state.seatedTable = i;
+      seatPop.classList.add('hidden');
+    };
+
+    seatTabs.appendChild(tab);
+  }
+}
+
+function renderPlayerCircle(players){
+  playerCircle.innerHTML = '';
+  if (!players.length) return;
+
+  const n = players.length;
+  const radius = 65;
+  const step = (2 * Math.PI) / n;
+  const anchorAngle = Math.PI / 2;
+  const meIndex = players.findIndex(p => p.id === state.userId);
+
+  players.forEach((p, idx) => {
+    const k = (meIndex === -1) ? idx : (idx - meIndex + n) % n;
+    const angle = anchorAngle + step * k;
+
+    const x = 50 + radius * Math.cos(angle);
+    const y = 50 + radius * Math.sin(angle);
+
+    const tag = document.createElement('div');
+    tag.className = 'player-tag' + (p.id === state.userId ? ' me' : '');
+    tag.textContent = p.name;
+    tag.style.left = `${x}%`;
+    tag.style.top = `${y}%`;
+
+    tag.onclick = () => {
+      if (p.id === state.userId) return;
+      if (!state.roomCode) return;
+      if (state.seatedTable !== null) return;
+
+      pendingSeatIndexToSteal = p.seatIndex;
+      pendingSeatPlayerIdToSteal = p.id;
+      kickMessage.textContent = `「${p.name}」を追い出して、この席に着席しますか？`;
+      kickDialog.classList.remove('hidden');
+    };
+
+    const handData = state.hands[p.id];
+    if (p.id !== state.userId && handData && Array.isArray(handData.cards) && handData.cards.length){
+      const miniHand = document.createElement('div');
+      miniHand.className = 'mini-hand';
+
+      const count = handData.cards.length;
+      const spread = 70;
+      const base = (count > 1) ? (-spread/2) : 0;
+
+      handData.cards.forEach((cardData, idx2) => {
+        const card = document.createElement('div');
+        card.className = 'mini-card';
+
+        const angleDeg = (count > 1) ? base + (spread/(count-1))*idx2 : 0;
+        card.style.transform = `translate(-50%,0) rotate(${angleDeg}deg)`;
+        card.style.zIndex = String(10 + idx2);
+
+        const color = cardData?.color || 'white';
+        card.classList.add(color === 'black' ? 'back-black' : 'back-white');
+
+        miniHand.appendChild(card);
+      });
+
+      tag.appendChild(miniHand);
     }
+
+    playerCircle.appendChild(tag);
+  });
+}
+
+const urlParams = new URLSearchParams(window.location.search);
+const roomFromUrl = urlParams.get('room');
+if(roomFromUrl) inputCode.value = roomFromUrl.toUpperCase();
+
+btnJoin.addEventListener('click', async () => {
+  if (joinInProgress) return;
+  joinInProgress = true;
+  setJoinButtonBusy(true);
+
+  try {
+    const finalName = normalizeName(inputName.value);
+    const finalRoomCode = normalizeRoomCode(inputCode.value);
+
+    inputName.value = finalName;
+    inputCode.value = finalRoomCode;
+
+    state.userName = finalName;
+    state.roomCode = finalRoomCode;
+
+    const roomRef = ref(db, `rooms/${state.roomCode}`);
+    const roomSnap = await get(roomRef);
+    const roomData = roomSnap.val() || {};
+
+    state.isHost = !roomData.hostId || roomData.hostId === state.userId;
+
+    const updates = {
+      [`users/${state.userId}`]: {
+        name: state.userName,
+        joinedAt: Date.now()
+      }
+    };
+    if (!roomData.hostId) {
+      updates.hostId = state.userId;
+    }
+
+    await update(roomRef, updates);
+
+    onDisconnect(ref(db, `rooms/${state.roomCode}/users/${state.userId}`)).remove();
+
+    state.joined = true;
+
+    enterLobbyUI();
+    updateHostUI();
+
+    subscribeRoom();
+    subscribePlayers();
+    subscribeHands();
+
+    syncSeatUI();
+  } catch (err) {
+    console.error(err);
+    alert('入室に失敗しました。もう一度試してください。');
+  } finally {
+    joinInProgress = false;
+    setJoinButtonBusy(false);
   }
+});
+
+copyLinkBtn.addEventListener('click', async () => {
+  const code = state.roomCode || normalizeRoomCode(inputCode.value);
+  const url = `${location.origin}${location.pathname}?room=${code}`;
+  try {
+    await navigator.clipboard.writeText(url);
+    copyLinkBtn.classList.add('copied');
+    copyLinkBtn.textContent = 'COPIED';
+    inputCode.value = code;
+    setTimeout(() => {
+      copyLinkBtn.classList.remove('copied');
+      copyLinkBtn.textContent = 'COPY';
+    }, 1500);
+  } catch {
+    prompt('コピーできません。手動でコピーしてください', url);
+  }
+});
+
+btnSeatCancel.onclick = () => {
+  seatPop.classList.add('hidden');
+  state.seatedTable = null;
+};
+
+kickDialog.addEventListener('click', (e) => {
+  if (e.target === kickDialog) {
+    kickDialog.classList.add('hidden');
+    pendingSeatIndexToSteal = null;
+    pendingSeatPlayerIdToSteal = null;
+  }
+});
+
+btnKickNo.addEventListener('click', (e) => {
+  e.stopPropagation();
+  kickDialog.classList.add('hidden');
+  pendingSeatIndexToSteal = null;
+  pendingSeatPlayerIdToSteal = null;
+});
+
+btnKickYes.addEventListener('click', async (e) => {
+  e.stopPropagation();
+  if (pendingSeatIndexToSteal == null || !state.roomCode) {
+    kickDialog.classList.add('hidden');
+    return;
+  }
+
+  const seatIndex = pendingSeatIndexToSteal;
+  const currentHostId = state.room.hostId || null;
+
+  await set(ref(db, `rooms/${state.roomCode}/tables/${seatIndex}`), {
+    playerId: state.userId,
+    playerName: state.userName || '名無し'
+  });
+
+  if (currentHostId && pendingSeatPlayerIdToSteal && currentHostId === pendingSeatPlayerIdToSteal) {
+    await update(ref(db, `rooms/${state.roomCode}`), { hostId: state.userId });
+  }
+
+  state.seatedTable = seatIndex;
+
+  kickDialog.classList.add('hidden');
+  pendingSeatIndexToSteal = null;
+  pendingSeatPlayerIdToSteal = null;
+  seatPop.classList.add('hidden');
+});
+
+async function dealInitialHands(){
+  if (!state.roomCode) return;
+
+  const tables = state.tables || {};
+  const seatedPlayers = Object.keys(tables)
+    .sort((a, b) => Number(a) - Number(b))
+    .map(seatIndex => tables[seatIndex])
+    .filter(t => t && t.playerId);
+
+  const playerCount = seatedPlayers.length;
+
+  if (playerCount === 0){
+    alert('着席している参加者がいません。');
+    return;
+  }
+
+  if (12 % playerCount !== 0){
+    alert(`参加者${playerCount}人には12枚を均等に配れません。2人・3人・4人・6人で開始してください。`);
+    return;
+  }
+
+  const fullDeck = createDeck24();
+  const shuffledDeck = shuffleArray(fullDeck);
+  const selected12 = shuffledDeck.slice(0, 12);
+
+  const cardsPerPlayer = 12 / playerCount;
+  const hands = {};
+
+  seatedPlayers.forEach((player, index) => {
+    const start = index * cardsPerPlayer;
+    const end = start + cardsPerPlayer;
+    hands[player.playerId] = {
+      cards: selected12.slice(start, end)
+    };
+  });
+
+  await set(ref(db, `rooms/${state.roomCode}/hands`), hands);
 }
 
-/* ================== room3 の文字（1-2専用） ================== */
-function renderRoomTexts(mission){
-  const g = document.getElementById('roomTexts');
-  if(!g) return;
-  while (g.firstChild) g.removeChild(g.firstChild);
+hostSettingsBtn.addEventListener('click', () => {
+  if (!state.isHost) return;
+  startPop.classList.toggle('hidden');
+});
 
-  if (mission !== '1-2') return;
+btnStartPopClose.addEventListener('click', () => {
+  startPop.classList.add('hidden');
+});
 
-  const csT = getComputedStyle(document.documentElement);
-  const color  = csT.getPropertyValue('--roomTextColor').trim() || '#d4a373';
-  const fsize  = csT.getPropertyValue('--roomTextSize').trim()  || '12px';
-  const weight = csT.getPropertyValue('--roomTextWeight').trim()|| '800';
+btnGameStart.addEventListener('click', async () => {
+  if (!state.isHost) return;
+  await dealInitialHands();
+  startPop.classList.add('hidden');
+});
 
-  const room = 3;
-  const midDeg = (room-1)*60 + 30;
+btnResetRoom.addEventListener('click', async () => {
+  if (!state.isHost || !state.roomCode) return;
 
-  /* 表示位置：innerR2 と innerR の中間あたりに文字（既存） */
-  const delta = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--roomTextDeltaR')) || 0;
-  const rText = (innerR + innerR2) / 2 + delta;
+  const base = `rooms/${state.roomCode}`;
+  await Promise.all([
+    remove(ref(db, `${base}/maxPlayers`)),
+    remove(ref(db, `${base}/tables`)),
+    remove(ref(db, `${base}/hands`))
+  ]);
 
-  const p = polar(rText, midDeg);
-
-  /* ▼▼ ここから追加：数字の背面に黒円を敷く ▼▼ */
-  const bgColor   = csT.getPropertyValue('--roomTextBg').trim() || '#000';
-  const bgOpacity = Math.max(0, Math.min(1, parseFloat(csT.getPropertyValue('--roomTextBgOpacity')) || 1));
-  const fsNum     = parseFloat(fsize) || 12;
-  /* CSSで明示されていればそれを優先、なければフォントサイズから自動算出（やや大きめ） */
-  const rBgVar    = parseFloat(csT.getPropertyValue('--roomTextBgR'));
-  const rBg       = Number.isNaN(rBgVar) ? (fsNum * 0.95) : rBgVar;
-
-  const bgCircle = document.createElementNS('http://www.w3.org/2000/svg','circle');
-  bgCircle.setAttribute('cx', p.x.toFixed(2));
-  bgCircle.setAttribute('cy', p.y.toFixed(2));
-  bgCircle.setAttribute('r',  rBg.toFixed(2));
-  bgCircle.setAttribute('fill', bgColor);
-  bgCircle.setAttribute('fill-opacity', String(bgOpacity));
-  /* ※必要なら縁取り：bgCircle.setAttribute('stroke', '#000'); */
-  g.appendChild(bgCircle);
-  /* ▲▲ ここまで追加 ▲▲ */
-
-  const text = document.createElementNS('http://www.w3.org/2000/svg','text');
-  text.textContent = '8-12';
-  text.setAttribute('x', p.x.toFixed(2));
-  text.setAttribute('y', p.y.toFixed(2));
-  text.setAttribute('fill', color);
-  text.setAttribute('font-size', fsize);
-  text.setAttribute('font-weight', weight);
-  text.setAttribute('text-anchor', 'middle');
-  text.setAttribute('dominant-baseline', 'middle');
-  text.setAttribute('transform', `rotate(${midDeg}, ${p.x.toFixed(2)}, ${p.y.toFixed(2)})`);
-  g.appendChild(text);
-}
-
-/* ================== レイヤー順（カード最前面） ================== */
-(function ensureLayerOrder(){
-  const svg   = document.querySelector('svg');
-  const back  = document.getElementById('innerRingsBack');
-  const marks = document.getElementById('stageMarks');
-  const outG  = document.getElementById('stageOutward');
-  const r2    = document.getElementById('innerRing2Front');
-  const orangeFill   = document.getElementById('innerOrangeFill');
-  const tiny20       = document.getElementById('innerTiny20');
-  const orangeStroke = document.getElementById('innerRingsOrange');
-  const infinityG    = document.getElementById('r5Infinity');
-  const spec         = document.getElementById('stageSpecified');
-  const centerLineG  = document.getElementById('centerTopLineG');
-  const tipG         = document.getElementById('centerTopDiamondG');
-  const roomTexts    = document.getElementById('roomTexts');
-  const cardsG       = document.getElementById('roomCards');
-
-  const rot = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--centerTopRotate')) || 0;
-  centerLineG?.setAttribute('transform', `translate(150,150) rotate(${rot})`);
-  tipG?.setAttribute('transform',         `translate(150,150) rotate(${rot})`);
-
-  if (!svg || !back || !marks || !outG || !r2 || !orangeFill || !tiny20 || !orangeStroke || !infinityG || !spec || !centerLineG || !tipG || !roomTexts || !cardsG) return;
-
-  if (back.nextSibling !== marks)        svg.insertBefore(marks, back.nextSibling);
-  if (marks.nextSibling !== outG)        svg.insertBefore(outG,  marks.nextSibling);
-  if (outG.nextSibling !== r2)           svg.insertBefore(r2,    outG.nextSibling);
-  if (r2.nextSibling !== tipG)           svg.insertBefore(tipG,  r2.nextSibling);
-  if (tipG.nextSibling !== centerLineG)  svg.insertBefore(centerLineG, tipG.nextSibling);
-  if (centerLineG.nextSibling !== orangeFill)   svg.insertBefore(orangeFill,   centerLineG.nextSibling);
-  if (orangeFill.nextSibling !== tiny20)        svg.insertBefore(tiny20,       orangeFill.nextSibling);
-  if (tiny20.nextSibling !== orangeStroke)      svg.insertBefore(orangeStroke, tiny20.nextSibling);
-  if (orangeStroke.nextSibling !== infinityG)   svg.insertBefore(infinityG,    orangeStroke.nextSibling);
-  if (infinityG.nextSibling !== spec)           svg.insertBefore(spec,         infinityG.nextSibling);
-  if (spec.nextSibling !== roomTexts)           svg.insertBefore(roomTexts,    spec.nextSibling);
-
-  /* ★ 最後にカードを append（＝最前面） */
-  if (svg.lastElementChild !== cardsG) svg.appendChild(cardsG);
-})();
-
-/* ================== 初期描画＆ミッション変更で再描画 ================== */
-function redrawAll(m){
-  renderEqTriBackFill(m);
-  renderStageMarks(m);
-  renderOutwardMarks(m);
-  renderSpecifiedBowls(m);
-  updateOrangeGraphics();
-  renderInnerTinyDiv();
-  renderInfinity(m);
-  renderCenterTopDiamond();
-  renderRoomTexts(m);        // ★ 1-2: room3 の「8-12」
-  renderRoomCards();         // ★ カード描画（1-1: room6 扇／1-2: room4 扇）
-}
-redrawAll((window.getCurrentMission && window.getCurrentMission()) || '');
-window.addEventListener('mission:change', (e)=>{
-  redrawAll(e.detail?.value || '');
+  state.seatedTable = null;
+  startPop.classList.add('hidden');
+  syncSeatUI();
 });
 </script>
-
-</body>
-</html>
-
-時計マークの作り方
-
-<!doctype html> 
-<html lang="ja">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>小さな円＋12等分ティック＋外側T字（さらに太く長く）</title>
-<style>
-  :root{
-    --fs: 12pt;        /* 文字サイズ */
-    --fill: #ffd8a8;   /* 薄オレンジ */
-    --stroke: #5c3a21; /* 濃い茶色 */
-    --stroke-w: 3;     /* 円の枠線の太さ */
-    --tick-l: 3;       /* ティック長さ */
-    --orn-w: 7;        /* ★ T字装飾の線の太さ（さらに太く） */
-  }
-  body{
-    margin:0; padding:40px; background:#f7f7fb; font-family:system-ui,sans-serif;
-  }
-  .circle-wrap{
-    font-size: var(--fs);
-    width: 1.9em;
-    height: 1.9em;
-    display: flex; justify-content: center; align-items: center;
-    margin: auto;
-  }
-  svg{ width:100%; height:100%; overflow:visible; }
-</style>
-</head>
-<body>
-
-<div class="circle-wrap">
-  <svg viewBox="0 0 100 100">
-    <!-- 外円 -->
-    <circle cx="50" cy="50" r="47"
-            fill="var(--fill)"
-            stroke="var(--stroke)"
-            stroke-width="var(--stroke-w)" />
-
-    <!-- 12分割ティック -->
-    <g stroke="var(--stroke)" stroke-width="var(--stroke-w)" stroke-linecap="round">
-      <line x1="50" y1="3" x2="50" y2="6" />
-      <g transform="rotate(30 50 50)"><line x1="50" y1="3" x2="50" y2="6" /></g>
-      <g transform="rotate(60 50 50)"><line x1="50" y1="3" x2="50" y2="6" /></g>
-      <g transform="rotate(90 50 50)"><line x1="50" y1="3" x2="50" y2="6" /></g>
-      <g transform="rotate(120 50 50)"><line x1="50" y1="3" x2="50" y2="6" /></g>
-      <g transform="rotate(150 50 50)"><line x1="50" y1="3" x2="50" y2="6" /></g>
-      <g transform="rotate(180 50 50)"><line x1="50" y1="3" x2="50" y2="6" /></g>
-      <g transform="rotate(210 50 50)"><line x1="50" y1="3" x2="50" y2="6" /></g>
-      <g transform="rotate(240 50 50)"><line x1="50" y1="3" x2="50" y2="6" /></g>
-      <g transform="rotate(270 50 50)"><line x1="50" y1="3" x2="50" y2="6" /></g>
-      <g transform="rotate(300 50 50)"><line x1="50" y1="3" x2="50" y2="6" /></g>
-      <g transform="rotate(330 50 50)"><line x1="50" y1="3" x2="50" y2="6" /></g>
-    </g>
-
-    <!-- ▼ 外側T字装飾（長く太く） ▼ -->
-    <!-- 12時方向 -->
-    <g stroke="var(--stroke)" stroke-width="var(--orn-w)" stroke-linecap="round">
-      <!-- 縦棒：さらに外へ -->
-      <line x1="50" y1="-8" x2="50" y2="4" />
-      <!-- 横棒：頭も広く -->
-      <line x1="40" y1="-8" x2="60" y2="-8" />
-    </g>
-    <!-- 2時方向 -->
-    <g transform="rotate(60 50 50)"
-       stroke="var(--stroke)" stroke-width="var(--orn-w)" stroke-linecap="round">
-      <line x1="50" y1="-8" x2="50" y2="4" />
-      <line x1="40" y1="-8" x2="60" y2="-8" />
-    </g>
-    <!-- ▲ ここまでT字 -->
-
-    <!-- 中央文字 -->
-    <text x="50" y="50" text-anchor="middle" dominant-baseline="central"
-          style="font-size:40pt;font-weight:600;fill:#2b2b2b;">
-      <!-ここに入れたい文字を追加-->
-
-    </text>
-  </svg>
-</div>
 
 </body>
 </html>
