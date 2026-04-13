@@ -1046,15 +1046,15 @@ function renderPlayerCircle(players){
 
     if (!isMe) {
       if (n === 4) {
-        if (k === 1) x -= 20;
-        if (k === 3) x += 20;
+        if (k === 1) x -= 28;
+        if (k === 3) x += 28;
       } else if (n === 3) {
-        if (k === 1) x -= 22;
-        if (k === 2) x += 22;
+        if (k === 1) x -= 30;
+        if (k === 2) x += 30;
       }
     }
 
-    x = Math.max(8, Math.min(92, x));
+    x = Math.max(6, Math.min(94, x));
 
     const tag = document.createElement('div');
     tag.className = 'player-tag' + (isMe ? ' me' : '');
