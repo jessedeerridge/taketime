@@ -104,7 +104,7 @@
     background:rgba(17,17,17,.94);
     color:#fff;
     padding:10px 18px;
-    border-radius:999px;
+    border-radius:18px;
     font-size:20px;
     font-weight:800;
     letter-spacing:.08em;
@@ -505,6 +505,10 @@
     --roomGuideStrokeW: 1.4;
     --roomGuideDash: 2.2 4;
     --roomGuideOuterOffset: 0;
+    --roomGuideDragStroke: #93c5fd;
+    --roomGuideDragHoverStroke: #60a5fa;
+    --roomGuideDragOpacity: 0.95;
+    --roomGuideNormalOpacity: 1;
 
     --clockMarkScale: 1;
     --clockMarkSize: 44;
@@ -875,6 +879,7 @@ let joinInProgress = false;
 const placedCardIds = new Set();
 const pendingPlacedCardIds = new Set();
 let activeDrag = null;
+let dragHoverRoom = null;
 let cardChoiceResolver = null;
 const MY_TAG_ONLY_OFFSET_PX = 20;
 let hostHandLockedByStage = false;
@@ -1362,6 +1367,8 @@ function startCardDrag(ev, cardData){
   document.body.appendChild(ghost);
 
   activeDrag = { pointerId: ev.pointerId, srcEl, ghost, cardData };
+  dragHoverRoom = findDropRoom(ev.clientX, ev.clientY);
+  renderRoomGuideCircles();
 
   const move = (x, y) => {
     ghost.style.transform = `translate(${x - ghost.offsetWidth / 2}px, ${y - ghost.offsetHeight / 2}px)`;
@@ -1371,6 +1378,11 @@ function startCardDrag(ev, cardData){
   const onMove = (mv) => {
     if (!activeDrag || mv.pointerId !== activeDrag.pointerId) return;
     move(mv.clientX, mv.clientY);
+    const nextHoverRoom = findDropRoom(mv.clientX, mv.clientY);
+    if (nextHoverRoom !== dragHoverRoom){
+      dragHoverRoom = nextHoverRoom;
+      renderRoomGuideCircles();
+    }
   };
   const onUp = async (up) => {
     if (!activeDrag || up.pointerId !== activeDrag.pointerId) return;
@@ -1380,6 +1392,8 @@ function startCardDrag(ev, cardData){
     activeDrag.srcEl.style.visibility = '';
     activeDrag.ghost.remove();
     activeDrag = null;
+    dragHoverRoom = null;
+    renderRoomGuideCircles();
     window.removeEventListener('pointermove', onMove);
     window.removeEventListener('pointerup', onUp);
     window.removeEventListener('pointercancel', onUp);
@@ -1809,10 +1823,11 @@ function renderStageOptions(){
     const btn = document.createElement('button');
     btn.className = 'btn stage-option-btn' + (code === currentStage ? ' active' : '');
     btn.textContent = code;
-    btn.addEventListener('click', async () => {
-      await setStage(code);
+    btn.addEventListener('click', () => {
+      currentStage = code;
       renderStageOptions();
       stagePop.classList.add('hidden');
+      void setStage(code);
     });
     stageOptionGrid.appendChild(btn);
   });
@@ -2835,22 +2850,33 @@ function renderRoomGuideCircles(){
   const strokeW = parseFloat(csGuide.getPropertyValue('--roomGuideStrokeW')) || 1.4;
   const dash = csGuide.getPropertyValue('--roomGuideDash').trim() || '2 3';
   const outerOffset = parseFloat(csGuide.getPropertyValue('--roomGuideOuterOffset')) || 8;
+  const dragStroke = csGuide.getPropertyValue('--roomGuideDragStroke').trim() || '#93c5fd';
+  const dragHoverStroke = csGuide.getPropertyValue('--roomGuideDragHoverStroke').trim() || '#60a5fa';
+  const dragOpacity = Math.max(0, Math.min(1, parseFloat(csGuide.getPropertyValue('--roomGuideDragOpacity')) || 0.95));
+  const normalOpacity = Math.max(0, Math.min(1, parseFloat(csGuide.getPropertyValue('--roomGuideNormalOpacity')) || 1));
+  const isDragging = !!activeDrag;
 
   for(let room=1; room<=6; room++){
     const midDeg = (room-1)*60 + 30;
     const pInner = polar(centerR, midDeg);
     const pOuter = polar(centerR + guideR * 0.5 + outerOffset, midDeg);
 
-    [pInner, pOuter].forEach((p) => {
+    [pInner, pOuter].forEach((p, idx) => {
       const circle = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      const isInner = idx === 0;
+      const isHoverInner = isInner && dragHoverRoom === room;
       circle.setAttribute('cx', p.x.toFixed(2));
       circle.setAttribute('cy', p.y.toFixed(2));
       circle.setAttribute('r', guideR.toFixed(2));
       circle.setAttribute('fill', 'none');
-      circle.setAttribute('stroke', stroke);
+      const appliedStroke = (isDragging && isInner)
+        ? (isHoverInner ? dragHoverStroke : dragStroke)
+        : stroke;
+      circle.setAttribute('stroke', appliedStroke);
       circle.setAttribute('stroke-width', String(strokeW));
       circle.setAttribute('stroke-dasharray', dash);
       circle.setAttribute('stroke-linecap', 'round');
+      circle.setAttribute('stroke-opacity', String((isDragging && isInner) ? dragOpacity : normalOpacity));
       g.appendChild(circle);
     });
   }
