@@ -2766,6 +2766,7 @@ function renderOutwardMarks(mission){
 
   const specified = new Set(getSpecifiedRoomsForMission(mission));
   const isMission14 = mission === '1-4';
+  const stageOutwardFilledRooms = isMission14 ? new Set(specified) : new Set();
 
   const cs6 = getComputedStyle(stageSvg);
   const rBase    = innerR + (parseFloat(cs6.getPropertyValue('--outTriInset')) || 0);
@@ -2815,7 +2816,7 @@ function renderOutwardMarks(mission){
     cp.appendChild(triPath);
     defs.appendChild(cp);
 
-    if (specified.has(room)){
+    if (stageOutwardFilledRooms.has(room)){
       if (isMission14){
         const specifiedTri = document.createElementNS('http://www.w3.org/2000/svg','path');
         specifiedTri.setAttribute('d', dTriArea);
@@ -2980,6 +2981,8 @@ function renderEqTriBackFill(mission){
   const specified = new Set(getSpecifiedRoomsForMission(mission));
   const defaultFill = getComputedStyle(stageSvg).getPropertyValue('--triFill').trim() || '#ddd';
   const isMission14 = mission === '1-4';
+  const missionBrown = getComputedStyle(stageSvg).getPropertyValue('--orange').trim() || '#ab5d1a';
+  const mission14SpecifiedRooms = isMission14 ? new Set(specified) : new Set();
 
   const outerCircle = triBack.querySelector('#outerCircle');
   if (outerCircle){
@@ -2990,7 +2993,7 @@ function renderEqTriBackFill(mission){
     const use = triBack.querySelector(`use[data-room="${room}"]`);
     if(!use) continue;
     if (isMission14){
-      use.setAttribute('fill', 'url(#starPattern)');
+      use.setAttribute('fill', mission14SpecifiedRooms.has(room) ? missionBrown : 'url(#starPattern)');
       continue;
     }
     if(specified.has(room)){
