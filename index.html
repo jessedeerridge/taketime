@@ -669,12 +669,18 @@
           <use href="#eqTriPath" transform="rotate(270)" data-room="5"/>
           <use href="#eqTriPath" transform="rotate(330)" data-room="6"/>
         </g>
+        <g id="outerStarLayer" clip-path="url(#clipOuterUnion)" style="display:none">
+          <image id="imgOuterStar" href="star.jpg" x="0" y="0" width="300" height="300" preserveAspectRatio="xMidYMid slice"/>
+        </g>
 
         <g transform="translate(150,150)" clip-path="url(#clipInner1)">
           <image id="imgInner1" href="star.jpg" x="-60" y="-60" width="120" height="120" preserveAspectRatio="xMidYMid slice"/>
         </g>
         <g transform="translate(150,150)" clip-path="url(#clipInner3)">
           <image id="imgInner3" href="sky.jpg" x="-35" y="-35" width="70" height="70" preserveAspectRatio="xMidYMid slice"/>
+        </g>
+        <g id="innerBandWhite" transform="translate(150,150)" style="display:none" aria-hidden="true">
+          <circle r="47.5" fill="none" stroke="#e0ffff" stroke-width="25"/>
         </g>
 
         <g transform="translate(150,150)" id="unionForOutline" filter="url(#outerStroke)">
@@ -2485,6 +2491,8 @@ function renderStageMarks(mission){
   const centerLineGap   = Math.max(0, parseFloat(cs4.getPropertyValue('--centerLineGap')) || 0);
 
   const defs = stageSvg.querySelector('defs');
+  const isMission14 = mission === '1-4';
+  const swappedLightFill = '#e0ffff';
 
   for(let room=1; room<=6; room++){
     if(specified.has(room)) continue;
@@ -2509,16 +2517,24 @@ function renderStageMarks(mission){
     cp.appendChild(pathFill);
     defs.appendChild(cp);
 
-    const imgSize = Math.ceil(2 * rBase);
-    const img = document.createElementNS('http://www.w3.org/2000/svg','image');
-    img.setAttributeNS('http://www.w3.org/1999/xlink','href','star.jpg');
-    img.setAttribute('x', -imgSize/2);
-    img.setAttribute('y', -imgSize/2);
-    img.setAttribute('width',  imgSize);
-    img.setAttribute('height', imgSize);
-    img.setAttribute('preserveAspectRatio','xMidYMid slice');
-    img.setAttribute('clip-path', `url(#${clipId})`);
-    stageMarksG.appendChild(img);
+    if(isMission14){
+      const fillPatch = document.createElementNS('http://www.w3.org/2000/svg','path');
+      fillPatch.setAttribute('d', dFill);
+      fillPatch.setAttribute('fill', swappedLightFill);
+      fillPatch.setAttribute('stroke', 'none');
+      stageMarksG.appendChild(fillPatch);
+    }else{
+      const imgSize = Math.ceil(2 * rBase);
+      const img = document.createElementNS('http://www.w3.org/2000/svg','image');
+      img.setAttributeNS('http://www.w3.org/1999/xlink','href','star.jpg');
+      img.setAttribute('x', -imgSize/2);
+      img.setAttribute('y', -imgSize/2);
+      img.setAttribute('width',  imgSize);
+      img.setAttribute('height', imgSize);
+      img.setAttribute('preserveAspectRatio','xMidYMid slice');
+      img.setAttribute('clip-path', `url(#${clipId})`);
+      stageMarksG.appendChild(img);
+    }
 
     const rCenter = rBase - len * diaPos;
     const deltaDeg = (diaW / Math.max(1, rCenter)) * 180/Math.PI;
@@ -2855,17 +2871,47 @@ function makeBowlPaths({dip=9, halfW=8, extra=4}={}) {
 function renderEqTriBackFill(mission){
   const triBack = stageSvg.querySelector('#triBack');
   if(!triBack) return;
+  const isMission14 = mission === '1-4';
+  const swappedLightFill = '#e0ffff';
   const specified = new Set(getSpecifiedRoomsForMission(mission));
   const defaultFill = getComputedStyle(stageSvg).getPropertyValue('--triFill').trim() || '#ddd';
 
   for(let room=1; room<=6; room++){
     const use = triBack.querySelector(`use[data-room="${room}"]`);
     if(!use) continue;
-    if(specified.has(room)){
-      use.setAttribute('fill', '#e0ffff');
+    if(isMission14){
+      use.setAttribute('fill', 'none');
+    }else if(specified.has(room)){
+      use.setAttribute('fill', swappedLightFill);
     }else{
       use.setAttribute('fill', defaultFill);
     }
+  }
+}
+
+function renderMissionBackSwap(mission){
+  const isMission14 = mission === '1-4';
+  const outerCircle = stageSvg.querySelector('#outerCircle');
+  const imgInner1 = stageSvg.querySelector('#imgInner1');
+  const imgInner3 = stageSvg.querySelector('#imgInner3');
+  const outerStarLayer = stageSvg.querySelector('#outerStarLayer');
+  const innerBandWhite = stageSvg.querySelector('#innerBandWhite');
+  if(outerCircle){
+    outerCircle.setAttribute('fill', isMission14 ? 'none' : 'var(--circleFill)');
+  }
+  if(outerStarLayer){
+    outerStarLayer.style.display = isMission14 ? '' : 'none';
+  }
+  if(imgInner1){
+    imgInner1.setAttributeNS('http://www.w3.org/1999/xlink', 'href', 'star.jpg');
+    imgInner1.setAttribute('href', 'star.jpg');
+    imgInner1.setAttribute('visibility', 'visible');
+  }
+  if(imgInner3){
+    imgInner3.setAttribute('visibility', isMission14 ? 'hidden' : 'visible');
+  }
+  if(innerBandWhite){
+    innerBandWhite.style.display = isMission14 ? '' : 'none';
   }
 }
 
@@ -3520,6 +3566,7 @@ function redrawAll(m){
   stageNameText.textContent = renderStage;
   stageNameTag.classList.toggle('hidden', !renderStage || !state.joined);
 
+  renderMissionBackSwap(renderStage);
   renderEqTriBackFill(renderStage);
   updateOrangeGraphics();
   renderInnerTinyDiv();
