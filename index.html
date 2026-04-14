@@ -167,9 +167,21 @@
     z-index:1;
   }
 
-  .my-hand-wrapper{margin-top:46px;text-align:center;}
+  .my-hand-wrapper{
+    margin-top:46px;
+    text-align:center;
+    min-height:160px;
+  }
   .my-hand-title{display:none;}
-  .my-hand{display:flex;justify-content:center;gap:8px;margin-top:2px;min-height:64px;}
+  .my-hand{
+    --hand-offset-y:0px;
+    display:flex;
+    justify-content:center;
+    gap:8px;
+    margin-top:2px;
+    min-height:64px;
+    transform:translateY(var(--hand-offset-y));
+  }
   .my-card{
     width:60px;height:90px;border-radius:8px;border:1px solid #ddd;background:#fff;
     display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:600;
@@ -1061,14 +1073,15 @@ function updateMyHandPosition(){
   const tableCenter = document.querySelector('.table-center');
   const meTag = playerCircle.querySelector('.player-tag.me');
   if(!tableCenter || !meTag){
-    myHandWrapperEl.style.marginTop = '46px';
+    myHandEl.style.setProperty('--hand-offset-y', '0px');
     return;
   }
 
   const tableRect = tableCenter.getBoundingClientRect();
   const meRect = meTag.getBoundingClientRect();
-  const marginTop = Math.max(46, (meRect.bottom - tableRect.bottom) + 46);
-  myHandWrapperEl.style.marginTop = `${Math.round(marginTop)}px`;
+  const requiredMarginTop = Math.max(46, (meRect.bottom - tableRect.bottom) + 46);
+  const offsetY = Math.max(0, requiredMarginTop - 46);
+  myHandEl.style.setProperty('--hand-offset-y', `${Math.round(offsetY)}px`);
 }
 
 function renderPlayerCircle(players){
