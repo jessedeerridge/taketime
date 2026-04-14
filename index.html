@@ -2860,8 +2860,8 @@ function applyMissionSkin(mission){
   if (imgInner3) imgInner3.style.display = '';
 
   if (isMission14){
-    stageSvg.style.setProperty('--markStroke', '#000');
-    stageSvg.style.setProperty('--centerLineColor', '#000');
+    stageSvg.style.setProperty('--markStroke', '#facc15');
+    stageSvg.style.setProperty('--centerLineColor', '#d4af37');
     stageSvg.style.setProperty('--diamondFill', getComputedStyle(stageSvg).getPropertyValue('--light').trim() || '#e6e3e3');
     stageSvg.style.setProperty('--markStrokeW', '0.5');
     stageSvg.style.setProperty('--centerLineW', '0.5');
@@ -2963,7 +2963,8 @@ function renderEqTriBackFill(mission){
     const use = triBack.querySelector(`use[data-room="${room}"]`);
     if(!use) continue;
     if (isMission14){
-      use.setAttribute('fill', 'url(#starPattern)');
+      const mission14Fill = getComputedStyle(stageSvg).getPropertyValue('--orange').trim() || '#ab5d1a';
+      use.setAttribute('fill', mission14Fill);
       continue;
     }
     if(specified.has(room)){
