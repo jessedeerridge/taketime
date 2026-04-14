@@ -1099,32 +1099,32 @@ function renderPlayerCircle(players){
   const SIDE_SLOT_LEFT_X = 2;
   const SIDE_SLOT_RIGHT_X = 98;
   const SIDE_SLOT_Y = 50;
+  const FIXED_LAYOUTS = {
+    3: {
+      1: { x: SIDE_SLOT_LEFT_X, y: SIDE_SLOT_Y },
+      2: { x: SIDE_SLOT_RIGHT_X, y: SIDE_SLOT_Y }
+    },
+    4: {
+      1: { x: SIDE_SLOT_LEFT_X, y: SIDE_SLOT_Y },
+      2: { x: 50, y: -20 },
+      3: { x: SIDE_SLOT_RIGHT_X, y: SIDE_SLOT_Y }
+    }
+  };
 
   players.forEach((p, idx) => {
     const k = (meIndex === -1) ? idx : (idx - meIndex + n) % n;
+    const isMe = p.id === state.userId;
+    const fixedLayout = FIXED_LAYOUTS[n];
+    const fixedSlot = !isMe && fixedLayout ? fixedLayout[k] : null;
     const angle = anchorAngle + step * k;
 
-    let x = 50 + radius * Math.cos(angle);
-    let y = 50 + radius * Math.sin(angle);
-    const isMe = p.id === state.userId;
-    const isSidePlayer = !isMe && (n === 3 || n === 4) && (k === 1 || k === n - 1);
-
-    if (isSidePlayer){
-      x = (k === 1) ? SIDE_SLOT_LEFT_X : SIDE_SLOT_RIGHT_X;
-      y = SIDE_SLOT_Y;
-    } else if (!isMe) {
-      if (n === 4) {
-        if (k === 1) x += 22;
-        if (k === 3) x -= 22;
-      } else if (n === 3) {
-        if (k === 1) x += 22;
-        if (k === 2) x -= 22;
-      }
-    }
+    let x = fixedSlot ? fixedSlot.x : 50 + radius * Math.cos(angle);
+    let y = fixedSlot ? fixedSlot.y : 50 + radius * Math.sin(angle);
 
     x = Math.max(-8, Math.min(108, x));
 
     let centerNudgePx = 0;
+    const isSidePlayer = !!fixedSlot && (k === 1 || k === n - 1);
     if (isSidePlayer) {
       if (x < 50) centerNudgePx = 3;
       if (x > 50) centerNudgePx = -3;
