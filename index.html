@@ -3295,9 +3295,8 @@ function renderRoomCards(mission = currentStage){
   }
 
   if (mission==='1-4' && specifiedRooms.has(4)) {
-    const centerOrange = cs13.getPropertyValue('--orange').trim() || '#ab5d1a';
     appendCardAt(4, -6, 0, -6, { fill: '#0b1530', stroke: '#ffffff' }, true);
-    appendCardAt(4,  6, 0,  6, { fill: centerOrange, stroke: '#000000' }, true);
+    appendCardAt(4,  6, 0,  6, { fill: '#ffffff', stroke: '#000000' }, true);
   }
 }
 
