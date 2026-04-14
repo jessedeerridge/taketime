@@ -478,7 +478,8 @@
     --bowlFillOpacity: 1;
     --bowl-cap-R: 130;
 
-    --innerTinyN: 20;
+    --innerTinyN: 24;
+    --innerTinyTiltDeg: 50;
     --innerTinyColor: #facc15;
     --innerTinyW: 1.2;
     --innerTinyOpacity: 1;
@@ -2942,7 +2943,8 @@ function renderInnerTinyDiv() {
   while (g.firstChild) g.removeChild(g.firstChild);
 
   const cs10 = getComputedStyle(stageSvg);
-  const N  = Math.max(1, parseInt(cs10.getPropertyValue('--innerTinyN')) || 20);
+  const N  = Math.max(1, parseInt(cs10.getPropertyValue('--innerTinyN')) || 24);
+  const tiltDeg = parseFloat(cs10.getPropertyValue('--innerTinyTiltDeg')) || 50;
 
   const r4 = parseFloat(cs10.getPropertyValue('--innerR4')) || 20;
   const r5 = parseFloat(cs10.getPropertyValue('--innerR5')) || 14;
@@ -2956,7 +2958,9 @@ function renderInnerTinyDiv() {
   for (let i = 0; i < N; i++) {
     const use = document.createElementNS('http://www.w3.org/2000/svg','use');
     use.setAttributeNS('http://www.w3.org/1999/xlink','href','#innerTinyLine');
-    use.setAttribute('transform', `rotate(${(360/N)*i})`);
+    const baseDeg = (360 / N) * i;
+    const pivotY = -((r4 + r5) / 2);
+    use.setAttribute('transform', `rotate(${baseDeg}) rotate(${tiltDeg} 0 ${pivotY})`);
     g.appendChild(use);
   }
 }
