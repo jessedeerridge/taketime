@@ -101,7 +101,7 @@
     position:relative;
     width:min(92vw, 360px);
     height:260px;
-    margin:0 auto 0;
+    margin:20px auto 0;
   }
   .player-circle{
     position:absolute;inset:0;
@@ -898,6 +898,7 @@ function enterLobbyUI(){
   joinBox.classList.add('hidden');
   lobby.classList.remove('hidden');
   lobby.classList.add('entered');
+  redrawAll(currentStage);
 }
 
 function subscribeRoom(){
@@ -1004,7 +1005,7 @@ function renderSeatTabs(){
   if (state.isHost && !maxPlayers){
     seatLabel.textContent = '人数を選択';
 
-    for(let i = 2; i <= 8; i++){
+    for(let i = 2; i <= 4; i++){
       const tab = document.createElement('div');
       tab.className = 'tab';
       tab.textContent = i;
@@ -1029,7 +1030,7 @@ function renderSeatTabs(){
 
   seatLabel.textContent = '席を選択';
 
-  const effectiveMax = maxPlayers || 8;
+  const effectiveMax = Math.min(maxPlayers || 4, 4);
   const tables = state.tables || {};
 
   for(let i = 1; i <= effectiveMax; i++){
@@ -1093,11 +1094,11 @@ function renderPlayerCircle(players){
 
     if (!isMe) {
       if (n === 4) {
-        if (k === 1) x -= 38;
-        if (k === 3) x += 38;
+        if (k === 1) x -= 26;
+        if (k === 3) x += 26;
       } else if (n === 3) {
-        if (k === 1) x -= 40;
-        if (k === 2) x += 40;
+        if (k === 1) x -= 28;
+        if (k === 2) x += 28;
       }
     }
 
@@ -1105,8 +1106,8 @@ function renderPlayerCircle(players){
 
     let centerNudgePx = 0;
     if (!isMe && (n === 3 || n === 4)) {
-      if (x < 50) centerNudgePx = 5;
-      if (x > 50) centerNudgePx = -5;
+      if (x < 50) centerNudgePx = 2;
+      if (x > 50) centerNudgePx = -2;
     }
 
     const tag = document.createElement('div');
@@ -2415,7 +2416,7 @@ function redrawAll(m){
   const renderStage = STAGE_CODES.includes(currentStage) ? currentStage : '1-1';
   missionTextEl.textContent = renderStage;
   stageNameText.textContent = currentStage || '';
-  stageNameTag.classList.toggle('hidden', !currentStage);
+  stageNameTag.classList.toggle('hidden', !currentStage || !state.joined);
   renderEqTriBackFill(renderStage);
   renderStageMarks(renderStage);
   renderOutwardMarks(renderStage);
