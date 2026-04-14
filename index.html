@@ -273,8 +273,8 @@
   .stage-pop-main{font-size:13px;line-height:1.5;}
   .start-pop-actions,
   .stage-pop-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:4px;flex-wrap:wrap;}
-  .start-pop-actions{flex-direction:column;align-items:flex-end;}
-  .start-pop-primary-actions{display:flex;gap:8px;}
+  .start-pop-actions{flex-wrap:nowrap;align-items:center;}
+  .start-pop-actions .btn{white-space:nowrap;}
   .stage-option-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;max-height:48vh;overflow:auto;}
   .stage-option-btn.active{background:#111;color:#fff;border-color:#111;}
 
@@ -719,7 +719,7 @@
     「リセット」で人数選択へ戻します。
   </div>
   <div class="start-pop-actions">
-    <button id="btnOpenStagePop" class="btn">ステージ選択</button>
+    <button id="btnOpenStagePop" class="btn">ステージ</button>
     <button id="btnResetRoom" class="btn ghost">リセット</button>
   </div>
 </div>
@@ -1334,8 +1334,7 @@ function updateMyHandPosition(){
 
   const tableRect = tableCenter.getBoundingClientRect();
   const meRect = meTag.getBoundingClientRect();
-  const meTagComp = getComputedStyle(meTag);
-  const meOnlyOffset = parseFloat(meTagComp.getPropertyValue('--me-tag-only-offset')) || 0;
+  const meOnlyOffset = meTag.classList.contains('me') ? MY_TAG_ONLY_OFFSET_PX : 0;
   const requiredMarginTop = Math.max(46, (meRect.bottom - tableRect.bottom) + 46 - meOnlyOffset);
   const offsetY = Math.max(0, requiredMarginTop - 46);
   myHandEl.style.setProperty('--hand-offset-y', `${Math.round(offsetY)}px`);
@@ -1403,7 +1402,6 @@ function renderPlayerCircle(players){
       ? `${x}%`
       : `calc(${x}% ${centerNudgePx > 0 ? '+' : '-'} ${Math.abs(centerNudgePx)}px)`;
     tag.style.top = `calc(${y}% - 78px + ${verticalOffsetPx + meOnlyOffsetPx}px)`;
-    if (isMe) tag.style.setProperty('--me-tag-only-offset', `${meOnlyOffsetPx}px`);
 
     tag.onclick = () => {
       if (p.id === state.userId) return;
