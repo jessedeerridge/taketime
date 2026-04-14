@@ -2831,26 +2831,14 @@ function renderOutwardMarks(mission){
     cp.appendChild(triPath);
     defs.appendChild(cp);
 
-    if (isMission14){
-      const imgSize = Math.ceil(2 * (rBase + len));
-      const img = document.createElementNS('http://www.w3.org/2000/svg','image');
-      img.setAttributeNS('http://www.w3.org/1999/xlink','href','star.jpg');
-      img.setAttribute('x', -imgSize/2);
-      img.setAttribute('y', -imgSize/2);
-      img.setAttribute('width',  imgSize);
-      img.setAttribute('height', imgSize);
-      img.setAttribute('preserveAspectRatio', 'xMidYMid slice');
-      img.setAttribute('clip-path', `url(#${clipId})`);
-      stageOutG.appendChild(img);
-    }
-
     appendGoldX(stageOutG, clipId, midDeg, len, rBase, spread);
 
     if (isMission14){
+      const mission14Fill = cs6.getPropertyValue('--orange').trim() || '#ab5d1a';
       [leftRibbon, rightRibbon].forEach((el)=>{
-        el.setAttribute('fill', '#000');
-        el.setAttribute('stroke', '#fff');
-        el.setAttribute('stroke-width', '0.5');
+        el.setAttribute('fill', mission14Fill);
+        el.setAttribute('stroke', mission14Fill);
+        el.setAttribute('stroke-width', '0.3');
         el.setAttribute('stroke-linejoin', 'round');
       });
     }
@@ -3002,6 +2990,10 @@ function renderSpecifiedBowls(mission){
   const fillColor   = cs9.getPropertyValue('--bowlFillColor').trim() || '#fff';
   const mission14Fill = cs9.getPropertyValue('--orange').trim() || '#ab5d1a';
   const fillOpacity = Math.max(0, Math.min(1, parseFloat(cs9.getPropertyValue('--bowlFillOpacity')) || 1));
+  const bowlFillPath = stageSvg.querySelector('#bowlFill');
+  if (bowlFillPath){
+    bowlFillPath.setAttribute('fill', mission === '1-4' ? mission14Fill : fillColor);
+  }
 
   const defs = stageSvg.querySelector('defs');
 
@@ -3250,8 +3242,18 @@ function renderRoomCards(mission = currentStage){
   }
 
   if (mission==='1-4' && specifiedRooms.has(4)) {
-    appendCardAt(4, -5, 0, -2, { fill: '#0b1530', stroke: '#ffffff' });
-    appendCardAt(4,  5, 0,  2, { fill: '#ffffff', stroke: '#000000' });
+    const fanN = 2;
+    const spread = parseFloat(cs13.getPropertyValue('--room6FanSpreadDeg')) || 14;
+    const stepT  = parseFloat(cs13.getPropertyValue('--room6FanTanStep'))   || 6;
+    const stepR  = parseFloat(cs13.getPropertyValue('--room6FanRadStep'))   || -1;
+    const indices = [...Array(fanN).keys()].map(i => i - (fanN-1)/2);
+    const topSide = parseFloat(cs13.getPropertyValue('--room6FanTopSide')) || 1;
+    const drawOrder = (topSide >= 0) ? indices : [...indices].reverse();
+    const paints = [
+      { fill: '#0b1530', stroke: '#ffffff' },
+      { fill: '#ffffff', stroke: '#000000' }
+    ];
+    drawOrder.forEach((idx, i) => appendCardAt(4, idx * stepT, idx * stepR, idx * spread, paints[i]));
   }
 }
 
