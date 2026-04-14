@@ -519,6 +519,7 @@
 
     --cardLocalX: 0;
     --cardLocalY: 0;
+    --playedCardRoomInward: 5;
 
     --room6FanCount: 3;
     --room6FanSpreadDeg: 14;
@@ -3374,6 +3375,7 @@ function getPlayedCardLayouts(playedList = getPlayedEntriesSorted()){
   const { centerR, outerOffset, guideR } = getGuideMetrics();
   const cs13 = getComputedStyle(stageSvg);
   const cardW = parseFloat(cs13.getPropertyValue('--cardW')) || 26;
+  const playedCardRoomInward = parseFloat(cs13.getPropertyValue('--playedCardRoomInward')) || 0;
   const step = cardW + 3;
   const layoutMap = new Map();
   for(let room = 1; room <= 6; room++){
@@ -3381,7 +3383,7 @@ function getPlayedCardLayouts(playedList = getPlayedEntriesSorted()){
     if (!cards.length) continue;
 
     const midDeg = (room - 1) * 60 + 30;
-    const pOuter = polar(centerR + guideR * 0.5 + outerOffset, midDeg);
+    const pOuter = polar(centerR + guideR * 0.5 + outerOffset - playedCardRoomInward, midDeg);
     const angleToCenter = Math.atan2(-pOuter.y, -pOuter.x) * 180 / Math.PI;
     const rot = angleToCenter + 90;
     const rotRad = rot * Math.PI / 180;
