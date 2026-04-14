@@ -235,7 +235,7 @@
   }
   @keyframes miniHandTurnPulse{
     0%,100%{transform:translate(-50%,3px) scale(1);}
-    50%{transform:translate(-50%,3px) scale(1.08);}
+    50%{transform:translate(-50%,3px) scale(1.12);}
   }
 
   .dialog-backdrop{
@@ -951,6 +951,13 @@ function canCurrentUserDragCard(){
   return isMyTurnInPlacement();
 }
 
+function syncMyHandPulseDom(){
+  const shouldPulse = canCurrentUserDragCard() && !activeDrag;
+  myHandEl.querySelectorAll('.my-card').forEach((cardEl) => {
+    cardEl.classList.toggle('turn-pulse', shouldPulse);
+  });
+}
+
 function randomInt(max){
   return Math.floor(Math.random() * max);
 }
@@ -1446,7 +1453,7 @@ function startCardDrag(ev, cardData){
   document.body.appendChild(ghost);
 
   activeDrag = { pointerId: ev.pointerId, srcEl, ghost, cardData };
-  renderMyHand();
+  syncMyHandPulseDom();
   dragHoverRoom = findDropRoom(ev.clientX, ev.clientY);
   renderRoomGuideCircles();
 
@@ -1472,7 +1479,7 @@ function startCardDrag(ev, cardData){
     activeDrag.srcEl.style.visibility = '';
     activeDrag.ghost.remove();
     activeDrag = null;
-    renderMyHand();
+    syncMyHandPulseDom();
     dragHoverRoom = null;
     renderRoomGuideCircles();
     window.removeEventListener('pointermove', onMove);
