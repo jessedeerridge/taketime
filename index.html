@@ -984,8 +984,8 @@ function renderHands(){
 }
 
 function syncSeatUI(){
-  if (!state.roomCode || !state.joined) return;
   updateTableCenterOffset();
+  if (!state.roomCode || !state.joined) return;
 
   const maxPlayers = state.room.maxPlayers || null;
 
@@ -1005,6 +1005,8 @@ function updateTableCenterOffset(){
   if (!tableCenterEl) return;
   tableCenterEl.classList.toggle('seated-offset', state.seatedTable !== null);
 }
+
+updateTableCenterOffset();
 
 function renderSeatTabs(){
   seatTabs.innerHTML = '';
