@@ -41,13 +41,16 @@
     right:12px;
     z-index:210;
     border:1px solid #111;
-    border-collapse:collapse;
+    border-collapse:separate;
+    border-spacing:0;
+    border-radius:10px;
+    overflow:hidden;
     background:#fff;
-    font-size:13px;
+    font-size:16px;
   }
   .stage-name-box td{
-    border:1px solid #111;
-    padding:2px 8px;
+    border:0;
+    padding:4px 12px;
     color:#111;
     font-weight:700;
   }
@@ -440,7 +443,7 @@
 </header>
 
 <main id="main" class="prejoin">
-  <table class="stage-name-box" aria-label="現在のステージ">
+  <table id="stageNameTag" class="stage-name-box hidden" aria-label="現在のステージ">
     <tr><td id="stageNameText">1-1</td></tr>
   </table>
 
@@ -737,6 +740,7 @@ const stagePop = document.getElementById('stagePop');
 const btnStagePopClose = document.getElementById('btnStagePopClose');
 const stageOptionGrid = document.getElementById('stageOptionGrid');
 const btnOpenStagePop = document.getElementById('btnOpenStagePop');
+const stageNameTag = document.getElementById('stageNameTag');
 const stageNameText = document.getElementById('stageNameText');
 
 const helpBtn = document.getElementById('helpBtn');
@@ -755,8 +759,8 @@ const STAGE_CODES = Array.from({ length: 10 }, (_, rowIndex) =>
   Array.from({ length: 4 }, (_, colIndex) => `${rowIndex + 1}-${colIndex + 1}`)
 ).flat();
 const STAGE_KEY = 'stageCode';
-let currentStage = localStorage.getItem(STAGE_KEY) || '1-1';
-if (!STAGE_CODES.includes(currentStage)) currentStage = '1-1';
+let currentStage = localStorage.getItem(STAGE_KEY) || '';
+if (currentStage && !STAGE_CODES.includes(currentStage)) currentStage = '';
 
 let pendingSeatIndexToSteal = null;
 let pendingSeatPlayerIdToSteal = null;
@@ -1368,8 +1372,9 @@ function renderStageOptions(){
 }
 
 function setStage(code){
-  currentStage = STAGE_CODES.includes(code) ? code : '1-1';
-  localStorage.setItem(STAGE_KEY, currentStage);
+  currentStage = STAGE_CODES.includes(code) ? code : '';
+  if (currentStage) localStorage.setItem(STAGE_KEY, currentStage);
+  else localStorage.removeItem(STAGE_KEY);
   window.dispatchEvent(new CustomEvent('mission:change', { detail:{ value: currentStage }}));
 }
 
@@ -2170,7 +2175,7 @@ function renderCenterTopDiamond(){
   g.appendChild(path);
 }
 
-function renderRoomCards(){
+function renderRoomCards(mission = currentStage){
   const g = stageSvg.querySelector('#roomCards');
   if(!g) return;
   while(g.firstChild) g.removeChild(g.firstChild);
@@ -2212,8 +2217,6 @@ function renderRoomCards(){
   const localY = parseFloat(cs13.getPropertyValue('--cardLocalY')) || 0;
 
   const rBase = (outerR + innerR) / 2 + baseOffset;
-  const mission = currentStage;
-
   function getFillStrokeFor(room){
     if(room===6) return {fill: fillRoom6, stroke: strokeRoom6};
     if(room===4 && mission==='1-2') return {fill: fillRoom4, stroke: strokeRoom4};
@@ -2408,21 +2411,23 @@ function renderRoomTexts(mission){
 })();
 
 function redrawAll(m){
-  currentStage = m || currentStage || '1-1';
-  missionTextEl.textContent = currentStage;
-  stageNameText.textContent = currentStage;
-  renderEqTriBackFill(currentStage);
-  renderStageMarks(currentStage);
-  renderOutwardMarks(currentStage);
-  renderSpecifiedBowls(currentStage);
-  renderClockMarks(currentStage);
+  if (typeof m === 'string') currentStage = m;
+  const renderStage = STAGE_CODES.includes(currentStage) ? currentStage : '1-1';
+  missionTextEl.textContent = renderStage;
+  stageNameText.textContent = currentStage || '';
+  stageNameTag.classList.toggle('hidden', !currentStage);
+  renderEqTriBackFill(renderStage);
+  renderStageMarks(renderStage);
+  renderOutwardMarks(renderStage);
+  renderSpecifiedBowls(renderStage);
+  renderClockMarks(renderStage);
   updateOrangeGraphics();
   renderInnerTinyDiv();
-  renderInfinity(currentStage);
+  renderInfinity(renderStage);
   renderCenterTopDiamond();
   renderRoomGuideCircles();
-  renderRoomTexts(currentStage);
-  renderRoomCards();
+  renderRoomTexts(renderStage);
+  renderRoomCards(renderStage);
 }
 window.addEventListener('mission:change', (e)=>{
   redrawAll(e.detail?.value || currentStage);
