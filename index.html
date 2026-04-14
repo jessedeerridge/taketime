@@ -223,7 +223,7 @@
     margin:0;
     z-index:520;
     pointer-events:none;
-    transition:transform .34s cubic-bezier(.2,.8,.2,1), opacity .2s linear;
+    transition:transform .78s cubic-bezier(.2,.8,.2,1), opacity .24s linear;
     will-change:transform, opacity;
   }
   .my-card.turn-pulse:not(.dragging){
@@ -807,7 +807,7 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import {
-  getDatabase, ref, set, get, update, onDisconnect, onValue, remove
+  getDatabase, ref, set, get, update, onDisconnect, onValue, remove, runTransaction
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
 
 const firebaseConfig = {
@@ -1582,6 +1582,7 @@ async function placeDroppedCard(cardData, room, face = 'face'){
   pendingPlacedCardIds.delete(cardData.id);
   placedCardIds.add(cardData.id);
   renderHands();
+  await removeCardFromHandInDb(state.userId, cardData);
   const placedAt = Date.now();
   const key = `${state.userId}_${cardData.id}_${placedAt}`;
   await set(ref(db, `rooms/${state.roomCode}/playedCards/${key}`), {
@@ -1592,6 +1593,28 @@ async function placeDroppedCard(cardData, room, face = 'face'){
     room,
     playerId: state.userId,
     placedAt
+  });
+}
+
+async function removeCardFromHandInDb(playerId, cardData){
+  const cardsRef = ref(db, `rooms/${state.roomCode}/hands/${playerId}/cards`);
+  await runTransaction(cardsRef, (cards) => {
+    if (!Array.isArray(cards) || !cards.length) return cards;
+    let removeIndex = -1;
+    const idIndex = Number(String(cardData.id || '').split('-').pop());
+    if (Number.isInteger(idIndex) && idIndex >= 0 && idIndex < cards.length){
+      const indexed = cards[idIndex];
+      if (indexed && indexed.num === cardData.num && indexed.color === cardData.color){
+        removeIndex = idIndex;
+      }
+    }
+    if (removeIndex === -1){
+      removeIndex = cards.findIndex((c) => c && c.num === cardData.num && c.color === cardData.color);
+    }
+    if (removeIndex === -1) return cards;
+    const next = cards.slice();
+    next.splice(removeIndex, 1);
+    return next;
   });
 }
 
@@ -3233,7 +3256,7 @@ function animateRemotePlayedCards(entries){
       renderPlayedCards();
     };
     flyer.addEventListener('transitionend', cleanup);
-    setTimeout(cleanup, 500);
+    setTimeout(cleanup, 1100);
   });
 }
 
