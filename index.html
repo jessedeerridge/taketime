@@ -47,9 +47,10 @@
   .seat-pop label{width:84px;font-size:13px;}
   .seat-pop .tabs{display:flex;gap:6px;flex-wrap:wrap;}
   .tab{padding:6px 10px;border:1px solid #ddd;border-radius:999px;cursor:pointer;user-select:none;position:relative;}
+  .tab{background:#fff;color:#111;border-color:#111;}
   .tab.disabled{opacity:.45; pointer-events:none;}
   .tab.disabled::after{content:'✕';position:absolute;inset:0;display:grid;place-items:center;font-size:18px;font-weight:700;color:#b91c1c;pointer-events:none;}
-  .tab.active{background:#111;color:#fff;border-color:#111;}
+  .tab.active{background:#fff;color:#111;border-color:#111;font-weight:700;}
 
   .host-selecting-pop{
     position:fixed;left:50%;bottom:10px;transform:translateX(-50%);
@@ -168,7 +169,7 @@
     display:flex;flex-direction:column;gap:8px;
   }
   .start-pop{right:16px;bottom:72px;}
-  .stage-pop{right:66px;bottom:72px;min-width:220px;}
+  .stage-pop{right:66px;bottom:72px;min-width:320px;max-width:min(90vw,520px);}
   .start-pop.hidden,
   .stage-pop.hidden{display:none;}
   .start-pop-header,
@@ -181,8 +182,9 @@
   .stage-pop-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:4px;flex-wrap:wrap;}
   .start-pop-actions{flex-direction:column;align-items:flex-end;}
   .start-pop-primary-actions{display:flex;gap:8px;}
-  .stage-option-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
-  .stage-option-btn.active{background:#111;color:#fff;border-color:#111;}
+  .stage-option-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;max-height:320px;overflow:auto;padding-right:2px;}
+  .stage-option-btn{background:#fff;color:#111;border-color:#111;}
+  .stage-option-btn.active{background:#f3f4f6;color:#111;border-color:#111;font-weight:700;}
 
   #roomInfoLobby, #lobby h2, #lobby p {display:none;}
   #lobby.entered{
@@ -548,6 +550,8 @@
         </g>
         <g transform="translate(150,150)" id="centerTopDiamondG" style="pointer-events:none"></g>
 
+        <rect id="missionTextBox" x="225" y="4" width="70" height="24" rx="2" ry="2"
+              fill="#fff" stroke="#111" stroke-width="1"></rect>
         <text id="missionText" x="292" y="22" text-anchor="end" font-size="18" font-weight="700"
               font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', Meiryo, Arial, sans-serif"
               fill="#111"></text>
@@ -712,7 +716,9 @@ const ROLE_HELP = [
   { name: "カード4", text: "うううう" },
 ];
 
-const STAGE_CODES = ['1-1', '1-2', '1-3', '2-3'];
+const STAGE_CODES = Array.from({ length: 10 }, (_, stage) =>
+  Array.from({ length: 4 }, (_, phase) => `${stage + 1}-${phase + 1}`)
+).flat();
 const STAGE_KEY = 'stageCode';
 let currentStage = localStorage.getItem(STAGE_KEY) || '1-1';
 
@@ -1564,6 +1570,7 @@ const stageMarksG = stageSvg.querySelector('#stageMarks');
 const stageSpecifiedG = stageSvg.querySelector('#stageSpecified');
 const stageClockG = stageSvg.querySelector('#stageClockMarks');
 const missionTextEl = stageSvg.querySelector('#missionText');
+const missionTextBoxEl = stageSvg.querySelector('#missionTextBox');
 
 const STAGE_SPEC = {
   '1-1': { specifiedRooms: [1,6] },
@@ -2380,6 +2387,15 @@ function renderRoomTexts(mission){
 function redrawAll(m){
   currentStage = m || currentStage || '1-1';
   missionTextEl.textContent = currentStage;
+  if (missionTextBoxEl){
+    const paddingX = 8;
+    const width = Math.max(64, missionTextEl.getComputedTextLength() + paddingX * 2);
+    const boxX = 296 - width;
+    missionTextBoxEl.setAttribute('x', boxX.toFixed(1));
+    missionTextBoxEl.setAttribute('y', '6');
+    missionTextBoxEl.setAttribute('width', width.toFixed(1));
+    missionTextBoxEl.setAttribute('height', '24');
+  }
   renderEqTriBackFill(currentStage);
   renderStageMarks(currentStage);
   renderOutwardMarks(currentStage);
