@@ -35,6 +35,22 @@
   }
   main.prejoin{ background-image:url('maemain.jpg'); }
   main.joined{ background-image:url('maingazo.jpg'); }
+  .stage-name-box{
+    position:absolute;
+    top:8px;
+    right:12px;
+    z-index:210;
+    border:1px solid #111;
+    border-collapse:collapse;
+    background:#fff;
+    font-size:13px;
+  }
+  .stage-name-box td{
+    border:1px solid #111;
+    padding:2px 8px;
+    color:#111;
+    font-weight:700;
+  }
 
   .seat-pop{
     position:fixed;left:50%;bottom:10px;transform:translateX(-50%);
@@ -50,6 +66,23 @@
   .tab.disabled{opacity:.45; pointer-events:none;}
   .tab.disabled::after{content:'✕';position:absolute;inset:0;display:grid;place-items:center;font-size:18px;font-weight:700;color:#b91c1c;pointer-events:none;}
   .tab.active{background:#111;color:#fff;border-color:#111;}
+  .seat-pop .tab{
+    background:#fff;
+    color:#111;
+    border-color:#111;
+  }
+  .seat-pop .tab.active{
+    background:#fff;
+    color:#111;
+    border-color:#111;
+    box-shadow:inset 0 0 0 1px #111;
+  }
+  .seat-pop .btn,
+  .seat-pop .btn.primary{
+    background:#fff;
+    color:#111;
+    border-color:#111;
+  }
 
   .host-selecting-pop{
     position:fixed;left:50%;bottom:10px;transform:translateX(-50%);
@@ -181,7 +214,7 @@
   .stage-pop-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:4px;flex-wrap:wrap;}
   .start-pop-actions{flex-direction:column;align-items:flex-end;}
   .start-pop-primary-actions{display:flex;gap:8px;}
-  .stage-option-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+  .stage-option-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;max-height:48vh;overflow:auto;}
   .stage-option-btn.active{background:#111;color:#fff;border-color:#111;}
 
   #roomInfoLobby, #lobby h2, #lobby p {display:none;}
@@ -393,6 +426,7 @@
   }
   #stageBoard .sharp{ stroke-linecap:butt; stroke-linejoin:miter; }
   #stageBoard #sectorHits .sector { fill: rgba(255,255,0,0); cursor: pointer; pointer-events: fill; }
+  #missionText{display:none;}
 </style>
 </head>
 <body>
@@ -406,6 +440,10 @@
 </header>
 
 <main id="main" class="prejoin">
+  <table class="stage-name-box" aria-label="現在のステージ">
+    <tr><td id="stageNameText">1-1</td></tr>
+  </table>
+
   <div class="join-box" id="joinBox">
     <input id="userName" placeholder="名前（未入力で自動）" maxlength="4" />
     <input id="roomCode" placeholder="ルームコード（未入力で自動生成）" maxlength="12" />
@@ -699,6 +737,7 @@ const stagePop = document.getElementById('stagePop');
 const btnStagePopClose = document.getElementById('btnStagePopClose');
 const stageOptionGrid = document.getElementById('stageOptionGrid');
 const btnOpenStagePop = document.getElementById('btnOpenStagePop');
+const stageNameText = document.getElementById('stageNameText');
 
 const helpBtn = document.getElementById('helpBtn');
 const helpBackdrop = document.getElementById('helpBackdrop');
@@ -712,9 +751,12 @@ const ROLE_HELP = [
   { name: "カード4", text: "うううう" },
 ];
 
-const STAGE_CODES = ['1-1', '1-2', '1-3', '2-3'];
+const STAGE_CODES = Array.from({ length: 10 }, (_, rowIndex) =>
+  Array.from({ length: 4 }, (_, colIndex) => `${rowIndex + 1}-${colIndex + 1}`)
+).flat();
 const STAGE_KEY = 'stageCode';
 let currentStage = localStorage.getItem(STAGE_KEY) || '1-1';
+if (!STAGE_CODES.includes(currentStage)) currentStage = '1-1';
 
 let pendingSeatIndexToSteal = null;
 let pendingSeatPlayerIdToSteal = null;
@@ -1325,14 +1367,6 @@ function renderStageOptions(){
   });
 }
 
-function positionStagePopBelowStart(){
-  const rect = startPop.getBoundingClientRect();
-  stagePop.style.left = `${Math.max(12, rect.left)}px`;
-  stagePop.style.top = `${Math.min(window.innerHeight - stagePop.offsetHeight - 12, rect.bottom + 8)}px`;
-  stagePop.style.right = 'auto';
-  stagePop.style.bottom = 'auto';
-}
-
 function setStage(code){
   currentStage = STAGE_CODES.includes(code) ? code : '1-1';
   localStorage.setItem(STAGE_KEY, currentStage);
@@ -1341,16 +1375,12 @@ function setStage(code){
 
 btnOpenStagePop.addEventListener('click', () => {
   renderStageOptions();
-  stagePop.classList.toggle('hidden');
-  if (!stagePop.classList.contains('hidden')) positionStagePopBelowStart();
+  startPop.classList.add('hidden');
+  stagePop.classList.remove('hidden');
 });
 btnStagePopClose.addEventListener('click', () => {
   stagePop.classList.add('hidden');
-});
-window.addEventListener('resize', () => {
-  if (!stagePop.classList.contains('hidden') && !startPop.classList.contains('hidden')){
-    positionStagePopBelowStart();
-  }
+  if (state.isHost) startPop.classList.remove('hidden');
 });
 window.addEventListener('resize', updateMyHandPosition);
 
@@ -2380,6 +2410,7 @@ function renderRoomTexts(mission){
 function redrawAll(m){
   currentStage = m || currentStage || '1-1';
   missionTextEl.textContent = currentStage;
+  stageNameText.textContent = currentStage;
   renderEqTriBackFill(currentStage);
   renderStageMarks(currentStage);
   renderOutwardMarks(currentStage);
