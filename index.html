@@ -203,6 +203,49 @@
   }
   .dialog-box p{margin:0 0 12px;font-size:14px;line-height:1.6;}
   .dialog-buttons{display:flex;justify-content:flex-end;gap:8px;}
+  .card-choice-dialog .dialog-box{
+    max-width:420px;
+  }
+  .card-choice-row{
+    display:flex;
+    justify-content:center;
+    gap:16px;
+  }
+  .choice-card{
+    width:60px;
+    height:90px;
+    border-radius:8px;
+    border:1px solid #ddd;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:24px;
+    font-weight:600;
+    cursor:pointer;
+    box-shadow:0 4px 12px rgba(0,0,0,.15);
+  }
+  .choice-card.back-white{
+    background:
+      repeating-linear-gradient(
+        135deg,
+        #ffffff 0px,
+        #ffffff 4px,
+        #e5e7eb 4px,
+        #e5e7eb 8px
+      );
+    border:1px solid #cfcfcf;
+  }
+  .choice-card.back-black{
+    background:
+      repeating-linear-gradient(
+        135deg,
+        var(--black-card) 0px,
+        var(--black-card) 4px,
+        #1a274d 4px,
+        #1a274d 8px
+      );
+    border:1px solid var(--black-card-border-soft);
+  }
 
   .host-settings-btn{
     position:fixed;bottom:16px;width:44px;height:44px;border-radius:50%;
@@ -643,6 +686,16 @@
   </div>
 </div>
 
+<div id="cardChoiceDialog" class="dialog-backdrop hidden card-choice-dialog">
+  <div class="dialog-box">
+    <p>場に出す向きを選択してください</p>
+    <div class="card-choice-row">
+      <button id="btnChoiceFace" class="choice-card" aria-label="表向きで配置"></button>
+      <button id="btnChoiceBack" class="choice-card" aria-label="裏向きで配置"></button>
+    </div>
+  </div>
+</div>
+
 <button id="hostSettingsBtn" class="host-settings-btn" title="設定">⚙</button>
 <button id="helpBtn" class="help-btn" title="正体カード一覧">？</button>
 
@@ -745,6 +798,9 @@ const kickDialog = document.getElementById('kickDialog');
 const kickMessage = document.getElementById('kickMessage');
 const btnKickYes = document.getElementById('btnKickYes');
 const btnKickNo = document.getElementById('btnKickNo');
+const cardChoiceDialog = document.getElementById('cardChoiceDialog');
+const btnChoiceFace = document.getElementById('btnChoiceFace');
+const btnChoiceBack = document.getElementById('btnChoiceBack');
 
 const hostSettingsBtn = document.getElementById('hostSettingsBtn');
 const startPop = document.getElementById('startPop');
@@ -785,6 +841,7 @@ let joinInProgress = false;
 const placedCardIds = new Set();
 const droppedCardsByRoom = new Map();
 let activeDrag = null;
+let cardChoiceResolver = null;
 
 function randomInt(max){
   return Math.floor(Math.random() * max);
@@ -1042,13 +1099,44 @@ function findDropRoom(clientX, clientY){
   return null;
 }
 
-function placeDroppedCard(cardData, room){
+function placeDroppedCard(cardData, room, face = 'face'){
   const cards = droppedCardsByRoom.get(room) || [];
-  cards.push(cardData);
+  cards.push({ ...cardData, face });
   droppedCardsByRoom.set(room, cards);
   placedCardIds.add(cardData.id);
   renderHands();
 }
+
+function paintChoiceCards(cardData){
+  const isBlack = cardData.color === 'black';
+  btnChoiceFace.textContent = String(cardData.num);
+  btnChoiceFace.style.background = isBlack ? '#0b1530' : '#fff';
+  btnChoiceFace.style.color = isBlack ? '#fff' : '#111';
+  btnChoiceFace.style.border = isBlack ? '1px solid #0b1530' : '1px solid #ddd';
+
+  btnChoiceBack.textContent = '';
+  btnChoiceBack.classList.remove('back-white', 'back-black');
+  btnChoiceBack.classList.add(isBlack ? 'back-black' : 'back-white');
+}
+
+function openCardChoice(cardData){
+  paintChoiceCards(cardData);
+  cardChoiceDialog.classList.remove('hidden');
+  return new Promise((resolve) => {
+    cardChoiceResolver = resolve;
+  });
+}
+
+function closeCardChoice(choice){
+  cardChoiceDialog.classList.add('hidden');
+  if (cardChoiceResolver){
+    cardChoiceResolver(choice);
+    cardChoiceResolver = null;
+  }
+}
+
+btnChoiceFace.addEventListener('click', () => closeCardChoice('face'));
+btnChoiceBack.addEventListener('click', () => closeCardChoice('back'));
 
 function startCardDrag(ev, cardData){
   ev.preventDefault();
@@ -1083,10 +1171,13 @@ function startCardDrag(ev, cardData){
     if (!activeDrag || mv.pointerId !== activeDrag.pointerId) return;
     move(mv.clientX, mv.clientY);
   };
-  const onUp = (up) => {
+  const onUp = async (up) => {
     if (!activeDrag || up.pointerId !== activeDrag.pointerId) return;
     const dropRoom = findDropRoom(up.clientX, up.clientY);
-    if (dropRoom) placeDroppedCard(activeDrag.cardData, dropRoom);
+    if (dropRoom){
+      const choice = await openCardChoice(activeDrag.cardData);
+      placeDroppedCard(activeDrag.cardData, dropRoom, choice);
+    }
     activeDrag.srcEl.classList.remove('dragging');
     activeDrag.srcEl.style.visibility = '';
     activeDrag.ghost.remove();
@@ -2468,21 +2559,25 @@ function renderPlayedCards(){
       rect.setAttribute('height', cardH);
       rect.setAttribute('rx', cardR);
       rect.setAttribute('ry', cardR);
-      rect.setAttribute('fill', cardData.color === 'black' ? '#0b1530' : '#fff');
-      rect.setAttribute('stroke', cardData.color === 'black' ? '#0b1530' : '#ddd');
+      const isBlack = cardData.color === 'black';
+      const isFaceUp = cardData.face !== 'back';
+      rect.setAttribute('fill', isFaceUp ? (isBlack ? '#0b1530' : '#fff') : (isBlack ? '#13234d' : '#f3f4f6'));
+      rect.setAttribute('stroke', isFaceUp ? (isBlack ? '#0b1530' : '#ddd') : (isBlack ? '#0b1530' : '#cfcfcf'));
       rect.setAttribute('stroke-width', sw);
       cardG.appendChild(rect);
 
-      const text = document.createElementNS('http://www.w3.org/2000/svg','text');
-      text.textContent = String(cardData.num);
-      text.setAttribute('x', '0');
-      text.setAttribute('y', '0');
-      text.setAttribute('fill', cardData.color === 'black' ? '#fff' : '#111');
-      text.setAttribute('font-size', String(Math.max(8, cardW * 0.55)));
-      text.setAttribute('font-weight', '700');
-      text.setAttribute('text-anchor', 'middle');
-      text.setAttribute('dominant-baseline', 'middle');
-      cardG.appendChild(text);
+      if (isFaceUp){
+        const text = document.createElementNS('http://www.w3.org/2000/svg','text');
+        text.textContent = String(cardData.num);
+        text.setAttribute('x', '0');
+        text.setAttribute('y', '0');
+        text.setAttribute('fill', isBlack ? '#fff' : '#111');
+        text.setAttribute('font-size', String(Math.max(8, cardW * 0.55)));
+        text.setAttribute('font-weight', '700');
+        text.setAttribute('text-anchor', 'middle');
+        text.setAttribute('dominant-baseline', 'middle');
+        cardG.appendChild(text);
+      }
 
       g.appendChild(cardG);
     });
