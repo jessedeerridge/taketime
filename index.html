@@ -505,9 +505,10 @@
     --roomGuideStrokeW: 1.4;
     --roomGuideDash: 2.2 4;
     --roomGuideOuterOffset: 0;
-    --roomGuideDragStroke: #93c5fd;
-    --roomGuideDragHoverStroke: #60a5fa;
-    --roomGuideDragOpacity: 0.95;
+    --roomGuideDragFill: #93c5fd;
+    --roomGuideDragHoverFill: #60a5fa;
+    --roomGuideDragOpacity: 0.2;
+    --roomGuideDragHoverOpacity: 0.34;
     --roomGuideNormalOpacity: 1;
 
     --clockMarkScale: 1;
@@ -2846,39 +2847,30 @@ function renderRoomGuideCircles(){
   const csGuide = getComputedStyle(stageSvg);
   const centerR = parseFloat(csGuide.getPropertyValue('--roomGuideCenterR')) || ((innerR + outerR) / 2);
   const guideR = parseFloat(csGuide.getPropertyValue('--roomGuideR')) || Math.max(8, (outerR - innerR) / 2 - 2);
-  const stroke = csGuide.getPropertyValue('--roomGuideStroke').trim() || '#7c5a3a';
-  const strokeW = parseFloat(csGuide.getPropertyValue('--roomGuideStrokeW')) || 1.4;
-  const dash = csGuide.getPropertyValue('--roomGuideDash').trim() || '2 3';
-  const outerOffset = parseFloat(csGuide.getPropertyValue('--roomGuideOuterOffset')) || 8;
-  const dragStroke = csGuide.getPropertyValue('--roomGuideDragStroke').trim() || '#93c5fd';
-  const dragHoverStroke = csGuide.getPropertyValue('--roomGuideDragHoverStroke').trim() || '#60a5fa';
-  const dragOpacity = Math.max(0, Math.min(1, parseFloat(csGuide.getPropertyValue('--roomGuideDragOpacity')) || 0.95));
+  const dragFill = csGuide.getPropertyValue('--roomGuideDragFill').trim() || '#93c5fd';
+  const dragHoverFill = csGuide.getPropertyValue('--roomGuideDragHoverFill').trim() || '#60a5fa';
+  const dragOpacity = Math.max(0, Math.min(1, parseFloat(csGuide.getPropertyValue('--roomGuideDragOpacity')) || 0.2));
+  const dragHoverOpacity = Math.max(0, Math.min(1, parseFloat(csGuide.getPropertyValue('--roomGuideDragHoverOpacity')) || 0.34));
   const normalOpacity = Math.max(0, Math.min(1, parseFloat(csGuide.getPropertyValue('--roomGuideNormalOpacity')) || 1));
   const isDragging = !!activeDrag;
 
   for(let room=1; room<=6; room++){
     const midDeg = (room-1)*60 + 30;
     const pInner = polar(centerR, midDeg);
-    const pOuter = polar(centerR + guideR * 0.5 + outerOffset, midDeg);
-
-    [pInner, pOuter].forEach((p, idx) => {
-      const circle = document.createElementNS('http://www.w3.org/2000/svg','circle');
-      const isInner = idx === 0;
-      const isHoverInner = isInner && dragHoverRoom === room;
-      circle.setAttribute('cx', p.x.toFixed(2));
-      circle.setAttribute('cy', p.y.toFixed(2));
-      circle.setAttribute('r', guideR.toFixed(2));
+    const isHoverInner = dragHoverRoom === room;
+    const circle = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    circle.setAttribute('cx', pInner.x.toFixed(2));
+    circle.setAttribute('cy', pInner.y.toFixed(2));
+    circle.setAttribute('r', guideR.toFixed(2));
+    circle.setAttribute('stroke', 'none');
+    if (isDragging){
+      circle.setAttribute('fill', isHoverInner ? dragHoverFill : dragFill);
+      circle.setAttribute('fill-opacity', String(isHoverInner ? dragHoverOpacity : dragOpacity));
+    } else {
       circle.setAttribute('fill', 'none');
-      const appliedStroke = (isDragging && isInner)
-        ? (isHoverInner ? dragHoverStroke : dragStroke)
-        : stroke;
-      circle.setAttribute('stroke', appliedStroke);
-      circle.setAttribute('stroke-width', String(strokeW));
-      circle.setAttribute('stroke-dasharray', dash);
-      circle.setAttribute('stroke-linecap', 'round');
-      circle.setAttribute('stroke-opacity', String((isDragging && isInner) ? dragOpacity : normalOpacity));
-      g.appendChild(circle);
-    });
+      circle.setAttribute('fill-opacity', String(normalOpacity));
+    }
+    g.appendChild(circle);
   }
 }
 
