@@ -376,7 +376,7 @@
     --roomGuideStroke: #8b6b4f;
     --roomGuideStrokeW: 1.4;
     --roomGuideDash: 2.2 4;
-    --roomGuideOuterOffset: 4;
+    --roomGuideOuterOffset: 0;
 
     --clockMarkScale: 1;
     --clockMarkSize: 44;
@@ -2264,7 +2264,7 @@ function renderRoomGuideCircles(){
   for(let room=1; room<=6; room++){
     const midDeg = (room-1)*60 + 30;
     const pInner = polar(centerR, midDeg);
-    const pOuter = polar(centerR + guideR + outerOffset, midDeg);
+    const pOuter = polar(centerR + guideR * 0.5 + outerOffset, midDeg);
 
     [pInner, pOuter].forEach((p) => {
       const circle = document.createElementNS('http://www.w3.org/2000/svg','circle');
