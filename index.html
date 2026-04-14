@@ -167,9 +167,21 @@
     z-index:1;
   }
 
-  .my-hand-wrapper{margin-top:46px;text-align:center;}
+  .my-hand-wrapper{
+    margin-top:46px;
+    text-align:center;
+    min-height:160px;
+  }
   .my-hand-title{display:none;}
-  .my-hand{display:flex;justify-content:center;gap:8px;margin-top:2px;min-height:64px;}
+  .my-hand{
+    --hand-offset-y:0px;
+    display:flex;
+    justify-content:center;
+    gap:8px;
+    margin-top:2px;
+    min-height:64px;
+    transform:translateY(var(--hand-offset-y));
+  }
   .my-card{
     width:60px;height:90px;border-radius:8px;border:1px solid #ddd;background:#fff;
     display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:600;
@@ -1061,14 +1073,15 @@ function updateMyHandPosition(){
   const tableCenter = document.querySelector('.table-center');
   const meTag = playerCircle.querySelector('.player-tag.me');
   if(!tableCenter || !meTag){
-    myHandWrapperEl.style.marginTop = '46px';
+    myHandEl.style.setProperty('--hand-offset-y', '0px');
     return;
   }
 
   const tableRect = tableCenter.getBoundingClientRect();
   const meRect = meTag.getBoundingClientRect();
-  const marginTop = Math.max(46, (meRect.bottom - tableRect.bottom) + 46);
-  myHandWrapperEl.style.marginTop = `${Math.round(marginTop)}px`;
+  const requiredMarginTop = Math.max(46, (meRect.bottom - tableRect.bottom) + 46);
+  const offsetY = Math.max(0, requiredMarginTop - 46);
+  myHandEl.style.setProperty('--hand-offset-y', `${Math.round(offsetY)}px`);
 }
 
 function renderPlayerCircle(players){
@@ -1078,34 +1091,34 @@ function renderPlayerCircle(players){
     return;
   }
 
-  const n = players.length;
+  const configuredSeats = Number(state.room?.maxPlayers) || players.length;
+  const seatCount = Math.max(2, Math.min(4, configuredSeats));
   const radius = 70;
-  const step = (2 * Math.PI) / n;
+  const step = (2 * Math.PI) / seatCount;
   const anchorAngle = Math.PI / 2;
-  const meIndex = players.findIndex(p => p.id === state.userId);
 
   players.forEach((p, idx) => {
-    const k = (meIndex === -1) ? idx : (idx - meIndex + n) % n;
-    const angle = anchorAngle + step * k;
+    const seatSlot = Math.max(0, Math.min(seatCount - 1, (Number(p.seatIndex) || (idx + 1)) - 1));
+    const angle = anchorAngle + step * seatSlot;
 
     let x = 50 + radius * Math.cos(angle);
     const y = 50 + radius * Math.sin(angle);
     const isMe = p.id === state.userId;
 
     if (!isMe) {
-      if (n === 4) {
-        if (k === 1) x += 22;
-        if (k === 3) x -= 22;
-      } else if (n === 3) {
-        if (k === 1) x += 22;
-        if (k === 2) x -= 22;
+      if (seatCount === 4) {
+        if (seatSlot === 1) x += 22;
+        if (seatSlot === 3) x -= 22;
+      } else if (seatCount === 3) {
+        if (seatSlot === 1) x += 22;
+        if (seatSlot === 2) x -= 22;
       }
     }
 
     x = Math.max(-8, Math.min(108, x));
 
     let centerNudgePx = 0;
-    if (!isMe && (n === 3 || n === 4)) {
+    if (!isMe && (seatCount === 3 || seatCount === 4)) {
       if (x < 50) centerNudgePx = 3;
       if (x > 50) centerNudgePx = -3;
     }
@@ -1116,8 +1129,8 @@ function renderPlayerCircle(players){
     tag.style.left = centerNudgePx === 0
       ? `${x}%`
       : `calc(${x}% ${centerNudgePx > 0 ? '+' : '-'} ${Math.abs(centerNudgePx)}px)`;
-    const isSidePlayer3 = n === 3 && (k === 1 || k === 2);
-    const isSidePlayer4 = n === 4 && (k === 1 || k === 3);
+    const isSidePlayer3 = seatCount === 3 && (seatSlot === 1 || seatSlot === 2);
+    const isSidePlayer4 = seatCount === 4 && (seatSlot === 1 || seatSlot === 3);
     const yForTag = (!isMe && (isSidePlayer3 || isSidePlayer4)) ? 32.5 : y;
     tag.style.top = isMe
       ? `calc(${y}% + 20px)`
