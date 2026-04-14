@@ -1130,13 +1130,21 @@ function renderPlayerCircle(players){
       if (x > 50) centerNudgePx = -3;
     }
 
+    const isMeSlot = k === 0;
+    const isTopSlot = (n % 2 === 0) && (k === n / 2);
+    const isLeftOrRightSlot = (n >= 3) && (k === 1 || k === n - 1);
+    let verticalOffsetPx = 0;
+    if (isMeSlot) verticalOffsetPx += 50;
+    if (isTopSlot) verticalOffsetPx += 40;
+    if (isLeftOrRightSlot) verticalOffsetPx -= 40;
+
     const tag = document.createElement('div');
     tag.className = 'player-tag' + (isMe ? ' me' : '');
     tag.textContent = p.name;
     tag.style.left = centerNudgePx === 0
       ? `${x}%`
       : `calc(${x}% ${centerNudgePx > 0 ? '+' : '-'} ${Math.abs(centerNudgePx)}px)`;
-    tag.style.top = `calc(${y}% - 78px)`;
+    tag.style.top = `calc(${y}% - 78px + ${verticalOffsetPx}px)`;
 
     tag.onclick = () => {
       if (p.id === state.userId) return;
