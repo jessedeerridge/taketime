@@ -645,6 +645,10 @@
             <stop offset="100%" stop-color="#fff1a2"/>
           </linearGradient>
 
+          <pattern id="startImagePattern" patternUnits="userSpaceOnUse" x="-150" y="-150" width="300" height="300">
+            <image href="start.jpg" x="-150" y="-150" width="300" height="300" preserveAspectRatio="xMidYMid slice"/>
+          </pattern>
+
           <symbol id="notchedBowl" viewBox="0 0 110 65" overflow="visible">
             <path id="bowlFill" fill="#fff" stroke="none"/>
             <path id="bowlPath" fill="none" stroke="var(--bowlStrokeColor)" stroke-width="1.5"
@@ -2710,6 +2714,7 @@ function renderOutwardMarks(mission){
   while(stageOutG.firstChild) stageOutG.removeChild(stageOutG.firstChild);
 
   const specified = new Set(getSpecifiedRoomsForMission(mission));
+  const isMission14 = mission === '1-4';
 
   const cs6 = getComputedStyle(stageSvg);
   const rBase    = innerR + (parseFloat(cs6.getPropertyValue('--outTriInset')) || 0);
@@ -2746,13 +2751,13 @@ function renderOutwardMarks(mission){
 
     const leftRibbon = document.createElementNS('http://www.w3.org/2000/svg','path');
     leftRibbon.setAttribute('d', dLeftRibbon);
-    leftRibbon.setAttribute('fill', color);
+    leftRibbon.setAttribute('fill', isMission14 ? 'url(#startImagePattern)' : color);
     leftRibbon.setAttribute('fill-opacity', opacity);
     stageOutG.appendChild(leftRibbon);
 
     const rightRibbon = document.createElementNS('http://www.w3.org/2000/svg','path');
     rightRibbon.setAttribute('d', dRightRibbon);
-    rightRibbon.setAttribute('fill', color);
+    rightRibbon.setAttribute('fill', isMission14 ? 'url(#startImagePattern)' : color);
     rightRibbon.setAttribute('fill-opacity', opacity);
     stageOutG.appendChild(rightRibbon);
 
@@ -2856,11 +2861,26 @@ function renderEqTriBackFill(mission){
   const triBack = stageSvg.querySelector('#triBack');
   if(!triBack) return;
   const specified = new Set(getSpecifiedRoomsForMission(mission));
+  const isMission14 = mission === '1-4';
   const defaultFill = getComputedStyle(stageSvg).getPropertyValue('--triFill').trim() || '#ddd';
+  const lightFill = getComputedStyle(stageSvg).getPropertyValue('--circleFill').trim() || '#e6e3e3';
+  const outerCircle = triBack.querySelector('#outerCircle');
+  const innerRing2El = stageSvg.querySelector('#innerRing2');
+
+  if (outerCircle){
+    outerCircle.setAttribute('fill', isMission14 ? 'url(#startImagePattern)' : 'var(--circleFill)');
+  }
+  if (innerRing2El){
+    innerRing2El.setAttribute('stroke', isMission14 ? lightFill : 'var(--gold)');
+  }
 
   for(let room=1; room<=6; room++){
     const use = triBack.querySelector(`use[data-room="${room}"]`);
     if(!use) continue;
+    if (isMission14){
+      use.setAttribute('fill', lightFill);
+      continue;
+    }
     if(specified.has(room)){
       use.setAttribute('fill', '#e0ffff');
     }else{
