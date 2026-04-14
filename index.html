@@ -149,6 +149,7 @@
   .player-tag .mini-hand{
     position:absolute;left:50%;top:100%;
     transform:translate(-50%,3px);
+    transform-origin:50% 0;
     width:92px;height:48px;pointer-events:none;
   }
   .player-tag .mini-card{
@@ -218,6 +219,14 @@
     cursor:grab;
   }
   .my-card.dragging{opacity:.45;cursor:grabbing;}
+  .turn-pulse{
+    animation:turnPulseScale 1s ease-in-out infinite;
+    transform-origin:center;
+  }
+  @keyframes turnPulseScale{
+    0%,100%{scale:1;}
+    50%{scale:1.08;}
+  }
 
   .dialog-backdrop{
     position:fixed;inset:0;background:rgba(0,0,0,.35);
@@ -887,6 +896,59 @@ let hostHandLockedByStage = false;
 let lastShownPhaseEventTs = 0;
 let revealPhaseAnnouncedForStage = '';
 let lastSeenPhaseTicks = { discussion: 0, placement: 0, reveal: 0 };
+let latestPhaseState = { discussionTick: 0, placementTick: 0, revealTick: 0 };
+
+function getPlacementTurnContext(){
+  const discussionTick = Number(latestPhaseState.discussionTick || 0);
+  const placementTick = Number(latestPhaseState.placementTick || 0);
+  const revealTick = Number(latestPhaseState.revealTick || 0);
+  const currentPhase = [
+    { phase: 'discussion', tick: discussionTick },
+    { phase: 'placement', tick: placementTick },
+    { phase: 'reveal', tick: revealTick }
+  ].sort((a, b) => b.tick - a.tick)[0]?.phase || '';
+  if (currentPhase !== 'placement' || !placementTick){
+    return { isPlacement: false, isAllTurn: false, currentPlayerId: null };
+  }
+
+  const seatedPlayerIds = latestPlayers.map(p => p.id);
+  if (!seatedPlayerIds.length){
+    return { isPlacement: true, isAllTurn: false, currentPlayerId: null };
+  }
+
+  const placedInPhase = Object.values(state.playedCards || {})
+    .filter((card) =>
+      card?.playerId &&
+      seatedPlayerIds.includes(card.playerId) &&
+      Number(card.placedAt || 0) >= placementTick
+    )
+    .sort((a, b) => Number(a.placedAt || 0) - Number(b.placedAt || 0));
+
+  if (!placedInPhase.length){
+    return { isPlacement: true, isAllTurn: true, currentPlayerId: null };
+  }
+
+  const firstPlayerId = placedInPhase[0].playerId;
+  const firstPlayerIndex = seatedPlayerIds.indexOf(firstPlayerId);
+  if (firstPlayerIndex < 0){
+    return { isPlacement: true, isAllTurn: false, currentPlayerId: null };
+  }
+
+  const rotatedOrder = [
+    ...seatedPlayerIds.slice(firstPlayerIndex),
+    ...seatedPlayerIds.slice(0, firstPlayerIndex)
+  ];
+  const nextIndex = placedInPhase.length % rotatedOrder.length;
+  const currentPlayerId = rotatedOrder[nextIndex] || null;
+  return { isPlacement: true, isAllTurn: false, currentPlayerId };
+}
+
+function isPlayersTurn(playerId){
+  const ctx = getPlacementTurnContext();
+  if (!ctx.isPlacement) return false;
+  if (ctx.isAllTurn) return true;
+  return !!playerId && ctx.currentPlayerId === playerId;
+}
 
 function randomInt(max){
   return Math.floor(Math.random() * max);
@@ -1106,6 +1168,7 @@ function subscribePhaseEvents(){
   const phaseStateRef = ref(db, `rooms/${state.roomCode}/phaseState`);
   onValue(phaseStateRef, snap => {
     const data = snap.val() || {};
+    latestPhaseState = data;
     const mapping = [
       { key: 'discussionTick', phase: 'discussion', label: '議論フェーズ' },
       { key: 'placementTick', phase: 'placement', label: '配置フェーズ' },
@@ -1117,6 +1180,7 @@ function subscribePhaseEvents(){
       lastSeenPhaseTicks[phase] = tick;
       showPhaseFlow(label);
     });
+    renderHands();
   });
 }
 
@@ -1189,6 +1253,9 @@ function renderMyHand(){
   const handData = state.hands[myId];
   if (!handData || !Array.isArray(handData.cards)) return;
   const shouldLockHand = state.isHost && hostHandLockedByStage && !!currentStage;
+  const isMyTurnNow = isPlayersTurn(myId);
+  const canDragNow = !shouldLockHand && isMyTurnNow;
+  const shouldPulseMyCards = canDragNow && !activeDrag;
 
   handData.cards.forEach((cardData, index) => {
     const cardId = `${myId}-${index}`;
@@ -1212,8 +1279,12 @@ function renderMyHand(){
       card.style.background = color === 'black' ? '#0b1530' : '#fff';
       card.style.color = color === 'black' ? '#fff' : '#111';
       card.style.border = color === 'black' ? '1px solid #0b1530' : '1px solid #ddd';
-      card.addEventListener('pointerdown', (ev) => startCardDrag(ev, { ...cardData, id: cardId }));
+      card.style.cursor = canDragNow ? 'grab' : 'not-allowed';
+      if (canDragNow){
+        card.addEventListener('pointerdown', (ev) => startCardDrag(ev, { ...cardData, id: cardId }));
+      }
     }
+    card.classList.toggle('turn-pulse', shouldPulseMyCards);
 
     myHandEl.appendChild(card);
   });
@@ -1348,6 +1419,7 @@ function startCardDrag(ev, cardData){
   ev.preventDefault();
   if (activeDrag) return;
   if (state.isHost && hostHandLockedByStage && currentStage) return;
+  if (!isPlayersTurn(state.userId)) return;
   const srcEl = ev.currentTarget;
   if (!(srcEl instanceof HTMLElement)) return;
 
@@ -1357,6 +1429,7 @@ function startCardDrag(ev, cardData){
 
   const ghost = srcEl.cloneNode(true);
   ghost.classList.remove('dragging');
+  ghost.classList.remove('turn-pulse');
   ghost.style.visibility = 'visible';
   ghost.style.position = 'fixed';
   ghost.style.left = '0';
@@ -1588,6 +1661,7 @@ function renderPlayerCircle(players){
     if (p.id !== state.userId && handData && Array.isArray(handData.cards) && handData.cards.length){
       const miniHand = document.createElement('div');
       miniHand.className = 'mini-hand';
+      miniHand.classList.toggle('turn-pulse', isPlayersTurn(p.id));
 
       const count = handData.cards.length;
       const spread = 70;
