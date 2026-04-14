@@ -225,6 +225,13 @@
     pointer-events:none;
     transition:transform .78s cubic-bezier(.2,.8,.2,1), opacity .24s linear;
     will-change:transform, opacity;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:5px;
+    box-sizing:border-box;
+    box-shadow:0 2px 6px rgba(0,0,0,.2);
+    font-weight:700;
   }
   .my-card.turn-pulse:not(.dragging){
     animation:myCardTurnPulse 1.05s ease-in-out infinite;
@@ -1347,8 +1354,8 @@ function renderMyHand(){
   const canDragNow = canCurrentUserDragCard() && !shouldLockHand && !shouldHideInDiscussion;
   const shouldPulse = canDragNow && !activeDrag;
 
-  handData.cards.forEach((cardData, index) => {
-    const cardId = `${myId}-${index}`;
+  handData.cards.forEach((cardData) => {
+    const cardId = makeCardId(myId, cardData);
     if (placedCardIds.has(cardId) || pendingPlacedCardIds.has(cardId)) return;
 
     const card = document.createElement('div');
@@ -1386,7 +1393,7 @@ function renderMyHand(){
 
 function cleanupDroppedCards(){
   const myCards = state.hands[state.userId]?.cards || [];
-  const validIds = new Set(myCards.map((_, i) => `${state.userId}-${i}`));
+  const validIds = new Set(myCards.map((card) => makeCardId(state.userId, card)));
 
   [...placedCardIds].forEach((id) => {
     if (!validIds.has(id)) placedCardIds.delete(id);
@@ -1601,12 +1608,8 @@ async function removeCardFromHandInDb(playerId, cardData){
   await runTransaction(cardsRef, (cards) => {
     if (!Array.isArray(cards) || !cards.length) return cards;
     let removeIndex = -1;
-    const idIndex = Number(String(cardData.id || '').split('-').pop());
-    if (Number.isInteger(idIndex) && idIndex >= 0 && idIndex < cards.length){
-      const indexed = cards[idIndex];
-      if (indexed && indexed.num === cardData.num && indexed.color === cardData.color){
-        removeIndex = idIndex;
-      }
+    if (cardData?.uid){
+      removeIndex = cards.findIndex((c) => c && c.uid === cardData.uid);
     }
     if (removeIndex === -1){
       removeIndex = cards.findIndex((c) => c && c.num === cardData.num && c.color === cardData.color);
@@ -1616,6 +1619,13 @@ async function removeCardFromHandInDb(playerId, cardData){
     next.splice(removeIndex, 1);
     return next;
   });
+}
+
+function makeCardId(playerId, cardData){
+  if (cardData?.uid) return `${playerId}-${cardData.uid}`;
+  const num = Number(cardData?.num || 0);
+  const color = String(cardData?.color || 'white');
+  return `${playerId}-${color}-${num}`;
 }
 
 function paintChoiceCards(cardData){
@@ -3178,13 +3188,14 @@ function getPlayedCardLayouts(playedList = getPlayedEntriesSorted()){
 
 function buildFlyingCard(cardData, width, height){
   const card = document.createElement('div');
-  card.className = 'my-card flying-play-card';
+  card.className = 'flying-play-card';
   card.style.width = `${Math.max(18, width)}px`;
   card.style.height = `${Math.max(24, height)}px`;
   const isBlack = cardData.color === 'black';
   const isFaceUp = cardData.face !== 'back';
   if (isFaceUp){
     card.textContent = String(cardData.num);
+    card.style.fontSize = `${Math.max(10, Math.round(Math.min(width, height) * 0.55))}px`;
     card.style.background = isBlack ? '#0b1530' : '#fff';
     card.style.color = isBlack ? '#fff' : '#111';
     card.style.border = isBlack ? '1px solid #0b1530' : '1px solid #ddd';
