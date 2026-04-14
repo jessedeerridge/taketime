@@ -203,6 +203,49 @@
   }
   .dialog-box p{margin:0 0 12px;font-size:14px;line-height:1.6;}
   .dialog-buttons{display:flex;justify-content:flex-end;gap:8px;}
+  .card-choice-dialog .dialog-box{
+    max-width:260px;
+  }
+  .card-choice-row{
+    display:flex;
+    justify-content:center;
+    gap:8px;
+  }
+  .choice-card{
+    width:60px;
+    height:90px;
+    border-radius:8px;
+    border:1px solid #ddd;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:24px;
+    font-weight:600;
+    cursor:pointer;
+    box-shadow:0 4px 12px rgba(0,0,0,.15);
+  }
+  .choice-card.back-white{
+    background:
+      repeating-linear-gradient(
+        135deg,
+        #ffffff 0px,
+        #ffffff 4px,
+        #e5e7eb 4px,
+        #e5e7eb 8px
+      );
+    border:1px solid #cfcfcf;
+  }
+  .choice-card.back-black{
+    background:
+      repeating-linear-gradient(
+        135deg,
+        var(--black-card) 0px,
+        var(--black-card) 4px,
+        #1a274d 4px,
+        #1a274d 8px
+      );
+    border:1px solid var(--black-card-border-soft);
+  }
 
   .host-settings-btn{
     position:fixed;bottom:16px;width:44px;height:44px;border-radius:50%;
@@ -643,6 +686,16 @@
   </div>
 </div>
 
+<div id="cardChoiceDialog" class="dialog-backdrop hidden card-choice-dialog">
+  <div class="dialog-box">
+    <p>場に出す向きを選択してください</p>
+    <div class="card-choice-row">
+      <button id="btnChoiceFace" class="choice-card" aria-label="表向きで配置"></button>
+      <button id="btnChoiceBack" class="choice-card" aria-label="裏向きで配置"></button>
+    </div>
+  </div>
+</div>
+
 <button id="hostSettingsBtn" class="host-settings-btn" title="設定">⚙</button>
 <button id="helpBtn" class="help-btn" title="正体カード一覧">？</button>
 
@@ -662,14 +715,11 @@
     <button id="btnStartPopClose" class="btn ghost" style="padding:2px 6px;font-size:12px;">×</button>
   </div>
   <div class="start-pop-main">
-    「スタート」で全プレイヤーにカードを配布。<br>
+    ステージ選択をすると、場カードをリセットして全プレイヤーへカードを配布します。<br>
     「リセット」で人数選択へ戻します。
   </div>
   <div class="start-pop-actions">
-    <div class="start-pop-primary-actions">
-      <button id="btnResetRoom" class="btn ghost">リセット</button>
-      <button id="btnGameStart" class="btn primary">スタート</button>
-    </div>
+    <button id="btnResetRoom" class="btn ghost">リセット</button>
     <button id="btnOpenStagePop" class="btn">ステージ選択</button>
   </div>
 </div>
@@ -715,6 +765,7 @@ const state = {
   seatedTable: null,
   isHost: false,
   hands: {},
+  playedCards: {},
   room: {},
   tables: {},
   joined: false
@@ -745,11 +796,13 @@ const kickDialog = document.getElementById('kickDialog');
 const kickMessage = document.getElementById('kickMessage');
 const btnKickYes = document.getElementById('btnKickYes');
 const btnKickNo = document.getElementById('btnKickNo');
+const cardChoiceDialog = document.getElementById('cardChoiceDialog');
+const btnChoiceFace = document.getElementById('btnChoiceFace');
+const btnChoiceBack = document.getElementById('btnChoiceBack');
 
 const hostSettingsBtn = document.getElementById('hostSettingsBtn');
 const startPop = document.getElementById('startPop');
 const btnStartPopClose = document.getElementById('btnStartPopClose');
-const btnGameStart = document.getElementById('btnGameStart');
 const btnResetRoom = document.getElementById('btnResetRoom');
 
 const stagePop = document.getElementById('stagePop');
@@ -783,8 +836,9 @@ let pendingSeatPlayerIdToSteal = null;
 let latestPlayers = [];
 let joinInProgress = false;
 const placedCardIds = new Set();
-const droppedCardsByRoom = new Map();
+const pendingPlacedCardIds = new Set();
 let activeDrag = null;
+let cardChoiceResolver = null;
 
 function randomInt(max){
   return Math.floor(Math.random() * max);
@@ -942,6 +996,15 @@ function subscribeHands(){
   });
 }
 
+function subscribePlayedCards(){
+  const playedRef = ref(db, `rooms/${state.roomCode}/playedCards`);
+  onValue(playedRef, snap => {
+    state.playedCards = snap.val() || {};
+    syncPlacedCardIdsFromPlayed();
+    renderHands();
+  });
+}
+
 function subscribePlayers(){
   const tablesRef = ref(db, `rooms/${state.roomCode}/tables`);
   onValue(tablesRef, snap => {
@@ -980,7 +1043,7 @@ function renderMyHand(){
 
   handData.cards.forEach((cardData, index) => {
     const cardId = `${myId}-${index}`;
-    if (placedCardIds.has(cardId)) return;
+    if (placedCardIds.has(cardId) || pendingPlacedCardIds.has(cardId)) return;
 
     const card = document.createElement('div');
     card.className = 'my-card';
@@ -1006,10 +1069,17 @@ function cleanupDroppedCards(){
   [...placedCardIds].forEach((id) => {
     if (!validIds.has(id)) placedCardIds.delete(id);
   });
-  droppedCardsByRoom.forEach((cards, room) => {
-    const next = cards.filter((c) => validIds.has(c.id));
-    if (next.length) droppedCardsByRoom.set(room, next);
-    else droppedCardsByRoom.delete(room);
+  [...pendingPlacedCardIds].forEach((id) => {
+    if (!validIds.has(id)) pendingPlacedCardIds.delete(id);
+  });
+}
+
+function syncPlacedCardIdsFromPlayed(){
+  placedCardIds.clear();
+  Object.values(state.playedCards || {}).forEach((card) => {
+    if (card?.playerId === state.userId && card?.id){
+      placedCardIds.add(card.id);
+    }
   });
 }
 
@@ -1042,13 +1112,54 @@ function findDropRoom(clientX, clientY){
   return null;
 }
 
-function placeDroppedCard(cardData, room){
-  const cards = droppedCardsByRoom.get(room) || [];
-  cards.push(cardData);
-  droppedCardsByRoom.set(room, cards);
+async function placeDroppedCard(cardData, room, face = 'face'){
+  if (!state.roomCode) return;
+  pendingPlacedCardIds.delete(cardData.id);
   placedCardIds.add(cardData.id);
   renderHands();
+  const placedAt = Date.now();
+  const key = `${state.userId}_${cardData.id}_${placedAt}`;
+  await set(ref(db, `rooms/${state.roomCode}/playedCards/${key}`), {
+    id: cardData.id,
+    num: cardData.num,
+    color: cardData.color,
+    face,
+    room,
+    playerId: state.userId,
+    placedAt
+  });
 }
+
+function paintChoiceCards(cardData){
+  const isBlack = cardData.color === 'black';
+  btnChoiceFace.textContent = String(cardData.num);
+  btnChoiceFace.style.background = isBlack ? '#0b1530' : '#fff';
+  btnChoiceFace.style.color = isBlack ? '#fff' : '#111';
+  btnChoiceFace.style.border = isBlack ? '1px solid #0b1530' : '1px solid #ddd';
+
+  btnChoiceBack.textContent = '';
+  btnChoiceBack.classList.remove('back-white', 'back-black');
+  btnChoiceBack.classList.add(isBlack ? 'back-black' : 'back-white');
+}
+
+function openCardChoice(cardData){
+  paintChoiceCards(cardData);
+  cardChoiceDialog.classList.remove('hidden');
+  return new Promise((resolve) => {
+    cardChoiceResolver = resolve;
+  });
+}
+
+function closeCardChoice(choice){
+  cardChoiceDialog.classList.add('hidden');
+  if (cardChoiceResolver){
+    cardChoiceResolver(choice);
+    cardChoiceResolver = null;
+  }
+}
+
+btnChoiceFace.addEventListener('click', () => closeCardChoice('face'));
+btnChoiceBack.addEventListener('click', () => closeCardChoice('back'));
 
 function startCardDrag(ev, cardData){
   ev.preventDefault();
@@ -1083,10 +1194,10 @@ function startCardDrag(ev, cardData){
     if (!activeDrag || mv.pointerId !== activeDrag.pointerId) return;
     move(mv.clientX, mv.clientY);
   };
-  const onUp = (up) => {
+  const onUp = async (up) => {
     if (!activeDrag || up.pointerId !== activeDrag.pointerId) return;
     const dropRoom = findDropRoom(up.clientX, up.clientY);
-    if (dropRoom) placeDroppedCard(activeDrag.cardData, dropRoom);
+    const droppedCardData = activeDrag.cardData;
     activeDrag.srcEl.classList.remove('dragging');
     activeDrag.srcEl.style.visibility = '';
     activeDrag.ghost.remove();
@@ -1094,6 +1205,12 @@ function startCardDrag(ev, cardData){
     window.removeEventListener('pointermove', onMove);
     window.removeEventListener('pointerup', onUp);
     window.removeEventListener('pointercancel', onUp);
+    if (dropRoom){
+      pendingPlacedCardIds.add(droppedCardData.id);
+      renderHands();
+      const choice = await openCardChoice(droppedCardData);
+      await placeDroppedCard(droppedCardData, dropRoom, choice);
+    }
   };
   window.addEventListener('pointermove', onMove);
   window.addEventListener('pointerup', onUp);
@@ -1351,6 +1468,7 @@ btnJoin.addEventListener('click', async () => {
     subscribeRoom();
     subscribePlayers();
     subscribeHands();
+    subscribePlayedCards();
 
     syncSeatUI();
   } catch (err) {
@@ -1475,12 +1593,6 @@ btnStartPopClose.addEventListener('click', () => {
   startPop.classList.add('hidden');
 });
 
-btnGameStart.addEventListener('click', async () => {
-  if (!state.isHost) return;
-  await dealInitialHands();
-  startPop.classList.add('hidden');
-});
-
 btnResetRoom.addEventListener('click', async () => {
   if (!state.isHost || !state.roomCode) return;
 
@@ -1488,11 +1600,15 @@ btnResetRoom.addEventListener('click', async () => {
   await Promise.all([
     remove(ref(db, `${base}/maxPlayers`)),
     remove(ref(db, `${base}/tables`)),
-    remove(ref(db, `${base}/hands`))
+    remove(ref(db, `${base}/hands`)),
+    remove(ref(db, `${base}/playedCards`))
   ]);
 
+  placedCardIds.clear();
+  pendingPlacedCardIds.clear();
   state.seatedTable = null;
   startPop.classList.add('hidden');
+  renderHands();
   syncSeatUI();
 });
 
@@ -1503,8 +1619,8 @@ function renderStageOptions(){
     const btn = document.createElement('button');
     btn.className = 'btn stage-option-btn' + (code === currentStage ? ' active' : '');
     btn.textContent = code;
-    btn.addEventListener('click', () => {
-      setStage(code);
+    btn.addEventListener('click', async () => {
+      await setStage(code);
       renderStageOptions();
       stagePop.classList.add('hidden');
     });
@@ -1512,10 +1628,19 @@ function renderStageOptions(){
   });
 }
 
-function setStage(code){
+async function setStage(code){
   currentStage = STAGE_CODES.includes(code) ? code : '';
   if (currentStage) localStorage.setItem(STAGE_KEY, currentStage);
   else localStorage.removeItem(STAGE_KEY);
+  if (state.isHost && state.roomCode && currentStage){
+    await Promise.all([
+      remove(ref(db, `rooms/${state.roomCode}/playedCards`)),
+      remove(ref(db, `rooms/${state.roomCode}/hands`))
+    ]);
+    placedCardIds.clear();
+    pendingPlacedCardIds.clear();
+    await dealInitialHands();
+  }
   window.dispatchEvent(new CustomEvent('mission:change', { detail:{ value: currentStage }}));
 }
 
@@ -2440,9 +2565,12 @@ function renderPlayedCards(){
   const sw = parseFloat(cs13.getPropertyValue('--cardStrokeW')) || 1;
   const { centerR, outerOffset, guideR } = getGuideMetrics();
   const step = cardW + 3;
+  const playedList = Object.values(state.playedCards || {})
+    .filter((card) => card && card.room)
+    .sort((a,b) => (a.placedAt || 0) - (b.placedAt || 0));
 
   for(let room = 1; room <= 6; room++){
-    const cards = droppedCardsByRoom.get(room) || [];
+    const cards = playedList.filter((card) => Number(card.room) === room);
     if (!cards.length) continue;
 
     const midDeg = (room - 1) * 60 + 30;
@@ -2468,21 +2596,25 @@ function renderPlayedCards(){
       rect.setAttribute('height', cardH);
       rect.setAttribute('rx', cardR);
       rect.setAttribute('ry', cardR);
-      rect.setAttribute('fill', cardData.color === 'black' ? '#0b1530' : '#fff');
-      rect.setAttribute('stroke', cardData.color === 'black' ? '#0b1530' : '#ddd');
+      const isBlack = cardData.color === 'black';
+      const isFaceUp = cardData.face !== 'back';
+      rect.setAttribute('fill', isFaceUp ? (isBlack ? '#0b1530' : '#fff') : (isBlack ? '#13234d' : '#f3f4f6'));
+      rect.setAttribute('stroke', isFaceUp ? (isBlack ? '#0b1530' : '#ddd') : (isBlack ? '#0b1530' : '#cfcfcf'));
       rect.setAttribute('stroke-width', sw);
       cardG.appendChild(rect);
 
-      const text = document.createElementNS('http://www.w3.org/2000/svg','text');
-      text.textContent = String(cardData.num);
-      text.setAttribute('x', '0');
-      text.setAttribute('y', '0');
-      text.setAttribute('fill', cardData.color === 'black' ? '#fff' : '#111');
-      text.setAttribute('font-size', String(Math.max(8, cardW * 0.55)));
-      text.setAttribute('font-weight', '700');
-      text.setAttribute('text-anchor', 'middle');
-      text.setAttribute('dominant-baseline', 'middle');
-      cardG.appendChild(text);
+      if (isFaceUp){
+        const text = document.createElementNS('http://www.w3.org/2000/svg','text');
+        text.textContent = String(cardData.num);
+        text.setAttribute('x', '0');
+        text.setAttribute('y', '0');
+        text.setAttribute('fill', isBlack ? '#fff' : '#111');
+        text.setAttribute('font-size', String(Math.max(8, cardW * 0.55)));
+        text.setAttribute('font-weight', '700');
+        text.setAttribute('text-anchor', 'middle');
+        text.setAttribute('dominant-baseline', 'middle');
+        cardG.appendChild(text);
+      }
 
       g.appendChild(cardG);
     });
