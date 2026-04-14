@@ -1394,6 +1394,7 @@ function renderPlayerCircle(players){
     if (isTopSlot) verticalOffsetPx += 40;
     if (isLeftOrRightSlot) verticalOffsetPx -= 40;
     const meOnlyOffsetPx = isMe ? MY_TAG_ONLY_OFFSET_PX : 0;
+    const mePreSeatOffsetPx = (isMe && state.seatedTable === null) ? 40 : 0;
 
     const tag = document.createElement('div');
     tag.className = 'player-tag' + (isMe ? ' me' : '');
@@ -1401,7 +1402,7 @@ function renderPlayerCircle(players){
     tag.style.left = centerNudgePx === 0
       ? `${x}%`
       : `calc(${x}% ${centerNudgePx > 0 ? '+' : '-'} ${Math.abs(centerNudgePx)}px)`;
-    tag.style.top = `calc(${y}% - 78px + ${verticalOffsetPx + meOnlyOffsetPx}px)`;
+    tag.style.top = `calc(${y}% - 78px + ${verticalOffsetPx + meOnlyOffsetPx + mePreSeatOffsetPx}px)`;
 
     tag.onclick = () => {
       if (p.id === state.userId) return;
