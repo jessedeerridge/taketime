@@ -38,7 +38,7 @@
 
   .seat-pop{
     position:fixed;left:50%;bottom:10px;transform:translateX(-50%);
-    background:orange;border:1px solid #eee;border-radius:12px;
+    background:#fff;border:1px solid #eee;border-radius:12px;
     box-shadow:0 12px 28px rgba(0,0,0,.12);
     padding:10px;z-index:220;display:flex;flex-direction:column;gap:10px;min-width:280px;
   }
@@ -168,7 +168,10 @@
     box-shadow:0 12px 28px rgba(0,0,0,.16);padding:10px 12px;z-index:240;min-width:260px;
     display:flex;flex-direction:column;gap:8px;
   }
-  .start-pop{right:16px;bottom:72px;}
+  .start-pop{
+    top:50%;left:50%;right:auto;bottom:auto;transform:translate(-50%,-50%);
+    width:min(92vw, 560px);
+  }
   .stage-pop{right:66px;bottom:72px;min-width:320px;max-width:min(90vw,520px);}
   .start-pop.hidden,
   .stage-pop.hidden{display:none;}
@@ -185,6 +188,9 @@
   .stage-option-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;max-height:320px;overflow:auto;padding-right:2px;}
   .stage-option-btn{background:#fff;color:#111;border-color:#111;}
   .stage-option-btn.active{background:#f3f4f6;color:#111;border-color:#111;font-weight:700;}
+  .start-tab-switch{display:flex;gap:8px;}
+  .start-tab-btn{flex:1 1 auto;background:#fff;color:#111;border-color:#111;}
+  .start-tab-btn.active{background:#111;color:#fff;border-color:#111;}
 
   #roomInfoLobby, #lobby h2, #lobby p {display:none;}
   #lobby.entered{
@@ -550,9 +556,9 @@
         </g>
         <g transform="translate(150,150)" id="centerTopDiamondG" style="pointer-events:none"></g>
 
-        <rect id="missionTextBox" x="225" y="4" width="70" height="24" rx="2" ry="2"
+        <rect id="missionTextBox" x="225" y="2" width="70" height="24" rx="8" ry="8"
               fill="#fff" stroke="#111" stroke-width="1"></rect>
-        <text id="missionText" x="292" y="22" text-anchor="end" font-size="18" font-weight="700"
+        <text id="missionText" x="260" y="18" text-anchor="middle" font-size="16" font-weight="700"
               font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', Meiryo, Arial, sans-serif"
               fill="#111"></text>
 
@@ -606,30 +612,32 @@
 <div id="startPop" class="start-pop hidden">
   <div class="start-pop-header">
     <div class="start-pop-title">ホスト設定</div>
-    <button id="btnStartPopClose" class="btn ghost" style="padding:2px 6px;font-size:12px;">×</button>
   </div>
-  <div class="start-pop-main">
-    「スタート」で全プレイヤーにカードを配布。<br>
-    「リセット」で人数選択へ戻します。
+  <div class="start-tab-switch">
+    <button id="btnStartTabGame" class="btn start-tab-btn active">ゲーム設定</button>
+    <button id="btnStartTabStage" class="btn start-tab-btn">ステージ選択</button>
   </div>
-  <div class="start-pop-actions">
-    <div class="start-pop-primary-actions">
-      <button id="btnResetRoom" class="btn ghost">リセット</button>
-      <button id="btnGameStart" class="btn primary">スタート</button>
+  <div id="startTabGamePane">
+    <div class="start-pop-main">
+      「スタート」で全プレイヤーにカードを配布。<br>
+      「リセット」で人数選択へ戻します。
     </div>
-    <button id="btnOpenStagePop" class="btn">ステージ選択</button>
+    <div class="start-pop-actions">
+      <div class="start-pop-primary-actions">
+        <button id="btnResetRoom" class="btn ghost">リセット</button>
+        <button id="btnGameStart" class="btn primary">スタート</button>
+      </div>
+    </div>
   </div>
-</div>
-
-<div id="stagePop" class="stage-pop hidden">
-  <div class="stage-pop-header">
-    <div class="stage-pop-title">ステージ選択</div>
-    <button id="btnStagePopClose" class="btn ghost" style="padding:2px 6px;font-size:12px;">×</button>
+  <div id="startTabStagePane" class="hidden">
+    <div class="stage-pop-header">
+      <div class="stage-pop-title">ステージ選択</div>
+    </div>
+    <div class="stage-pop-main">
+      表示するステージ番号を選んでください。
+    </div>
+    <div class="stage-option-grid" id="stageOptionGrid"></div>
   </div>
-  <div class="stage-pop-main">
-    表示するステージ番号を選んでください。
-  </div>
-  <div class="stage-option-grid" id="stageOptionGrid"></div>
 </div>
 
 <script type="module">
@@ -695,14 +703,14 @@ const btnKickNo = document.getElementById('btnKickNo');
 
 const hostSettingsBtn = document.getElementById('hostSettingsBtn');
 const startPop = document.getElementById('startPop');
-const btnStartPopClose = document.getElementById('btnStartPopClose');
+const btnStartTabGame = document.getElementById('btnStartTabGame');
+const btnStartTabStage = document.getElementById('btnStartTabStage');
+const startTabGamePane = document.getElementById('startTabGamePane');
+const startTabStagePane = document.getElementById('startTabStagePane');
 const btnGameStart = document.getElementById('btnGameStart');
 const btnResetRoom = document.getElementById('btnResetRoom');
 
-const stagePop = document.getElementById('stagePop');
-const btnStagePopClose = document.getElementById('btnStagePopClose');
 const stageOptionGrid = document.getElementById('stageOptionGrid');
-const btnOpenStagePop = document.getElementById('btnOpenStagePop');
 
 const helpBtn = document.getElementById('helpBtn');
 const helpBackdrop = document.getElementById('helpBackdrop');
@@ -1287,11 +1295,7 @@ async function dealInitialHands(){
 hostSettingsBtn.addEventListener('click', () => {
   if (!state.isHost) return;
   startPop.classList.toggle('hidden');
-  stagePop.classList.add('hidden');
-});
-
-btnStartPopClose.addEventListener('click', () => {
-  startPop.classList.add('hidden');
+  if (!startPop.classList.contains('hidden')) setStartTab('game');
 });
 
 btnGameStart.addEventListener('click', async () => {
@@ -1325,18 +1329,18 @@ function renderStageOptions(){
     btn.addEventListener('click', () => {
       setStage(code);
       renderStageOptions();
-      stagePop.classList.add('hidden');
     });
     stageOptionGrid.appendChild(btn);
   });
 }
 
-function positionStagePopBelowStart(){
-  const rect = startPop.getBoundingClientRect();
-  stagePop.style.left = `${Math.max(12, rect.left)}px`;
-  stagePop.style.top = `${Math.min(window.innerHeight - stagePop.offsetHeight - 12, rect.bottom + 8)}px`;
-  stagePop.style.right = 'auto';
-  stagePop.style.bottom = 'auto';
+function setStartTab(tabName){
+  const isStageTab = tabName === 'stage';
+  btnStartTabGame.classList.toggle('active', !isStageTab);
+  btnStartTabStage.classList.toggle('active', isStageTab);
+  startTabGamePane.classList.toggle('hidden', isStageTab);
+  startTabStagePane.classList.toggle('hidden', !isStageTab);
+  if (isStageTab) renderStageOptions();
 }
 
 function setStage(code){
@@ -1345,19 +1349,17 @@ function setStage(code){
   window.dispatchEvent(new CustomEvent('mission:change', { detail:{ value: currentStage }}));
 }
 
-btnOpenStagePop.addEventListener('click', () => {
-  renderStageOptions();
-  stagePop.classList.toggle('hidden');
-  if (!stagePop.classList.contains('hidden')) positionStagePopBelowStart();
+btnStartTabGame.addEventListener('click', () => setStartTab('game'));
+btnStartTabStage.addEventListener('click', () => setStartTab('stage'));
+
+document.addEventListener('click', (e) => {
+  if (startPop.classList.contains('hidden')) return;
+  const target = e.target;
+  if (!(target instanceof Node)) return;
+  if (startPop.contains(target) || hostSettingsBtn.contains(target)) return;
+  startPop.classList.add('hidden');
 });
-btnStagePopClose.addEventListener('click', () => {
-  stagePop.classList.add('hidden');
-});
-window.addEventListener('resize', () => {
-  if (!stagePop.classList.contains('hidden') && !startPop.classList.contains('hidden')){
-    positionStagePopBelowStart();
-  }
-});
+
 window.addEventListener('resize', updateMyHandPosition);
 
 /* ===== ステージSVGロジック：元コードをそのまま移植 ===== */
@@ -2389,12 +2391,17 @@ function redrawAll(m){
   missionTextEl.textContent = currentStage;
   if (missionTextBoxEl){
     const paddingX = 8;
+    const boxRight = 299;
+    const boxY = 2;
+    const boxH = 24;
     const width = Math.max(64, missionTextEl.getComputedTextLength() + paddingX * 2);
-    const boxX = 296 - width;
+    const boxX = boxRight - width;
     missionTextBoxEl.setAttribute('x', boxX.toFixed(1));
-    missionTextBoxEl.setAttribute('y', '6');
+    missionTextBoxEl.setAttribute('y', String(boxY));
     missionTextBoxEl.setAttribute('width', width.toFixed(1));
-    missionTextBoxEl.setAttribute('height', '24');
+    missionTextBoxEl.setAttribute('height', String(boxH));
+    missionTextEl.setAttribute('x', (boxX + width / 2).toFixed(1));
+    missionTextEl.setAttribute('y', String(boxY + 16));
   }
   renderEqTriBackFill(currentStage);
   renderStageMarks(currentStage);
