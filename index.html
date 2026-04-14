@@ -3061,10 +3061,16 @@ function renderRoomTotals(){
 
   const { centerR, outerOffset, guideR } = getGuideMetrics();
   const roomCardsMap = getRoomCardsMap();
+  let canShowNextRoom = true;
   for (let room = 1; room <= 6; room++){
+    if (!canShowNextRoom) break;
     const cards = roomCardsMap.get(room) || [];
     if (!cards.length) continue;
-    if (cards.some((card) => card.face === 'back')) continue;
+    const roomFullyRevealed = cards.every((card) => card.face !== 'back');
+    if (!roomFullyRevealed){
+      canShowNextRoom = false;
+      continue;
+    }
 
     const sum = cards.reduce((acc, card) => acc + Number(card.num || 0), 0);
     const midDeg = (room - 1) * 60 + 30;
