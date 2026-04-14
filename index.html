@@ -101,8 +101,9 @@
     position:relative;
     width:min(92vw, 360px);
     height:260px;
-    margin:20px auto 0;
+    margin:0 auto 0;
   }
+  .table-center.seated-offset{ margin:20px auto 0; }
   .player-circle{
     position:absolute;inset:0;
     width:100%;height:100%;
@@ -722,6 +723,7 @@ const btnSeatCancel = document.getElementById('btnSeatCancel');
 const seatLabel = seatPop.querySelector('label');
 
 const playerCircle = document.getElementById('playerCircle');
+const tableCenterEl = document.querySelector('.table-center');
 const myHandEl = document.getElementById('myHand');
 const myHandWrapperEl = document.querySelector('.my-hand-wrapper');
 
@@ -982,6 +984,7 @@ function renderHands(){
 
 function syncSeatUI(){
   if (!state.roomCode || !state.joined) return;
+  updateTableCenterOffset();
 
   const maxPlayers = state.room.maxPlayers || null;
 
@@ -995,6 +998,11 @@ function syncSeatUI(){
   }
   renderSeatTabs();
   seatPop.classList.remove('hidden');
+}
+
+function updateTableCenterOffset(){
+  if (!tableCenterEl) return;
+  tableCenterEl.classList.toggle('seated-offset', state.seatedTable !== null);
 }
 
 function renderSeatTabs(){
