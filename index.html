@@ -218,6 +218,21 @@
     cursor:grab;
   }
   .my-card.dragging{opacity:.45;cursor:grabbing;}
+  .flying-play-card{
+    position:fixed;
+    margin:0;
+    z-index:520;
+    pointer-events:none;
+    transition:transform .78s cubic-bezier(.2,.8,.2,1), opacity .24s linear;
+    will-change:transform, opacity;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:5px;
+    box-sizing:border-box;
+    box-shadow:0 2px 6px rgba(0,0,0,.2);
+    font-weight:700;
+  }
   .my-card.turn-pulse:not(.dragging){
     animation:myCardTurnPulse 1.05s ease-in-out infinite;
     transform-origin:center;
@@ -799,7 +814,7 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import {
-  getDatabase, ref, set, get, update, onDisconnect, onValue, remove
+  getDatabase, ref, set, get, update, onDisconnect, onValue, remove, runTransaction
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
 
 const firebaseConfig = {
@@ -920,6 +935,9 @@ let revealFlipProcessingKey = '';
 let revealResultAnnouncedKey = '';
 let roomTotalsRefreshTimer = null;
 let revealResultDelayTimer = null;
+let lastPlayedCardKeys = new Set();
+const inFlightPlayedCardKeys = new Set();
+let hasPlayedCardsSnapshot = false;
 
 function sleep(ms){
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -1185,12 +1203,36 @@ function subscribeHands(){
 function subscribePlayedCards(){
   const playedRef = ref(db, `rooms/${state.roomCode}/playedCards`);
   onValue(playedRef, snap => {
-    state.playedCards = snap.val() || {};
+    const nextPlayedCards = snap.val() || {};
+    if (!hasPlayedCardsSnapshot){
+      hasPlayedCardsSnapshot = true;
+      state.playedCards = nextPlayedCards;
+      lastPlayedCardKeys = new Set(Object.keys(nextPlayedCards));
+      syncPlacedCardIdsFromPlayed();
+      maybeAnnounceRevealPhase();
+      maybeRunRevealFlipSequence();
+      maybeAnnounceRevealResult();
+      renderHands();
+      return;
+    }
+    const addedEntries = Object.entries(nextPlayedCards)
+      .filter(([key, card]) => !lastPlayedCardKeys.has(key) && card?.playerId && card.playerId !== state.userId)
+      .map(([key, card]) => ({ key, ...card }));
+    if (addedEntries.length){
+      addedEntries.forEach((entry) => inFlightPlayedCardKeys.add(entry.key));
+    }
+    state.playedCards = nextPlayedCards;
+    lastPlayedCardKeys = new Set(Object.keys(nextPlayedCards));
     syncPlacedCardIdsFromPlayed();
     maybeAnnounceRevealPhase();
     maybeRunRevealFlipSequence();
     maybeAnnounceRevealResult();
     renderHands();
+    if (addedEntries.length){
+      requestAnimationFrame(() => {
+        animateRemotePlayedCards(addedEntries);
+      });
+    }
   });
 }
 
@@ -1308,12 +1350,14 @@ function renderMyHand(){
   const handData = state.hands[myId];
   if (!handData || !Array.isArray(handData.cards)) return;
   const shouldLockHand = state.isHost && hostHandLockedByStage && !!currentStage;
-  const shouldHideInDiscussion = !state.isHost && !!currentStage && state.currentPhase === 'discussion';
+  const shouldHideInDiscussion = !state.isHost && !!currentStage
+    && state.currentPhase !== 'placement'
+    && state.currentPhase !== 'reveal';
   const canDragNow = canCurrentUserDragCard() && !shouldLockHand && !shouldHideInDiscussion;
   const shouldPulse = canDragNow && !activeDrag;
 
-  handData.cards.forEach((cardData, index) => {
-    const cardId = `${myId}-${index}`;
+  handData.cards.forEach((cardData) => {
+    const cardId = makeCardId(myId, cardData);
     if (placedCardIds.has(cardId) || pendingPlacedCardIds.has(cardId)) return;
 
     const card = document.createElement('div');
@@ -1351,7 +1395,7 @@ function renderMyHand(){
 
 function cleanupDroppedCards(){
   const myCards = state.hands[state.userId]?.cards || [];
-  const validIds = new Set(myCards.map((_, i) => `${state.userId}-${i}`));
+  const validIds = new Set(myCards.map((card) => makeCardId(state.userId, card)));
 
   [...placedCardIds].forEach((id) => {
     if (!validIds.has(id)) placedCardIds.delete(id);
@@ -1378,17 +1422,17 @@ function maybeAnnounceRevealPhase(){
     .map((seat) => seat.playerId);
   if (!seatedPlayerIds.length) return;
 
-  const totalCards = seatedPlayerIds.reduce((sum, pid) => {
+  const remainingCards = seatedPlayerIds.reduce((sum, pid) => {
     const cards = state.hands[pid]?.cards;
     return sum + (Array.isArray(cards) ? cards.length : 0);
   }, 0);
-  if (!totalCards) return;
-
   const placedCount = Object.values(state.playedCards || {})
     .filter((card) => card?.playerId && seatedPlayerIds.includes(card.playerId))
     .length;
+  const totalExpectedCards = remainingCards + placedCount;
+  if (!totalExpectedCards) return;
 
-  if (placedCount >= totalCards){
+  if (placedCount >= totalExpectedCards){
     const key = `${state.roomCode}:${currentStage}`;
     if (revealPhaseAnnouncedForStage === key) return;
     revealPhaseAnnouncedForStage = key;
@@ -1547,6 +1591,7 @@ async function placeDroppedCard(cardData, room, face = 'face'){
   pendingPlacedCardIds.delete(cardData.id);
   placedCardIds.add(cardData.id);
   renderHands();
+  await removeCardFromHandInDb(state.userId, cardData);
   const placedAt = Date.now();
   const key = `${state.userId}_${cardData.id}_${placedAt}`;
   await set(ref(db, `rooms/${state.roomCode}/playedCards/${key}`), {
@@ -1558,6 +1603,31 @@ async function placeDroppedCard(cardData, room, face = 'face'){
     playerId: state.userId,
     placedAt
   });
+}
+
+async function removeCardFromHandInDb(playerId, cardData){
+  const cardsRef = ref(db, `rooms/${state.roomCode}/hands/${playerId}/cards`);
+  await runTransaction(cardsRef, (cards) => {
+    if (!Array.isArray(cards) || !cards.length) return cards;
+    let removeIndex = -1;
+    if (cardData?.uid){
+      removeIndex = cards.findIndex((c) => c && c.uid === cardData.uid);
+    }
+    if (removeIndex === -1){
+      removeIndex = cards.findIndex((c) => c && c.num === cardData.num && c.color === cardData.color);
+    }
+    if (removeIndex === -1) return cards;
+    const next = cards.slice();
+    next.splice(removeIndex, 1);
+    return next;
+  });
+}
+
+function makeCardId(playerId, cardData){
+  if (cardData?.uid) return `${playerId}-${cardData.uid}`;
+  const num = Number(cardData?.num || 0);
+  const color = String(cardData?.color || 'white');
+  return `${playerId}-${color}-${num}`;
 }
 
 function paintChoiceCards(cardData){
@@ -1827,6 +1897,7 @@ function renderPlayerCircle(players){
 
     const tag = document.createElement('div');
     tag.className = 'player-tag' + (isMe ? ' me' : '');
+    tag.dataset.playerId = p.id;
     tag.textContent = p.name;
     tag.style.left = centerNudgePx === 0
       ? `${x}%`
@@ -3044,10 +3115,54 @@ function renderPlayedCards(){
   const cardH = parseFloat(cs13.getPropertyValue('--cardH')) || 36;
   const cardR = parseFloat(cs13.getPropertyValue('--cardR')) || 4;
   const sw = parseFloat(cs13.getPropertyValue('--cardStrokeW')) || 1;
-  const { centerR, outerOffset, guideR } = getGuideMetrics();
-  const step = cardW + 3;
   const playedList = getPlayedEntriesSorted();
 
+  const layoutMap = getPlayedCardLayouts(playedList);
+  playedList.forEach((cardData) => {
+    if (inFlightPlayedCardKeys.has(cardData.key)) return;
+    const layout = layoutMap.get(cardData.key);
+    if (!layout) return;
+
+    const cardG = document.createElementNS('http://www.w3.org/2000/svg','g');
+    cardG.setAttribute('transform', `translate(${layout.x},${layout.y}) rotate(${layout.rot})`);
+
+    const rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    rect.setAttribute('x', (-cardW/2).toFixed(3));
+    rect.setAttribute('y', (-cardH/2).toFixed(3));
+    rect.setAttribute('width', cardW);
+    rect.setAttribute('height', cardH);
+    rect.setAttribute('rx', cardR);
+    rect.setAttribute('ry', cardR);
+    const isBlack = cardData.color === 'black';
+    const isFaceUp = cardData.face !== 'back';
+    rect.setAttribute('fill', isFaceUp ? (isBlack ? '#0b1530' : '#fff') : (isBlack ? '#13234d' : '#f3f4f6'));
+    rect.setAttribute('stroke', isFaceUp ? (isBlack ? '#0b1530' : '#ddd') : (isBlack ? '#0b1530' : '#cfcfcf'));
+    rect.setAttribute('stroke-width', sw);
+    cardG.appendChild(rect);
+
+    if (isFaceUp){
+      const text = document.createElementNS('http://www.w3.org/2000/svg','text');
+      text.textContent = String(cardData.num);
+      text.setAttribute('x', '0');
+      text.setAttribute('y', '0');
+      text.setAttribute('fill', isBlack ? '#fff' : '#111');
+      text.setAttribute('font-size', String(Math.max(8, cardW * 0.55)));
+      text.setAttribute('font-weight', '700');
+      text.setAttribute('text-anchor', 'middle');
+      text.setAttribute('dominant-baseline', 'middle');
+      cardG.appendChild(text);
+    }
+
+    g.appendChild(cardG);
+  });
+}
+
+function getPlayedCardLayouts(playedList = getPlayedEntriesSorted()){
+  const { centerR, outerOffset, guideR } = getGuideMetrics();
+  const cs13 = getComputedStyle(stageSvg);
+  const cardW = parseFloat(cs13.getPropertyValue('--cardW')) || 26;
+  const step = cardW + 3;
+  const layoutMap = new Map();
   for(let room = 1; room <= 6; room++){
     const cards = playedList.filter((card) => Number(card.room) === room);
     if (!cards.length) continue;
@@ -3059,45 +3174,113 @@ function renderPlayedCards(){
     const rotRad = rot * Math.PI / 180;
     const dirX = Math.cos(rotRad);
     const dirY = Math.sin(rotRad);
-
     const centerOffset = (cards.length - 1) / 2;
+
     cards.forEach((cardData, idx) => {
-      const cardG = document.createElementNS('http://www.w3.org/2000/svg','g');
       const offset = (idx - centerOffset) * step;
-      const x = 150 + pOuter.x + dirX * offset;
-      const y = 150 + pOuter.y + dirY * offset;
-      cardG.setAttribute('transform', `translate(${x},${y}) rotate(${rot})`);
-
-      const rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
-      rect.setAttribute('x', (-cardW/2).toFixed(3));
-      rect.setAttribute('y', (-cardH/2).toFixed(3));
-      rect.setAttribute('width', cardW);
-      rect.setAttribute('height', cardH);
-      rect.setAttribute('rx', cardR);
-      rect.setAttribute('ry', cardR);
-      const isBlack = cardData.color === 'black';
-      const isFaceUp = cardData.face !== 'back';
-      rect.setAttribute('fill', isFaceUp ? (isBlack ? '#0b1530' : '#fff') : (isBlack ? '#13234d' : '#f3f4f6'));
-      rect.setAttribute('stroke', isFaceUp ? (isBlack ? '#0b1530' : '#ddd') : (isBlack ? '#0b1530' : '#cfcfcf'));
-      rect.setAttribute('stroke-width', sw);
-      cardG.appendChild(rect);
-
-      if (isFaceUp){
-        const text = document.createElementNS('http://www.w3.org/2000/svg','text');
-        text.textContent = String(cardData.num);
-        text.setAttribute('x', '0');
-        text.setAttribute('y', '0');
-        text.setAttribute('fill', isBlack ? '#fff' : '#111');
-        text.setAttribute('font-size', String(Math.max(8, cardW * 0.55)));
-        text.setAttribute('font-weight', '700');
-        text.setAttribute('text-anchor', 'middle');
-        text.setAttribute('dominant-baseline', 'middle');
-        cardG.appendChild(text);
-      }
-
-      g.appendChild(cardG);
+      layoutMap.set(cardData.key, {
+        x: 150 + pOuter.x + dirX * offset,
+        y: 150 + pOuter.y + dirY * offset,
+        rot
+      });
     });
   }
+  return layoutMap;
+}
+
+function buildFlyingCard(cardData, width, height){
+  const card = document.createElement('div');
+  card.className = 'flying-play-card';
+  card.style.width = `${Math.max(18, width)}px`;
+  card.style.height = `${Math.max(24, height)}px`;
+  const isBlack = cardData.color === 'black';
+  const isFaceUp = cardData.face !== 'back';
+  if (isFaceUp){
+    card.textContent = String(cardData.num);
+    card.style.fontSize = `${Math.max(10, Math.round(Math.min(width, height) * 0.55))}px`;
+    card.style.background = isBlack ? '#0b1530' : '#fff';
+    card.style.color = isBlack ? '#fff' : '#111';
+    card.style.border = isBlack ? '1px solid #0b1530' : '1px solid #ddd';
+  } else {
+    card.textContent = '';
+    card.style.background = isBlack
+      ? 'repeating-linear-gradient(135deg,#13234d 0px,#13234d 4px,#1f356e 4px,#1f356e 8px)'
+      : 'repeating-linear-gradient(135deg,#f9fafb 0px,#f9fafb 4px,#e5e7eb 4px,#e5e7eb 8px)';
+    card.style.border = isBlack ? '1px solid #0b1530' : '1px solid #cfcfcf';
+  }
+  return card;
+}
+
+function getPlayedCardPixelSize(){
+  const cs13 = getComputedStyle(stageSvg);
+  const cardW = parseFloat(cs13.getPropertyValue('--cardW')) || 26;
+  const cardH = parseFloat(cs13.getPropertyValue('--cardH')) || 36;
+  const ctm = stageSvg.getScreenCTM();
+  const scaleX = ctm ? Math.hypot(ctm.a, ctm.b) : 1;
+  const scaleY = ctm ? Math.hypot(ctm.c, ctm.d) : 1;
+  return {
+    w: Math.max(16, cardW * scaleX),
+    h: Math.max(22, cardH * scaleY)
+  };
+}
+
+function getRemoteCardSourceCenter(playerId){
+  const tag = playerCircle.querySelector(`.player-tag[data-player-id="${playerId}"]`);
+  if (!tag) return null;
+  const miniCards = tag.querySelectorAll('.mini-hand .mini-card');
+  const lastMiniCard = miniCards.length ? miniCards[miniCards.length - 1] : null;
+  if (lastMiniCard){
+    const miniRect = lastMiniCard.getBoundingClientRect();
+    lastMiniCard.style.visibility = 'hidden';
+    requestAnimationFrame(() => {
+      if (lastMiniCard.isConnected) lastMiniCard.style.visibility = '';
+    });
+    return {
+      x: miniRect.left + miniRect.width / 2,
+      y: miniRect.top + miniRect.height / 2
+    };
+  }
+  const tagRect = tag.getBoundingClientRect();
+  return {
+    x: tagRect.left + tagRect.width / 2,
+    y: tagRect.bottom + 18
+  };
+}
+
+function animateRemotePlayedCards(entries){
+  const playedList = getPlayedEntriesSorted();
+  const layoutMap = getPlayedCardLayouts(playedList);
+  const targetCardSize = getPlayedCardPixelSize();
+  entries.forEach((entry) => {
+    const source = getRemoteCardSourceCenter(entry.playerId);
+    const target = layoutMap.get(entry.key);
+    if (!source || !target){
+      inFlightPlayedCardKeys.delete(entry.key);
+      renderPlayedCards();
+      return;
+    }
+    const targetClient = svgToClientPoint(target.x, target.y);
+    const flyer = buildFlyingCard(entry, targetCardSize.w, targetCardSize.h);
+    flyer.style.left = `${source.x - targetCardSize.w / 2}px`;
+    flyer.style.top = `${source.y - targetCardSize.h / 2}px`;
+    flyer.style.transform = 'translate(0,0) rotate(0deg)';
+    document.body.appendChild(flyer);
+
+    requestAnimationFrame(() => {
+      const dx = targetClient.x - source.x;
+      const dy = targetClient.y - source.y;
+      flyer.style.transform = `translate(${dx}px, ${dy}px) rotate(${target.rot}deg)`;
+    });
+
+    const cleanup = () => {
+      flyer.removeEventListener('transitionend', cleanup);
+      flyer.remove();
+      inFlightPlayedCardKeys.delete(entry.key);
+      renderPlayedCards();
+    };
+    flyer.addEventListener('transitionend', cleanup);
+    setTimeout(cleanup, 1100);
+  });
 }
 
 function renderRoomTotals(){
