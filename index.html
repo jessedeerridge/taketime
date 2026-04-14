@@ -839,6 +839,7 @@ let pendingSeatPlayerIdToSteal = null;
 let latestPlayers = [];
 let joinInProgress = false;
 const placedCardIds = new Set();
+const pendingPlacedCardIds = new Set();
 const droppedCardsByRoom = new Map();
 let activeDrag = null;
 let cardChoiceResolver = null;
@@ -1037,7 +1038,7 @@ function renderMyHand(){
 
   handData.cards.forEach((cardData, index) => {
     const cardId = `${myId}-${index}`;
-    if (placedCardIds.has(cardId)) return;
+    if (placedCardIds.has(cardId) || pendingPlacedCardIds.has(cardId)) return;
 
     const card = document.createElement('div');
     card.className = 'my-card';
@@ -1062,6 +1063,9 @@ function cleanupDroppedCards(){
 
   [...placedCardIds].forEach((id) => {
     if (!validIds.has(id)) placedCardIds.delete(id);
+  });
+  [...pendingPlacedCardIds].forEach((id) => {
+    if (!validIds.has(id)) pendingPlacedCardIds.delete(id);
   });
   droppedCardsByRoom.forEach((cards, room) => {
     const next = cards.filter((c) => validIds.has(c.id));
@@ -1103,6 +1107,7 @@ function placeDroppedCard(cardData, room, face = 'face'){
   const cards = droppedCardsByRoom.get(room) || [];
   cards.push({ ...cardData, face });
   droppedCardsByRoom.set(room, cards);
+  pendingPlacedCardIds.delete(cardData.id);
   placedCardIds.add(cardData.id);
   renderHands();
 }
@@ -1183,6 +1188,8 @@ function startCardDrag(ev, cardData){
     window.removeEventListener('pointerup', onUp);
     window.removeEventListener('pointercancel', onUp);
     if (dropRoom){
+      pendingPlacedCardIds.add(droppedCardData.id);
+      renderHands();
       const choice = await openCardChoice(droppedCardData);
       placeDroppedCard(droppedCardData, dropRoom, choice);
     }
