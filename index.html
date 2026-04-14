@@ -2768,7 +2768,7 @@ function renderOutwardMarks(mission){
   const isMission14 = mission === '1-4';
 
   const cs6 = getComputedStyle(stageSvg);
-  const rBase    = innerR + (parseFloat(cs6.getPropertyValue('--outTriInset')) || 0);
+  const rBase    = outerR + (parseFloat(cs6.getPropertyValue('--outTriInset')) || 0);
   const len      = Math.abs(parseFloat(cs6.getPropertyValue('--outTriLen')) || 16);
   const spread   = Math.abs(parseFloat(cs6.getPropertyValue('--outTriSpreadDeg')) || 22);
 
@@ -2800,7 +2800,7 @@ function renderOutwardMarks(mission){
       `M ${pL.x},${pL.y}`,
       `Q ${cL.x},${cL.y} ${tip.x},${tip.y}`,
       `Q ${cR.x},${cR.y} ${pR.x},${pR.y}`,
-      `A ${innerR},${innerR} 0 0 1 ${pL.x},${pL.y}`,
+      `A ${rBase},${rBase} 0 0 1 ${pL.x},${pL.y}`,
       'Z'
     ].join(' ');
 
