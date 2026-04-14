@@ -186,7 +186,10 @@
     width:60px;height:90px;border-radius:8px;border:1px solid #ddd;background:#fff;
     display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:600;
     box-shadow:0 4px 12px rgba(0,0,0,.15);
+    touch-action:none;
+    cursor:grab;
   }
+  .my-card.dragging{opacity:.45;cursor:grabbing;}
 
   .dialog-backdrop{
     position:fixed;inset:0;background:rgba(0,0,0,.35);
@@ -609,6 +612,7 @@
         <g id="roomGuideCircles" transform="translate(150,150)" style="pointer-events:none"></g>
         <g id="roomTexts" transform="translate(150,150)" style="pointer-events:none"></g>
         <g id="roomCards" style="pointer-events:none"></g>
+        <g id="playedCards" style="pointer-events:none"></g>
         </svg>
       </div>
     </div>
@@ -778,6 +782,9 @@ let pendingSeatIndexToSteal = null;
 let pendingSeatPlayerIdToSteal = null;
 let latestPlayers = [];
 let joinInProgress = false;
+const placedCardIds = new Set();
+const droppedCardsByRoom = new Map();
+let activeDrag = null;
 
 function randomInt(max){
   return Math.floor(Math.random() * max);
@@ -971,9 +978,13 @@ function renderMyHand(){
   const handData = state.hands[myId];
   if (!handData || !Array.isArray(handData.cards)) return;
 
-  handData.cards.forEach(cardData => {
+  handData.cards.forEach((cardData, index) => {
+    const cardId = `${myId}-${index}`;
+    if (placedCardIds.has(cardId)) return;
+
     const card = document.createElement('div');
     card.className = 'my-card';
+    card.dataset.cardId = cardId;
 
     const num = cardData.num;
     const color = cardData.color;
@@ -982,13 +993,117 @@ function renderMyHand(){
     card.style.background = color === 'black' ? '#0b1530' : '#fff';
     card.style.color = color === 'black' ? '#fff' : '#111';
     card.style.border = color === 'black' ? '1px solid #0b1530' : '1px solid #ddd';
+    card.addEventListener('pointerdown', (ev) => startCardDrag(ev, { ...cardData, id: cardId }));
 
     myHandEl.appendChild(card);
   });
 }
 
+function cleanupDroppedCards(){
+  const myCards = state.hands[state.userId]?.cards || [];
+  const validIds = new Set(myCards.map((_, i) => `${state.userId}-${i}`));
+
+  [...placedCardIds].forEach((id) => {
+    if (!validIds.has(id)) placedCardIds.delete(id);
+  });
+  droppedCardsByRoom.forEach((cards, room) => {
+    const next = cards.filter((c) => validIds.has(c.id));
+    if (next.length) droppedCardsByRoom.set(room, next);
+    else droppedCardsByRoom.delete(room);
+  });
+}
+
+function svgToClientPoint(x, y){
+  const pt = stageSvg.createSVGPoint();
+  pt.x = x;
+  pt.y = y;
+  return pt.matrixTransform(stageSvg.getScreenCTM());
+}
+
+function getGuideMetrics(){
+  const csGuide = getComputedStyle(stageSvg);
+  const centerR = parseFloat(csGuide.getPropertyValue('--roomGuideCenterR')) || ((innerR + outerR) / 2);
+  const guideR = parseFloat(csGuide.getPropertyValue('--roomGuideR')) || Math.max(8, (outerR - innerR) / 2 - 2);
+  const outerOffset = parseFloat(csGuide.getPropertyValue('--roomGuideOuterOffset')) || 8;
+  const ctm = stageSvg.getScreenCTM();
+  const scale = ctm ? Math.hypot(ctm.a, ctm.b) : 1;
+  return { centerR, guideR, outerOffset, scaledGuideR: guideR * scale };
+}
+
+function findDropRoom(clientX, clientY){
+  const { centerR, scaledGuideR } = getGuideMetrics();
+  for(let room = 1; room <= 6; room++){
+    const midDeg = (room - 1) * 60 + 30;
+    const pInner = polar(centerR, midDeg);
+    const pInnerClient = svgToClientPoint(150 + pInner.x, 150 + pInner.y);
+    const dist = Math.hypot(clientX - pInnerClient.x, clientY - pInnerClient.y);
+    if (dist <= scaledGuideR) return room;
+  }
+  return null;
+}
+
+function placeDroppedCard(cardData, room){
+  const cards = droppedCardsByRoom.get(room) || [];
+  cards.push(cardData);
+  droppedCardsByRoom.set(room, cards);
+  placedCardIds.add(cardData.id);
+  renderHands();
+}
+
+function startCardDrag(ev, cardData){
+  ev.preventDefault();
+  if (activeDrag) return;
+  const srcEl = ev.currentTarget;
+  if (!(srcEl instanceof HTMLElement)) return;
+
+  srcEl.setPointerCapture(ev.pointerId);
+  srcEl.classList.add('dragging');
+  srcEl.style.visibility = 'hidden';
+
+  const ghost = srcEl.cloneNode(true);
+  ghost.classList.remove('dragging');
+  ghost.style.visibility = 'visible';
+  ghost.style.position = 'fixed';
+  ghost.style.left = '0';
+  ghost.style.top = '0';
+  ghost.style.margin = '0';
+  ghost.style.zIndex = '500';
+  ghost.style.pointerEvents = 'none';
+  ghost.style.opacity = '0.9';
+  document.body.appendChild(ghost);
+
+  activeDrag = { pointerId: ev.pointerId, srcEl, ghost, cardData };
+
+  const move = (x, y) => {
+    ghost.style.transform = `translate(${x - ghost.offsetWidth / 2}px, ${y - ghost.offsetHeight / 2}px)`;
+  };
+  move(ev.clientX, ev.clientY);
+
+  const onMove = (mv) => {
+    if (!activeDrag || mv.pointerId !== activeDrag.pointerId) return;
+    move(mv.clientX, mv.clientY);
+  };
+  const onUp = (up) => {
+    if (!activeDrag || up.pointerId !== activeDrag.pointerId) return;
+    const dropRoom = findDropRoom(up.clientX, up.clientY);
+    if (dropRoom) placeDroppedCard(activeDrag.cardData, dropRoom);
+    activeDrag.srcEl.classList.remove('dragging');
+    activeDrag.srcEl.style.visibility = '';
+    activeDrag.ghost.remove();
+    activeDrag = null;
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', onUp);
+    window.removeEventListener('pointercancel', onUp);
+  };
+  window.addEventListener('pointermove', onMove);
+  window.addEventListener('pointerup', onUp);
+  window.addEventListener('pointercancel', onUp);
+}
+
 function renderHands(){
+  cleanupDroppedCards();
   renderMyHand();
+  renderPlayedCards();
   if (latestPlayers.length) renderPlayerCircle(latestPlayers);
 }
 
@@ -1413,7 +1528,10 @@ btnStagePopClose.addEventListener('click', () => {
   stagePop.classList.add('hidden');
   if (state.isHost) startPop.classList.remove('hidden');
 });
-window.addEventListener('resize', updateMyHandPosition);
+window.addEventListener('resize', () => {
+  updateMyHandPosition();
+  renderPlayedCards();
+});
 
 /* ===== ステージSVGロジック：元コードをそのまま移植 ===== */
 const stageSvg = document.getElementById('stageBoard');
@@ -2310,6 +2428,67 @@ function renderRoomCards(mission = currentStage){
   }
 }
 
+function renderPlayedCards(){
+  const g = stageSvg.querySelector('#playedCards');
+  if(!g) return;
+  while(g.firstChild) g.removeChild(g.firstChild);
+
+  const cs13 = getComputedStyle(stageSvg);
+  const cardW = parseFloat(cs13.getPropertyValue('--cardW')) || 26;
+  const cardH = parseFloat(cs13.getPropertyValue('--cardH')) || 36;
+  const cardR = parseFloat(cs13.getPropertyValue('--cardR')) || 4;
+  const sw = parseFloat(cs13.getPropertyValue('--cardStrokeW')) || 1;
+  const { centerR, outerOffset, guideR } = getGuideMetrics();
+  const step = cardW + 3;
+
+  for(let room = 1; room <= 6; room++){
+    const cards = droppedCardsByRoom.get(room) || [];
+    if (!cards.length) continue;
+
+    const midDeg = (room - 1) * 60 + 30;
+    const pOuter = polar(centerR + guideR * 0.5 + outerOffset, midDeg);
+    const angleToCenter = Math.atan2(-pOuter.y, -pOuter.x) * 180 / Math.PI;
+    const rot = angleToCenter + 90;
+    const rotRad = rot * Math.PI / 180;
+    const dirX = Math.cos(rotRad);
+    const dirY = Math.sin(rotRad);
+
+    const centerOffset = (cards.length - 1) / 2;
+    cards.forEach((cardData, idx) => {
+      const cardG = document.createElementNS('http://www.w3.org/2000/svg','g');
+      const offset = (idx - centerOffset) * step;
+      const x = 150 + pOuter.x + dirX * offset;
+      const y = 150 + pOuter.y + dirY * offset;
+      cardG.setAttribute('transform', `translate(${x},${y}) rotate(${rot})`);
+
+      const rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
+      rect.setAttribute('x', (-cardW/2).toFixed(3));
+      rect.setAttribute('y', (-cardH/2).toFixed(3));
+      rect.setAttribute('width', cardW);
+      rect.setAttribute('height', cardH);
+      rect.setAttribute('rx', cardR);
+      rect.setAttribute('ry', cardR);
+      rect.setAttribute('fill', cardData.color === 'black' ? '#0b1530' : '#fff');
+      rect.setAttribute('stroke', cardData.color === 'black' ? '#0b1530' : '#ddd');
+      rect.setAttribute('stroke-width', sw);
+      cardG.appendChild(rect);
+
+      const text = document.createElementNS('http://www.w3.org/2000/svg','text');
+      text.textContent = String(cardData.num);
+      text.setAttribute('x', '0');
+      text.setAttribute('y', '0');
+      text.setAttribute('fill', cardData.color === 'black' ? '#fff' : '#111');
+      text.setAttribute('font-size', String(Math.max(8, cardW * 0.55)));
+      text.setAttribute('font-weight', '700');
+      text.setAttribute('text-anchor', 'middle');
+      text.setAttribute('dominant-baseline', 'middle');
+      cardG.appendChild(text);
+
+      g.appendChild(cardG);
+    });
+  }
+}
+
 function renderRoomGuideCircles(){
   const g = stageSvg.querySelector('#roomGuideCircles');
   if(!g) return;
@@ -2412,12 +2591,13 @@ function renderRoomTexts(mission){
   const roomGuideCircles = stageSvg.querySelector('#roomGuideCircles');
   const roomTexts    = stageSvg.querySelector('#roomTexts');
   const cardsG       = stageSvg.querySelector('#roomCards');
+  const playedCardsG = stageSvg.querySelector('#playedCards');
 
   const rot = parseFloat(getComputedStyle(stageSvg).getPropertyValue('--centerTopRotate')) || 0;
   centerLineG?.setAttribute('transform', `translate(150,150) rotate(${rot})`);
   tipG?.setAttribute('transform',         `translate(150,150) rotate(${rot})`);
 
-  if (!back || !marks || !outG || !r2 || !orangeFill || !tiny20 || !orangeStroke || !infinityG || !spec || !clockMarks || !centerLineG || !tipG || !roomGuideCircles || !roomTexts || !cardsG) return;
+  if (!back || !marks || !outG || !r2 || !orangeFill || !tiny20 || !orangeStroke || !infinityG || !spec || !clockMarks || !centerLineG || !tipG || !roomGuideCircles || !roomTexts || !cardsG || !playedCardsG) return;
 
   if (back.nextSibling !== marks)        stageSvg.insertBefore(marks, back.nextSibling);
   if (marks.nextSibling !== outG)        stageSvg.insertBefore(outG,  marks.nextSibling);
@@ -2433,7 +2613,8 @@ function renderRoomTexts(mission){
   if (clockMarks.nextSibling !== roomGuideCircles) stageSvg.insertBefore(roomGuideCircles, clockMarks.nextSibling);
   if (roomGuideCircles.nextSibling !== roomTexts) stageSvg.insertBefore(roomTexts, roomGuideCircles.nextSibling);
 
-  if (stageSvg.lastElementChild !== cardsG) stageSvg.appendChild(cardsG);
+  if (cardsG.nextSibling !== playedCardsG) stageSvg.insertBefore(playedCardsG, cardsG.nextSibling);
+  if (stageSvg.lastElementChild !== playedCardsG) stageSvg.appendChild(playedCardsG);
 })();
 
 function redrawAll(m){
@@ -2454,6 +2635,7 @@ function redrawAll(m){
   renderRoomGuideCircles();
   renderRoomTexts(renderStage);
   renderRoomCards(renderStage);
+  renderPlayedCards();
 }
 window.addEventListener('mission:change', (e)=>{
   redrawAll(e.detail?.value || currentStage);
