@@ -2737,26 +2737,30 @@ function appendGoldX(parentG, triClipId, midDeg, len, rBase, spread){
 
   const pos = polar(rBase + len * 0.56, midDeg);
   const tr = `translate(${pos.x},${pos.y}) rotate(${midDeg}) scale(${s}) translate(${-10},${-12})`;
+  const baseW = parseFloat(cs5.getPropertyValue('--goldXStrokeW')) || 0.40;
 
-  function mk(dStr){
-    const p = document.createElementNS('http://www.w3.org/2000/svg','path');
-    p.setAttribute('d', dStr);
-    p.setAttribute('fill', 'none');
-    p.setAttribute('stroke', '#facc15');
-    const baseW = parseFloat(cs5.getPropertyValue('--goldXStrokeW')) || 0.40;
-    p.setAttribute('stroke-width', baseW);
-    p.setAttribute('stroke-linecap','round');
-    p.setAttribute('stroke-linejoin','round');
-    p.setAttribute('transform', tr);
-    return p;
+  function mk(dStr, stroke, width){
+    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d', dStr);
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke', stroke);
+    path.setAttribute('stroke-width', width);
+    path.setAttribute('stroke-linecap','round');
+    path.setAttribute('stroke-linejoin','round');
+    path.setAttribute('transform', tr);
+    return path;
   }
 
-  [
+  const slashPaths = [
     "M12 20 L8.951 16.515 Q5 12 8.180 6.912 L10 4",
     "M14 20 L10.951 16.515 Q7 12 10.087 6.855 L10 7",
     "M6  20 L9.049 16.515 Q13 12 9.913 6.855 L10 7",
     "M8  20 L11.049 16.515 Q15 12 11.820 6.912 L10 4"
-  ].forEach(d => g.appendChild(mk(d)));
+  ];
+  slashPaths.forEach((dStr) => {
+    g.appendChild(mk(dStr, '#ffffff', baseW + 0.5));
+    g.appendChild(mk(dStr, '#000000', baseW));
+  });
 
   parentG.appendChild(g);
 }
@@ -2830,6 +2834,17 @@ function renderOutwardMarks(mission){
     triPath.setAttribute('d', dTriArea);
     cp.appendChild(triPath);
     defs.appendChild(cp);
+
+    const imgSize = Math.ceil(2 * (rBase + len));
+    const img = document.createElementNS('http://www.w3.org/2000/svg','image');
+    img.setAttributeNS('http://www.w3.org/1999/xlink','href','star.jpg');
+    img.setAttribute('x', -imgSize/2);
+    img.setAttribute('y', -imgSize/2);
+    img.setAttribute('width',  imgSize);
+    img.setAttribute('height', imgSize);
+    img.setAttribute('preserveAspectRatio', 'xMidYMid slice');
+    img.setAttribute('clip-path', `url(#${clipId})`);
+    stageOutG.appendChild(img);
 
     appendGoldX(stageOutG, clipId, midDeg, len, rBase, spread);
 
