@@ -625,9 +625,6 @@
 
           <clipPath id="clipInner1" clipPathUnits="userSpaceOnUse"><use href="#clipCircle1"/></clipPath>
           <clipPath id="clipInner3" clipPathUnits="userSpaceOnUse"><use href="#clipCircle3"/></clipPath>
-          <pattern id="outerStarPattern" patternUnits="userSpaceOnUse" x="-90" y="-90" width="180" height="180">
-            <image href="star.jpg" x="-90" y="-90" width="180" height="180" preserveAspectRatio="xMidYMid slice"/>
-          </pattern>
 
           <clipPath id="clipOuterUnion" clipPathUnits="userSpaceOnUse">
             <g transform="translate(150,150)">
@@ -672,12 +669,18 @@
           <use href="#eqTriPath" transform="rotate(270)" data-room="5"/>
           <use href="#eqTriPath" transform="rotate(330)" data-room="6"/>
         </g>
+        <g id="outerStarLayer" clip-path="url(#clipOuterUnion)" style="display:none">
+          <image id="imgOuterStar" href="star.jpg" x="0" y="0" width="300" height="300" preserveAspectRatio="xMidYMid slice"/>
+        </g>
 
         <g transform="translate(150,150)" clip-path="url(#clipInner1)">
           <image id="imgInner1" href="star.jpg" x="-60" y="-60" width="120" height="120" preserveAspectRatio="xMidYMid slice"/>
         </g>
         <g transform="translate(150,150)" clip-path="url(#clipInner3)">
           <image id="imgInner3" href="sky.jpg" x="-35" y="-35" width="70" height="70" preserveAspectRatio="xMidYMid slice"/>
+        </g>
+        <g id="innerBandWhite" transform="translate(150,150)" style="display:none" aria-hidden="true">
+          <circle r="47.5" fill="none" stroke="#e0ffff" stroke-width="25"/>
         </g>
 
         <g transform="translate(150,150)" id="unionForOutline" filter="url(#outerStroke)">
@@ -2877,7 +2880,7 @@ function renderEqTriBackFill(mission){
     const use = triBack.querySelector(`use[data-room="${room}"]`);
     if(!use) continue;
     if(isMission14){
-      use.setAttribute('fill', swappedLightFill);
+      use.setAttribute('fill', 'none');
     }else if(specified.has(room)){
       use.setAttribute('fill', swappedLightFill);
     }else{
@@ -2891,8 +2894,13 @@ function renderMissionBackSwap(mission){
   const outerCircle = stageSvg.querySelector('#outerCircle');
   const imgInner1 = stageSvg.querySelector('#imgInner1');
   const imgInner3 = stageSvg.querySelector('#imgInner3');
+  const outerStarLayer = stageSvg.querySelector('#outerStarLayer');
+  const innerBandWhite = stageSvg.querySelector('#innerBandWhite');
   if(outerCircle){
-    outerCircle.setAttribute('fill', isMission14 ? 'url(#outerStarPattern)' : 'var(--circleFill)');
+    outerCircle.setAttribute('fill', isMission14 ? 'none' : 'var(--circleFill)');
+  }
+  if(outerStarLayer){
+    outerStarLayer.style.display = isMission14 ? '' : 'none';
   }
   if(imgInner1){
     imgInner1.setAttributeNS('http://www.w3.org/1999/xlink', 'href', 'star.jpg');
@@ -2901,6 +2909,9 @@ function renderMissionBackSwap(mission){
   }
   if(imgInner3){
     imgInner3.setAttribute('visibility', isMission14 ? 'hidden' : 'visible');
+  }
+  if(innerBandWhite){
+    innerBandWhite.style.display = isMission14 ? '' : 'none';
   }
 }
 
