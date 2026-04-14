@@ -2988,6 +2988,16 @@ function renderEqTriBackFill(mission){
   const specified = new Set(getSpecifiedRoomsForMission(mission));
   const defaultFill = getComputedStyle(stageSvg).getPropertyValue('--triFill').trim() || '#ddd';
   const isMission14 = mission === '1-4';
+  const missionBrown = getComputedStyle(stageSvg).getPropertyValue('--orange').trim() || '#ab5d1a';
+  const mission14CardRooms = new Set();
+  if (isMission14){
+    const roomCardsMap = getRoomCardsMap();
+    for (let room = 1; room <= 6; room++){
+      if ((roomCardsMap.get(room) || []).length > 0){
+        mission14CardRooms.add(room);
+      }
+    }
+  }
 
   const outerCircle = triBack.querySelector('#outerCircle');
   if (outerCircle){
@@ -2998,7 +3008,7 @@ function renderEqTriBackFill(mission){
     const use = triBack.querySelector(`use[data-room="${room}"]`);
     if(!use) continue;
     if (isMission14){
-      use.setAttribute('fill', 'url(#starPattern)');
+      use.setAttribute('fill', mission14CardRooms.has(room) ? missionBrown : 'url(#starPattern)');
       continue;
     }
     if(specified.has(room)){
