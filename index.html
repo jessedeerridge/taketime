@@ -645,8 +645,8 @@
             <stop offset="70%" stop-color="#caa032"/>
             <stop offset="100%" stop-color="#fff1a2"/>
           </linearGradient>
-          <pattern id="starPattern" patternUnits="userSpaceOnUse" x="-90" y="-90" width="180" height="180">
-            <image href="star.jpg" x="-90" y="-90" width="180" height="180" preserveAspectRatio="xMidYMid slice"/>
+          <pattern id="starPattern" patternUnits="objectBoundingBox" patternContentUnits="objectBoundingBox" x="0" y="0" width="1" height="1">
+            <image href="star.jpg" x="0" y="0" width="1" height="1" preserveAspectRatio="xMidYMid slice"/>
           </pattern>
 
           <symbol id="notchedBowl" viewBox="0 0 110 65" overflow="visible">
@@ -3590,6 +3590,7 @@ function renderRoomTexts(mission){
   const back  = stageSvg.querySelector('#innerRingsBack');
   const marks = stageSvg.querySelector('#stageMarks');
   const outG  = stageSvg.querySelector('#stageOutward');
+  const innerLightFill = stageSvg.querySelector('#innerLightFill');
   const r2    = stageSvg.querySelector('#innerRing2Front');
   const orangeFill   = stageSvg.querySelector('#innerOrangeFill');
   const tiny20       = stageSvg.querySelector('#innerTiny20');
@@ -3611,7 +3612,8 @@ function renderRoomTexts(mission){
 
   if (!back || !marks || !outG || !r2 || !orangeFill || !tiny20 || !orangeStroke || !infinityG || !spec || !clockMarks || !centerLineG || !tipG || !roomGuideCircles || !roomTexts || !cardsG || !playedCardsG || !roomTotalsG) return;
 
-  if (back.previousSibling !== outG)     stageSvg.insertBefore(outG, back);
+  if (innerLightFill && innerLightFill.previousSibling !== outG) stageSvg.insertBefore(outG, innerLightFill);
+  else if (!innerLightFill && back.previousSibling !== outG)     stageSvg.insertBefore(outG, back);
   if (back.nextSibling !== marks)        stageSvg.insertBefore(marks, back.nextSibling);
   if (marks.nextSibling !== r2)          stageSvg.insertBefore(r2,    marks.nextSibling);
   if (r2.nextSibling !== tipG)           stageSvg.insertBefore(tipG,  r2.nextSibling);
