@@ -2491,6 +2491,7 @@ const STAGE_SPEC = {
   '1-1': { specifiedRooms: [1,6] },
   '1-2': { specifiedRooms: [3,4] },
   '1-3': { specifiedRooms: [2,3,6] },
+  '1-4': { specifiedRooms: [4] },
   '2-3': { specifiedRooms: [2,3,6] },
 };
 function getSpecifiedRoomsForMission(mission){
@@ -2736,26 +2737,30 @@ function appendGoldX(parentG, triClipId, midDeg, len, rBase, spread){
 
   const pos = polar(rBase + len * 0.56, midDeg);
   const tr = `translate(${pos.x},${pos.y}) rotate(${midDeg}) scale(${s}) translate(${-10},${-12})`;
+  const baseW = parseFloat(cs5.getPropertyValue('--goldXStrokeW')) || 0.40;
 
-  function mk(dStr){
-    const p = document.createElementNS('http://www.w3.org/2000/svg','path');
-    p.setAttribute('d', dStr);
-    p.setAttribute('fill', 'none');
-    p.setAttribute('stroke', '#facc15');
-    const baseW = parseFloat(cs5.getPropertyValue('--goldXStrokeW')) || 0.40;
-    p.setAttribute('stroke-width', baseW);
-    p.setAttribute('stroke-linecap','round');
-    p.setAttribute('stroke-linejoin','round');
-    p.setAttribute('transform', tr);
-    return p;
+  function mk(dStr, stroke, width){
+    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d', dStr);
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke', stroke);
+    path.setAttribute('stroke-width', width);
+    path.setAttribute('stroke-linecap','round');
+    path.setAttribute('stroke-linejoin','round');
+    path.setAttribute('transform', tr);
+    return path;
   }
 
-  [
+  const slashPaths = [
     "M12 20 L8.951 16.515 Q5 12 8.180 6.912 L10 4",
     "M14 20 L10.951 16.515 Q7 12 10.087 6.855 L10 7",
     "M6  20 L9.049 16.515 Q13 12 9.913 6.855 L10 7",
     "M8  20 L11.049 16.515 Q15 12 11.820 6.912 L10 4"
-  ].forEach(d => g.appendChild(mk(d)));
+  ];
+  slashPaths.forEach((dStr) => {
+    g.appendChild(mk(dStr, '#ffffff', baseW + 0.5));
+    g.appendChild(mk(dStr, '#000000', baseW));
+  });
 
   parentG.appendChild(g);
 }
@@ -2830,26 +2835,25 @@ function renderOutwardMarks(mission){
     cp.appendChild(triPath);
     defs.appendChild(cp);
 
-    if (isMission14){
-      const imgSize = Math.ceil(2 * (rBase + len));
-      const img = document.createElementNS('http://www.w3.org/2000/svg','image');
-      img.setAttributeNS('http://www.w3.org/1999/xlink','href','star.jpg');
-      img.setAttribute('x', -imgSize/2);
-      img.setAttribute('y', -imgSize/2);
-      img.setAttribute('width',  imgSize);
-      img.setAttribute('height', imgSize);
-      img.setAttribute('preserveAspectRatio', 'xMidYMid slice');
-      img.setAttribute('clip-path', `url(#${clipId})`);
-      stageOutG.appendChild(img);
-    }
+    const imgSize = Math.ceil(2 * (rBase + len));
+    const img = document.createElementNS('http://www.w3.org/2000/svg','image');
+    img.setAttributeNS('http://www.w3.org/1999/xlink','href','star.jpg');
+    img.setAttribute('x', -imgSize/2);
+    img.setAttribute('y', -imgSize/2);
+    img.setAttribute('width',  imgSize);
+    img.setAttribute('height', imgSize);
+    img.setAttribute('preserveAspectRatio', 'xMidYMid slice');
+    img.setAttribute('clip-path', `url(#${clipId})`);
+    stageOutG.appendChild(img);
 
     appendGoldX(stageOutG, clipId, midDeg, len, rBase, spread);
 
     if (isMission14){
+      const mission14Fill = cs6.getPropertyValue('--orange').trim() || '#ab5d1a';
       [leftRibbon, rightRibbon].forEach((el)=>{
-        el.setAttribute('fill', '#000');
-        el.setAttribute('stroke', '#fff');
-        el.setAttribute('stroke-width', '0.5');
+        el.setAttribute('fill', mission14Fill);
+        el.setAttribute('stroke', mission14Fill);
+        el.setAttribute('stroke-width', '0.3');
         el.setAttribute('stroke-linejoin', 'round');
       });
     }
@@ -2871,8 +2875,8 @@ function applyMissionSkin(mission){
   if (imgInner3) imgInner3.style.display = '';
 
   if (isMission14){
-    stageSvg.style.setProperty('--markStroke', '#000');
-    stageSvg.style.setProperty('--centerLineColor', '#000');
+    stageSvg.style.setProperty('--markStroke', '#facc15');
+    stageSvg.style.setProperty('--centerLineColor', '#d4af37');
     stageSvg.style.setProperty('--diamondFill', getComputedStyle(stageSvg).getPropertyValue('--light').trim() || '#e6e3e3');
     stageSvg.style.setProperty('--markStrokeW', '0.5');
     stageSvg.style.setProperty('--centerLineW', '0.5');
@@ -2974,7 +2978,8 @@ function renderEqTriBackFill(mission){
     const use = triBack.querySelector(`use[data-room="${room}"]`);
     if(!use) continue;
     if (isMission14){
-      use.setAttribute('fill', 'url(#starPattern)');
+      const mission14Fill = getComputedStyle(stageSvg).getPropertyValue('--orange').trim() || '#ab5d1a';
+      use.setAttribute('fill', mission14Fill);
       continue;
     }
     if(specified.has(room)){
@@ -2999,7 +3004,12 @@ function renderSpecifiedBowls(mission){
   const VB_TOP = 5, VB_CX = 50;
 
   const fillColor   = cs9.getPropertyValue('--bowlFillColor').trim() || '#fff';
+  const mission14Fill = cs9.getPropertyValue('--orange').trim() || '#ab5d1a';
   const fillOpacity = Math.max(0, Math.min(1, parseFloat(cs9.getPropertyValue('--bowlFillOpacity')) || 1));
+  const bowlFillPath = stageSvg.querySelector('#bowlFill');
+  if (bowlFillPath){
+    bowlFillPath.setAttribute('fill', mission === '1-4' ? mission14Fill : fillColor);
+  }
 
   const defs = stageSvg.querySelector('defs');
 
@@ -3038,7 +3048,8 @@ function renderSpecifiedBowls(mission){
 
     const sectorFill = document.createElementNS('http://www.w3.org/2000/svg','path');
     sectorFill.setAttribute('d', dSector);
-    sectorFill.setAttribute('fill', fillColor);
+    const perRoomFill = (mission === '1-4' && room === 4) ? mission14Fill : fillColor;
+    sectorFill.setAttribute('fill', perRoomFill);
     sectorFill.setAttribute('fill-opacity', String(fillOpacity));
     sectorFill.setAttribute('mask', `url(#${maskId})`);
     sectorFill.setAttribute('clip-path', 'url(#clipOuterUnion)');
@@ -3184,7 +3195,7 @@ function renderRoomCards(mission = currentStage){
     return {fill: fillRoom1, stroke: strokeRoom1};
   }
 
-  function appendCardAt(room, extraTan=0, extraRad=0, extraRot=0){
+  function appendCardAt(room, extraTan=0, extraRad=0, extraRot=0, paint=null){
     const midDeg = (room-1)*60 + 30;
     const tr = [
       'translate(150,150)',
@@ -3195,7 +3206,9 @@ function renderRoomCards(mission = currentStage){
       `translate(${localX}, ${localY})`
     ].join(' ');
 
-    const {fill, stroke} = getFillStrokeFor(room);
+    const defaultPaint = getFillStrokeFor(room);
+    const fill = paint?.fill ?? defaultPaint.fill;
+    const stroke = paint?.stroke ?? defaultPaint.stroke;
 
     const cardG = document.createElementNS('http://www.w3.org/2000/svg','g');
     cardG.setAttribute('transform', tr);
@@ -3242,6 +3255,21 @@ function renderRoomCards(mission = currentStage){
       const drawOrder = (topSide >= 0) ? indices : [...indices].reverse();
       drawOrder.forEach(idx => appendCardAt(4, idx*stepT, idx*stepR, idx*spread));
     }
+  }
+
+  if (mission==='1-4' && specifiedRooms.has(4)) {
+    const fanN = 2;
+    const spread = parseFloat(cs13.getPropertyValue('--room6FanSpreadDeg')) || 14;
+    const stepT  = parseFloat(cs13.getPropertyValue('--room6FanTanStep'))   || 6;
+    const stepR  = parseFloat(cs13.getPropertyValue('--room6FanRadStep'))   || -1;
+    const indices = [...Array(fanN).keys()].map(i => i - (fanN-1)/2);
+    const topSide = parseFloat(cs13.getPropertyValue('--room6FanTopSide')) || 1;
+    const drawOrder = (topSide >= 0) ? indices : [...indices].reverse();
+    const paints = [
+      { fill: '#0b1530', stroke: '#ffffff' },
+      { fill: '#ffffff', stroke: '#000000' }
+    ];
+    drawOrder.forEach((idx, i) => appendCardAt(4, idx * stepT, idx * stepR, idx * spread, paints[i]));
   }
 }
 
