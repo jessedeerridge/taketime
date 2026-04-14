@@ -715,14 +715,11 @@
     <button id="btnStartPopClose" class="btn ghost" style="padding:2px 6px;font-size:12px;">×</button>
   </div>
   <div class="start-pop-main">
-    「スタート」で全プレイヤーにカードを配布。<br>
+    ステージ選択をすると、場カードをリセットして全プレイヤーへカードを配布します。<br>
     「リセット」で人数選択へ戻します。
   </div>
   <div class="start-pop-actions">
-    <div class="start-pop-primary-actions">
-      <button id="btnResetRoom" class="btn ghost">リセット</button>
-      <button id="btnGameStart" class="btn primary">スタート</button>
-    </div>
+    <button id="btnResetRoom" class="btn ghost">リセット</button>
     <button id="btnOpenStagePop" class="btn">ステージ選択</button>
   </div>
 </div>
@@ -768,6 +765,7 @@ const state = {
   seatedTable: null,
   isHost: false,
   hands: {},
+  playedCards: {},
   room: {},
   tables: {},
   joined: false
@@ -805,7 +803,6 @@ const btnChoiceBack = document.getElementById('btnChoiceBack');
 const hostSettingsBtn = document.getElementById('hostSettingsBtn');
 const startPop = document.getElementById('startPop');
 const btnStartPopClose = document.getElementById('btnStartPopClose');
-const btnGameStart = document.getElementById('btnGameStart');
 const btnResetRoom = document.getElementById('btnResetRoom');
 
 const stagePop = document.getElementById('stagePop');
@@ -840,7 +837,6 @@ let latestPlayers = [];
 let joinInProgress = false;
 const placedCardIds = new Set();
 const pendingPlacedCardIds = new Set();
-const droppedCardsByRoom = new Map();
 let activeDrag = null;
 let cardChoiceResolver = null;
 
@@ -1000,6 +996,15 @@ function subscribeHands(){
   });
 }
 
+function subscribePlayedCards(){
+  const playedRef = ref(db, `rooms/${state.roomCode}/playedCards`);
+  onValue(playedRef, snap => {
+    state.playedCards = snap.val() || {};
+    syncPlacedCardIdsFromPlayed();
+    renderHands();
+  });
+}
+
 function subscribePlayers(){
   const tablesRef = ref(db, `rooms/${state.roomCode}/tables`);
   onValue(tablesRef, snap => {
@@ -1067,10 +1072,14 @@ function cleanupDroppedCards(){
   [...pendingPlacedCardIds].forEach((id) => {
     if (!validIds.has(id)) pendingPlacedCardIds.delete(id);
   });
-  droppedCardsByRoom.forEach((cards, room) => {
-    const next = cards.filter((c) => validIds.has(c.id));
-    if (next.length) droppedCardsByRoom.set(room, next);
-    else droppedCardsByRoom.delete(room);
+}
+
+function syncPlacedCardIdsFromPlayed(){
+  placedCardIds.clear();
+  Object.values(state.playedCards || {}).forEach((card) => {
+    if (card?.playerId === state.userId && card?.id){
+      placedCardIds.add(card.id);
+    }
   });
 }
 
@@ -1103,13 +1112,22 @@ function findDropRoom(clientX, clientY){
   return null;
 }
 
-function placeDroppedCard(cardData, room, face = 'face'){
-  const cards = droppedCardsByRoom.get(room) || [];
-  cards.push({ ...cardData, face });
-  droppedCardsByRoom.set(room, cards);
+async function placeDroppedCard(cardData, room, face = 'face'){
+  if (!state.roomCode) return;
   pendingPlacedCardIds.delete(cardData.id);
   placedCardIds.add(cardData.id);
   renderHands();
+  const placedAt = Date.now();
+  const key = `${state.userId}_${cardData.id}_${placedAt}`;
+  await set(ref(db, `rooms/${state.roomCode}/playedCards/${key}`), {
+    id: cardData.id,
+    num: cardData.num,
+    color: cardData.color,
+    face,
+    room,
+    playerId: state.userId,
+    placedAt
+  });
 }
 
 function paintChoiceCards(cardData){
@@ -1191,7 +1209,7 @@ function startCardDrag(ev, cardData){
       pendingPlacedCardIds.add(droppedCardData.id);
       renderHands();
       const choice = await openCardChoice(droppedCardData);
-      placeDroppedCard(droppedCardData, dropRoom, choice);
+      await placeDroppedCard(droppedCardData, dropRoom, choice);
     }
   };
   window.addEventListener('pointermove', onMove);
@@ -1450,6 +1468,7 @@ btnJoin.addEventListener('click', async () => {
     subscribeRoom();
     subscribePlayers();
     subscribeHands();
+    subscribePlayedCards();
 
     syncSeatUI();
   } catch (err) {
@@ -1574,12 +1593,6 @@ btnStartPopClose.addEventListener('click', () => {
   startPop.classList.add('hidden');
 });
 
-btnGameStart.addEventListener('click', async () => {
-  if (!state.isHost) return;
-  await dealInitialHands();
-  startPop.classList.add('hidden');
-});
-
 btnResetRoom.addEventListener('click', async () => {
   if (!state.isHost || !state.roomCode) return;
 
@@ -1587,11 +1600,15 @@ btnResetRoom.addEventListener('click', async () => {
   await Promise.all([
     remove(ref(db, `${base}/maxPlayers`)),
     remove(ref(db, `${base}/tables`)),
-    remove(ref(db, `${base}/hands`))
+    remove(ref(db, `${base}/hands`)),
+    remove(ref(db, `${base}/playedCards`))
   ]);
 
+  placedCardIds.clear();
+  pendingPlacedCardIds.clear();
   state.seatedTable = null;
   startPop.classList.add('hidden');
+  renderHands();
   syncSeatUI();
 });
 
@@ -1602,8 +1619,8 @@ function renderStageOptions(){
     const btn = document.createElement('button');
     btn.className = 'btn stage-option-btn' + (code === currentStage ? ' active' : '');
     btn.textContent = code;
-    btn.addEventListener('click', () => {
-      setStage(code);
+    btn.addEventListener('click', async () => {
+      await setStage(code);
       renderStageOptions();
       stagePop.classList.add('hidden');
     });
@@ -1611,10 +1628,19 @@ function renderStageOptions(){
   });
 }
 
-function setStage(code){
+async function setStage(code){
   currentStage = STAGE_CODES.includes(code) ? code : '';
   if (currentStage) localStorage.setItem(STAGE_KEY, currentStage);
   else localStorage.removeItem(STAGE_KEY);
+  if (state.isHost && state.roomCode && currentStage){
+    await Promise.all([
+      remove(ref(db, `rooms/${state.roomCode}/playedCards`)),
+      remove(ref(db, `rooms/${state.roomCode}/hands`))
+    ]);
+    placedCardIds.clear();
+    pendingPlacedCardIds.clear();
+    await dealInitialHands();
+  }
   window.dispatchEvent(new CustomEvent('mission:change', { detail:{ value: currentStage }}));
 }
 
@@ -2539,9 +2565,12 @@ function renderPlayedCards(){
   const sw = parseFloat(cs13.getPropertyValue('--cardStrokeW')) || 1;
   const { centerR, outerOffset, guideR } = getGuideMetrics();
   const step = cardW + 3;
+  const playedList = Object.values(state.playedCards || {})
+    .filter((card) => card && card.room)
+    .sort((a,b) => (a.placedAt || 0) - (b.placedAt || 0));
 
   for(let room = 1; room <= 6; room++){
-    const cards = droppedCardsByRoom.get(room) || [];
+    const cards = playedList.filter((card) => Number(card.room) === room);
     if (!cards.length) continue;
 
     const midDeg = (room - 1) * 60 + 30;
