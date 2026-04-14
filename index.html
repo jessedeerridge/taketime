@@ -217,6 +217,12 @@
     touch-action:none;
     cursor:grab;
   }
+  .card-num-underlined{
+    display:inline-block;
+    border-bottom:2px solid currentColor;
+    line-height:1;
+    padding-bottom:1px;
+  }
   .my-card.dragging{opacity:.45;cursor:grabbing;}
   .flying-play-card{
     position:fixed;
@@ -1378,7 +1384,7 @@ function renderMyHand(){
     } else {
       const num = cardData.num;
       const color = cardData.color;
-      card.textContent = num;
+      setCardNumberDom(card, num);
       card.style.background = color === 'black' ? '#0b1530' : '#fff';
       card.style.color = color === 'black' ? '#fff' : '#111';
       card.style.border = color === 'black' ? '1px solid #0b1530' : '1px solid #ddd';
@@ -1630,9 +1636,23 @@ function makeCardId(playerId, cardData){
   return `${playerId}-${color}-${num}`;
 }
 
+function isUnderlineTargetNumber(num){
+  const parsed = Number(num);
+  return parsed === 6 || parsed === 9;
+}
+
+function setCardNumberDom(el, num){
+  if (!(el instanceof HTMLElement)) return;
+  el.textContent = '';
+  const span = document.createElement('span');
+  span.textContent = String(num);
+  if (isUnderlineTargetNumber(num)) span.classList.add('card-num-underlined');
+  el.appendChild(span);
+}
+
 function paintChoiceCards(cardData){
   const isBlack = cardData.color === 'black';
-  btnChoiceFace.textContent = String(cardData.num);
+  setCardNumberDom(btnChoiceFace, cardData.num);
   btnChoiceFace.style.background = isBlack ? '#0b1530' : '#fff';
   btnChoiceFace.style.color = isBlack ? '#fff' : '#111';
   btnChoiceFace.style.border = isBlack ? '1px solid #0b1530' : '1px solid #ddd';
@@ -3142,16 +3162,29 @@ function renderPlayedCards(){
     cardG.appendChild(rect);
 
     if (isFaceUp){
+      const fontSize = Math.max(8, cardW * 0.55);
       const text = document.createElementNS('http://www.w3.org/2000/svg','text');
       text.textContent = String(cardData.num);
       text.setAttribute('x', '0');
       text.setAttribute('y', '0');
       text.setAttribute('fill', isBlack ? '#fff' : '#111');
-      text.setAttribute('font-size', String(Math.max(8, cardW * 0.55)));
+      text.setAttribute('font-size', String(fontSize));
       text.setAttribute('font-weight', '700');
       text.setAttribute('text-anchor', 'middle');
       text.setAttribute('dominant-baseline', 'middle');
       cardG.appendChild(text);
+
+      if (isUnderlineTargetNumber(cardData.num)){
+        const underline = document.createElementNS('http://www.w3.org/2000/svg','line');
+        underline.setAttribute('x1', String(-(fontSize * 0.22)));
+        underline.setAttribute('x2', String(fontSize * 0.22));
+        underline.setAttribute('y1', String(fontSize * 0.34));
+        underline.setAttribute('y2', String(fontSize * 0.34));
+        underline.setAttribute('stroke', isBlack ? '#fff' : '#111');
+        underline.setAttribute('stroke-width', '1.5');
+        underline.setAttribute('stroke-linecap', 'round');
+        cardG.appendChild(underline);
+      }
     }
 
     g.appendChild(cardG);
@@ -3197,7 +3230,7 @@ function buildFlyingCard(cardData, width, height){
   const isBlack = cardData.color === 'black';
   const isFaceUp = cardData.face !== 'back';
   if (isFaceUp){
-    card.textContent = String(cardData.num);
+    setCardNumberDom(card, cardData.num);
     card.style.fontSize = `${Math.max(10, Math.round(Math.min(width, height) * 0.55))}px`;
     card.style.background = isBlack ? '#0b1530' : '#fff';
     card.style.color = isBlack ? '#fff' : '#111';
