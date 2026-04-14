@@ -2774,6 +2774,7 @@ function renderOutwardMarks(mission){
 
   const color   = cs6.getPropertyValue('--outTriStroke').trim() || '#111';
   const opacity = parseFloat(cs6.getPropertyValue('--outTriOpacity')) || 1;
+  const specifiedFill = cs6.getPropertyValue('--orange').trim() || '#ab5d1a';
 
   const kCurve  = Math.max(0, Math.min(1, parseFloat(cs6.getPropertyValue('--outTriCurveK')) || 0));
   const baseW = Math.abs(parseFloat(cs6.getPropertyValue('--outTriBaseW')) || 2.6);
@@ -2782,8 +2783,6 @@ function renderOutwardMarks(mission){
   const defs = stageSvg.querySelector('defs');
 
   for(let room=1; room<=6; room++){
-    if(specified.has(room)) continue;
-
     const midDeg = (room-1)*60 + 30;
     const aL = midDeg - spread/2;
     const aR = midDeg + spread/2;
@@ -2830,6 +2829,15 @@ function renderOutwardMarks(mission){
     triPath.setAttribute('d', dTriArea);
     cp.appendChild(triPath);
     defs.appendChild(cp);
+
+    if (specified.has(room)){
+      const specifiedTri = document.createElementNS('http://www.w3.org/2000/svg','path');
+      specifiedTri.setAttribute('d', dTriArea);
+      specifiedTri.setAttribute('fill', specifiedFill);
+      specifiedTri.setAttribute('fill-opacity', String(opacity));
+      stageOutG.appendChild(specifiedTri);
+      continue;
+    }
 
     if (isMission14){
       const imgSize = Math.ceil(2 * (rBase + len));
@@ -3279,9 +3287,8 @@ function renderRoomCards(mission = currentStage){
 
   if (mission==='1-4' && specifiedRooms.has(4)) {
     const centerOrange = cs13.getPropertyValue('--orange').trim() || '#ab5d1a';
-    appendRoomBackground(4, { fill: centerOrange });
-    appendCardAt(4, -12, 0, -6, { fill: '#0b1530', stroke: '#ffffff' });
-    appendCardAt(4,  12, 0,  6, { fill: '#ffffff', stroke: '#000000' });
+    appendCardAt(4, -6, 0, -6, { fill: '#0b1530', stroke: '#ffffff' });
+    appendCardAt(4,  6, 0,  6, { fill: centerOrange, stroke: '#000000' });
   }
 }
 
