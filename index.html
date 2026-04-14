@@ -1079,48 +1079,31 @@ function renderPlayerCircle(players){
   }
 
   const n = players.length;
-  const radius = 70;
   const step = (2 * Math.PI) / n;
   const anchorAngle = Math.PI / 2;
   const meIndex = players.findIndex(p => p.id === state.userId);
+  const circleRect = playerCircle.getBoundingClientRect();
+  const cx = circleRect.width / 2;
+  const cy = circleRect.height / 2;
+  const boardRadius = Math.min(circleRect.width, circleRect.height) * 0.35;
+  const labelRadius = boardRadius + 34;
+  const minEdge = 14;
 
   players.forEach((p, idx) => {
     const k = (meIndex === -1) ? idx : (idx - meIndex + n) % n;
     const angle = anchorAngle + step * k;
-
-    let x = 50 + radius * Math.cos(angle);
-    const y = 50 + radius * Math.sin(angle);
+    let x = cx + labelRadius * Math.cos(angle);
+    let y = cy + labelRadius * Math.sin(angle);
     const isMe = p.id === state.userId;
 
-    if (n === 4) {
-      if (k === 1) x += 22;
-      if (k === 3) x -= 22;
-    } else if (n === 3) {
-      if (k === 1) x = 2;
-      if (k === 2) x = 98;
-    }
-
-    x = Math.max(-8, Math.min(108, x));
-
-    let centerNudgePx = 0;
-    if (n === 3 || n === 4) {
-      if (x < 50) centerNudgePx = 3;
-      if (x > 50) centerNudgePx = -3;
-    }
+    x = Math.max(minEdge, Math.min(circleRect.width  - minEdge, x));
+    y = Math.max(minEdge, Math.min(circleRect.height - minEdge, y));
 
     const tag = document.createElement('div');
     tag.className = 'player-tag' + (isMe ? ' me' : '');
     tag.textContent = p.name;
-    tag.style.left = centerNudgePx === 0
-      ? `${x}%`
-      : `calc(${x}% ${centerNudgePx > 0 ? '+' : '-'} ${Math.abs(centerNudgePx)}px)`;
-    const isSidePlayer3 = n === 3 && (k === 1 || k === 2);
-    const isSidePlayer4 = n === 4 && (k === 1 || k === 3);
-    const isBottomSeat = k === 0;
-    const yForTag = (isSidePlayer3 || isSidePlayer4) ? 32.5 : y;
-    tag.style.top = isBottomSeat
-      ? `calc(${y}% + 20px)`
-      : `calc(${yForTag}% - 78px)`;
+    tag.style.left = `${Math.round(x)}px`;
+    tag.style.top = `${Math.round(y)}px`;
 
     tag.onclick = () => {
       if (p.id === state.userId) return;
