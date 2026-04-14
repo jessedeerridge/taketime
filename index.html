@@ -655,6 +655,9 @@
           <clipPath id="clipAnnulus45" clipPathUnits="userSpaceOnUse">
             <path id="clipAnnulus45Path" d=""/>
           </clipPath>
+          <clipPath id="clipAnnulus23" clipPathUnits="userSpaceOnUse">
+            <path id="clipAnnulus23Path" d=""/>
+          </clipPath>
 
           <line id="innerTinyLine" x1="0" y1="-20" x2="0" y2="-14"
                 stroke="var(--innerTinyColor)" stroke-width="var(--innerTinyW)"
@@ -669,6 +672,17 @@
           <use href="#eqTriPath" transform="rotate(210)" data-room="4"/>
           <use href="#eqTriPath" transform="rotate(270)" data-room="5"/>
           <use href="#eqTriPath" transform="rotate(330)" data-room="6"/>
+        </g>
+        <g id="outerStarBg" transform="translate(150,150)" style="display:none;">
+          <image id="outerStarImg" href="star.jpg" x="-90" y="-90" width="180" height="180"
+                 preserveAspectRatio="xMidYMid slice" clip-path="url(#clipOuterUnion)"/>
+        </g>
+        <g id="innerLightFill" transform="translate(150,150)" style="display:none;">
+          <circle id="innerLightCircle" r="60" fill="var(--light)"/>
+        </g>
+        <g id="ring30StarBg" transform="translate(150,150)" style="display:none;">
+          <image id="ring30StarImg" href="star.jpg" x="-57" y="-57" width="114" height="114"
+                 preserveAspectRatio="xMidYMid slice" clip-path="url(#clipAnnulus23)"/>
         </g>
 
         <g transform="translate(150,150)" clip-path="url(#clipInner1)">
@@ -2332,8 +2346,36 @@ function updateOrangeGraphics(){
 }
 updateOrangeGraphics();
 
+function updateAnnulus23Clip(){
+  const rOuter = Math.max(innerR2, innerR3);
+  const rInner = Math.min(innerR2, innerR3);
+  const d = [
+    `M ${rOuter} 0`,
+    `A ${rOuter} ${rOuter} 0 1 0 ${-rOuter} 0`,
+    `A ${rOuter} ${rOuter} 0 1 0 ${rOuter} 0`,
+    `M ${rInner} 0`,
+    `A ${rInner} ${rInner} 0 1 1 ${-rInner} 0`,
+    `A ${rInner} ${rInner} 0 1 1 ${rInner} 0 Z`
+  ].join(' ');
+  const cpPath = stageSvg.querySelector('#clipAnnulus23Path');
+  if (cpPath){
+    cpPath.setAttribute('d', d);
+    cpPath.setAttribute('fill-rule', 'evenodd');
+  }
+  const ring30Img = stageSvg.querySelector('#ring30StarImg');
+  if (ring30Img){
+    const size = Math.ceil(rOuter * 2);
+    ring30Img.setAttribute('x', String(-size / 2));
+    ring30Img.setAttribute('y', String(-size / 2));
+    ring30Img.setAttribute('width', String(size));
+    ring30Img.setAttribute('height', String(size));
+  }
+}
+updateAnnulus23Clip();
+
 stageSvg.querySelector('#clipCircle1').setAttribute('r', innerR);
 stageSvg.querySelector('#clipCircle3').setAttribute('r', innerR3);
+stageSvg.querySelector('#innerLightCircle')?.setAttribute('r', innerR);
 
 /* ================== 放射線（6等分 / 30等分） ================== */
 const seg6 = stageSvg.querySelector('#radialSeg6');
@@ -2464,6 +2506,7 @@ function renderStageMarks(mission){
   while(stageMarksG.firstChild) stageMarksG.removeChild(stageMarksG.firstChild);
 
   const specified = new Set(getSpecifiedRoomsForMission(mission));
+  const isMission14 = mission === '1-4';
   const cs4 = getComputedStyle(stageSvg);
   const rBase  = innerR;
   const len    = parseFloat(cs4.getPropertyValue('--markLen')) || 12;
@@ -2510,16 +2553,23 @@ function renderStageMarks(mission){
     cp.appendChild(pathFill);
     defs.appendChild(cp);
 
-    const imgSize = Math.ceil(2 * rBase);
-    const img = document.createElementNS('http://www.w3.org/2000/svg','image');
-    img.setAttributeNS('http://www.w3.org/1999/xlink','href','star.jpg');
-    img.setAttribute('x', -imgSize/2);
-    img.setAttribute('y', -imgSize/2);
-    img.setAttribute('width',  imgSize);
-    img.setAttribute('height', imgSize);
-    img.setAttribute('preserveAspectRatio','xMidYMid slice');
-    img.setAttribute('clip-path', `url(#${clipId})`);
-    stageMarksG.appendChild(img);
+    if (isMission14){
+      const triFill = document.createElementNS('http://www.w3.org/2000/svg','path');
+      triFill.setAttribute('d', dFill);
+      triFill.setAttribute('fill', cs4.getPropertyValue('--light').trim() || '#e6e3e3');
+      stageMarksG.appendChild(triFill);
+    } else {
+      const imgSize = Math.ceil(2 * rBase);
+      const img = document.createElementNS('http://www.w3.org/2000/svg','image');
+      img.setAttributeNS('http://www.w3.org/1999/xlink','href','star.jpg');
+      img.setAttribute('x', -imgSize/2);
+      img.setAttribute('y', -imgSize/2);
+      img.setAttribute('width',  imgSize);
+      img.setAttribute('height', imgSize);
+      img.setAttribute('preserveAspectRatio','xMidYMid slice');
+      img.setAttribute('clip-path', `url(#${clipId})`);
+      stageMarksG.appendChild(img);
+    }
 
     const rCenter = rBase - len * diaPos;
     const deltaDeg = (diaW / Math.max(1, rCenter)) * 180/Math.PI;
@@ -2711,6 +2761,7 @@ function renderOutwardMarks(mission){
   while(stageOutG.firstChild) stageOutG.removeChild(stageOutG.firstChild);
 
   const specified = new Set(getSpecifiedRoomsForMission(mission));
+  const isMission14 = mission === '1-4';
 
   const cs6 = getComputedStyle(stageSvg);
   const rBase    = innerR + (parseFloat(cs6.getPropertyValue('--outTriInset')) || 0);
@@ -2776,7 +2827,58 @@ function renderOutwardMarks(mission){
     cp.appendChild(triPath);
     defs.appendChild(cp);
 
+    if (isMission14){
+      const imgSize = Math.ceil(2 * (rBase + len));
+      const img = document.createElementNS('http://www.w3.org/2000/svg','image');
+      img.setAttributeNS('http://www.w3.org/1999/xlink','href','star.jpg');
+      img.setAttribute('x', -imgSize/2);
+      img.setAttribute('y', -imgSize/2);
+      img.setAttribute('width',  imgSize);
+      img.setAttribute('height', imgSize);
+      img.setAttribute('preserveAspectRatio', 'xMidYMid slice');
+      img.setAttribute('clip-path', `url(#${clipId})`);
+      stageOutG.appendChild(img);
+    }
+
     appendGoldX(stageOutG, clipId, midDeg, len, rBase, spread);
+
+    if (isMission14){
+      [leftRibbon, rightRibbon].forEach((el)=>{
+        el.setAttribute('fill', '#000');
+        el.setAttribute('stroke', '#fff');
+        el.setAttribute('stroke-width', '0.5');
+        el.setAttribute('stroke-linejoin', 'round');
+      });
+    }
+  }
+}
+
+function applyMissionSkin(mission){
+  const isMission14 = mission === '1-4';
+  const outerStarBg = stageSvg.querySelector('#outerStarBg');
+  const innerLightFill = stageSvg.querySelector('#innerLightFill');
+  const ring30StarBg = stageSvg.querySelector('#ring30StarBg');
+  const imgInner1 = stageSvg.querySelector('#imgInner1');
+  const imgInner3 = stageSvg.querySelector('#imgInner3');
+
+  if (outerStarBg) outerStarBg.style.display = isMission14 ? '' : 'none';
+  if (innerLightFill) innerLightFill.style.display = isMission14 ? '' : 'none';
+  if (ring30StarBg) ring30StarBg.style.display = isMission14 ? '' : 'none';
+  if (imgInner1) imgInner1.style.display = isMission14 ? 'none' : '';
+  if (imgInner3) imgInner3.style.display = isMission14 ? 'none' : '';
+
+  if (isMission14){
+    stageSvg.style.setProperty('--markStroke', '#000');
+    stageSvg.style.setProperty('--centerLineColor', '#000');
+    stageSvg.style.setProperty('--diamondFill', getComputedStyle(stageSvg).getPropertyValue('--light').trim() || '#e6e3e3');
+    stageSvg.style.setProperty('--markStrokeW', '0.5');
+    stageSvg.style.setProperty('--centerLineW', '0.5');
+  } else {
+    stageSvg.style.setProperty('--markStroke', '#facc15');
+    stageSvg.style.setProperty('--centerLineColor', '#d4af37');
+    stageSvg.style.setProperty('--diamondFill', '#facc15');
+    stageSvg.style.setProperty('--markStrokeW', '1.2');
+    stageSvg.style.setProperty('--centerLineW', '1.2');
   }
 }
 
@@ -2858,10 +2960,20 @@ function renderEqTriBackFill(mission){
   if(!triBack) return;
   const specified = new Set(getSpecifiedRoomsForMission(mission));
   const defaultFill = getComputedStyle(stageSvg).getPropertyValue('--triFill').trim() || '#ddd';
+  const isMission14 = mission === '1-4';
+
+  const outerCircle = triBack.querySelector('#outerCircle');
+  if (outerCircle){
+    outerCircle.setAttribute('fill', isMission14 ? 'transparent' : 'var(--circleFill)');
+  }
 
   for(let room=1; room<=6; room++){
     const use = triBack.querySelector(`use[data-room="${room}"]`);
     if(!use) continue;
+    if (isMission14){
+      use.setAttribute('fill', 'transparent');
+      continue;
+    }
     if(specified.has(room)){
       use.setAttribute('fill', '#e0ffff');
     }else{
@@ -3524,6 +3636,7 @@ function redrawAll(m){
   stageNameText.textContent = renderStage;
   stageNameTag.classList.toggle('hidden', !renderStage || !state.joined);
 
+  applyMissionSkin(renderStage);
   renderEqTriBackFill(renderStage);
   updateOrangeGraphics();
   renderInnerTinyDiv();
