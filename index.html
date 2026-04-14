@@ -1342,16 +1342,28 @@ function updateMyHandPosition(){
 
 function renderPlayerCircle(players){
   playerCircle.innerHTML = '';
-  if (!players.length){
+
+  const positionedPlayers = [...players];
+  const shouldShowPreSeatMeTag = state.joined && state.seatedTable === null && !positionedPlayers.some(p => p.id === state.userId);
+  if (shouldShowPreSeatMeTag){
+    positionedPlayers.unshift({
+      id: state.userId,
+      name: state.userName || 'あなた',
+      seatIndex: null,
+      isPreSeatPreview: true
+    });
+  }
+
+  if (!positionedPlayers.length){
     updateMyHandPosition();
     return;
   }
 
-  const n = players.length;
+  const n = positionedPlayers.length;
   const radius = 70;
   const step = (2 * Math.PI) / n;
   const anchorAngle = Math.PI / 2;
-  const meIndex = players.findIndex(p => p.id === state.userId);
+  const meIndex = positionedPlayers.findIndex(p => p.id === state.userId);
   const SIDE_SLOT_LEFT_X = 2;
   const SIDE_SLOT_RIGHT_X = 98;
   const SIDE_SLOT_Y = 50;
@@ -1367,9 +1379,10 @@ function renderPlayerCircle(players){
     }
   };
 
-  players.forEach((p, idx) => {
+  positionedPlayers.forEach((p, idx) => {
     const k = (meIndex === -1) ? idx : (idx - meIndex + n) % n;
-    const isMe = p.id === state.userId;
+    const isCurrentUser = p.id === state.userId;
+    const isSeatedMe = isCurrentUser && !p.isPreSeatPreview;
     const fixedLayout = FIXED_LAYOUTS[n];
     const fixedSlot = fixedLayout ? fixedLayout[k] : null;
     const angle = anchorAngle + step * k;
@@ -1393,10 +1406,10 @@ function renderPlayerCircle(players){
     if (isMeSlot) verticalOffsetPx += 50;
     if (isTopSlot) verticalOffsetPx += 40;
     if (isLeftOrRightSlot) verticalOffsetPx -= 40;
-    const meOnlyOffsetPx = isMe ? MY_TAG_ONLY_OFFSET_PX : 0;
+    const meOnlyOffsetPx = isCurrentUser ? MY_TAG_ONLY_OFFSET_PX : 0;
 
     const tag = document.createElement('div');
-    tag.className = 'player-tag' + (isMe ? ' me' : '');
+    tag.className = 'player-tag' + (isSeatedMe ? ' me' : '');
     tag.textContent = p.name;
     tag.style.left = centerNudgePx === 0
       ? `${x}%`
@@ -1404,7 +1417,7 @@ function renderPlayerCircle(players){
     tag.style.top = `calc(${y}% - 78px + ${verticalOffsetPx + meOnlyOffsetPx}px)`;
 
     tag.onclick = () => {
-      if (p.id === state.userId) return;
+      if (p.id === state.userId || p.isPreSeatPreview) return;
       if (!state.roomCode) return;
       if (state.seatedTable !== null) return;
 
