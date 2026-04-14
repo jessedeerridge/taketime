@@ -204,12 +204,12 @@
   .dialog-box p{margin:0 0 12px;font-size:14px;line-height:1.6;}
   .dialog-buttons{display:flex;justify-content:flex-end;gap:8px;}
   .card-choice-dialog .dialog-box{
-    max-width:420px;
+    max-width:260px;
   }
   .card-choice-row{
     display:flex;
     justify-content:center;
-    gap:16px;
+    gap:8px;
   }
   .choice-card{
     width:60px;
@@ -1174,10 +1174,7 @@ function startCardDrag(ev, cardData){
   const onUp = async (up) => {
     if (!activeDrag || up.pointerId !== activeDrag.pointerId) return;
     const dropRoom = findDropRoom(up.clientX, up.clientY);
-    if (dropRoom){
-      const choice = await openCardChoice(activeDrag.cardData);
-      placeDroppedCard(activeDrag.cardData, dropRoom, choice);
-    }
+    const droppedCardData = activeDrag.cardData;
     activeDrag.srcEl.classList.remove('dragging');
     activeDrag.srcEl.style.visibility = '';
     activeDrag.ghost.remove();
@@ -1185,6 +1182,10 @@ function startCardDrag(ev, cardData){
     window.removeEventListener('pointermove', onMove);
     window.removeEventListener('pointerup', onUp);
     window.removeEventListener('pointercancel', onUp);
+    if (dropRoom){
+      const choice = await openCardChoice(droppedCardData);
+      placeDroppedCard(droppedCardData, dropRoom, choice);
+    }
   };
   window.addEventListener('pointermove', onMove);
   window.addEventListener('pointerup', onUp);
