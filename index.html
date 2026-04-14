@@ -900,6 +900,7 @@ function enterLobbyUI(){
   joinBox.classList.add('hidden');
   lobby.classList.remove('hidden');
   lobby.classList.add('entered');
+  updateTableCenterOffset();
   redrawAll(currentStage);
 }
 
@@ -1191,6 +1192,7 @@ btnJoin.addEventListener('click', async () => {
 
     state.userName = finalName;
     state.roomCode = finalRoomCode;
+    state.seatedTable = null;
 
     const roomRef = ref(db, `rooms/${state.roomCode}`);
     const roomSnap = await get(roomRef);
