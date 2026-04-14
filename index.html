@@ -2774,7 +2774,10 @@ function renderOutwardMarks(mission){
 
   const color   = cs6.getPropertyValue('--outTriStroke').trim() || '#111';
   const opacity = parseFloat(cs6.getPropertyValue('--outTriOpacity')) || 1;
-  const specifiedFill = cs6.getPropertyValue('--orange').trim() || '#ab5d1a';
+  const mission14SpecifiedFill =
+    cs6.getPropertyValue('--cardFillRoom6').trim() ||
+    cs6.getPropertyValue('--orange').trim() ||
+    '#a0522d';
 
   const kCurve  = Math.max(0, Math.min(1, parseFloat(cs6.getPropertyValue('--outTriCurveK')) || 0));
   const baseW = Math.abs(parseFloat(cs6.getPropertyValue('--outTriBaseW')) || 2.6);
@@ -2819,7 +2822,7 @@ function renderOutwardMarks(mission){
       if (isMission14){
         const specifiedTri = document.createElementNS('http://www.w3.org/2000/svg','path');
         specifiedTri.setAttribute('d', dTriArea);
-        specifiedTri.setAttribute('fill', specifiedFill);
+        specifiedTri.setAttribute('fill', mission14SpecifiedFill);
         specifiedTri.setAttribute('fill-opacity', String(opacity));
         stageOutG.appendChild(specifiedTri);
       }
