@@ -638,6 +638,10 @@
             </g>
           </clipPath>
 
+          <pattern id="starPattern" patternUnits="userSpaceOnUse" x="-90" y="-90" width="180" height="180">
+            <image href="star.jpg" x="-90" y="-90" width="180" height="180" preserveAspectRatio="xMidYMid slice"/>
+          </pattern>
+
           <linearGradient id="goldXGrad" x1="0" y1="0" x2="1" y2="1">
             <stop offset="0%"  stop-color="#fff6b0"/>
             <stop offset="35%" stop-color="#ffd766"/>
@@ -671,9 +675,11 @@
         </g>
 
         <g transform="translate(150,150)" clip-path="url(#clipInner1)">
+          <circle id="inner1SoftWhite" r="60" fill="rgba(255,255,255,0.72)" visibility="hidden"/>
           <image id="imgInner1" href="star.jpg" x="-60" y="-60" width="120" height="120" preserveAspectRatio="xMidYMid slice"/>
         </g>
         <g transform="translate(150,150)" clip-path="url(#clipInner3)">
+          <circle id="inner3SoftWhite" r="35" fill="rgba(255,255,255,0.72)" visibility="hidden"/>
           <image id="imgInner3" href="sky.jpg" x="-35" y="-35" width="70" height="70" preserveAspectRatio="xMidYMid slice"/>
         </g>
 
@@ -2855,18 +2861,40 @@ function makeBowlPaths({dip=9, halfW=8, extra=4}={}) {
 function renderEqTriBackFill(mission){
   const triBack = stageSvg.querySelector('#triBack');
   if(!triBack) return;
+  const isMission14 = mission === '1-4';
   const specified = new Set(getSpecifiedRoomsForMission(mission));
   const defaultFill = getComputedStyle(stageSvg).getPropertyValue('--triFill').trim() || '#ddd';
+  const mission14Fill = 'rgba(255,255,255,0.72)';
 
   for(let room=1; room<=6; room++){
     const use = triBack.querySelector(`use[data-room="${room}"]`);
     if(!use) continue;
-    if(specified.has(room)){
+    if(isMission14){
+      use.setAttribute('fill', mission14Fill);
+    }else if(specified.has(room)){
       use.setAttribute('fill', '#e0ffff');
     }else{
       use.setAttribute('fill', defaultFill);
     }
   }
+}
+
+function applyMissionBackgroundSwap(mission){
+  const isMission14 = mission === '1-4';
+  const outerCircle = stageSvg.querySelector('#outerCircle');
+  if (outerCircle){
+    outerCircle.setAttribute('fill', isMission14 ? 'url(#starPattern)' : 'var(--circleFill)');
+  }
+
+  const imgInner1 = stageSvg.querySelector('#imgInner1');
+  const imgInner3 = stageSvg.querySelector('#imgInner3');
+  const inner1SoftWhite = stageSvg.querySelector('#inner1SoftWhite');
+  const inner3SoftWhite = stageSvg.querySelector('#inner3SoftWhite');
+
+  if (imgInner1) imgInner1.setAttribute('visibility', isMission14 ? 'hidden' : 'visible');
+  if (imgInner3) imgInner3.setAttribute('visibility', isMission14 ? 'hidden' : 'visible');
+  if (inner1SoftWhite) inner1SoftWhite.setAttribute('visibility', isMission14 ? 'visible' : 'hidden');
+  if (inner3SoftWhite) inner3SoftWhite.setAttribute('visibility', isMission14 ? 'visible' : 'hidden');
 }
 
 function renderSpecifiedBowls(mission){
@@ -3521,6 +3549,7 @@ function redrawAll(m){
   stageNameTag.classList.toggle('hidden', !renderStage || !state.joined);
 
   renderEqTriBackFill(renderStage);
+  applyMissionBackgroundSwap(renderStage);
   updateOrangeGraphics();
   renderInnerTinyDiv();
   renderCenterTopDiamond();
