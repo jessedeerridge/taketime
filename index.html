@@ -96,6 +96,34 @@
     pointer-events:none;
   }
   .host-selecting-pop.hidden{display:none;}
+  .phase-flow-pop{
+    position:fixed;
+    top:84px;
+    left:0;
+    transform:translateX(-130%);
+    background:rgba(17,17,17,.94);
+    color:#fff;
+    padding:10px 18px;
+    border-radius:999px;
+    font-size:20px;
+    font-weight:800;
+    letter-spacing:.08em;
+    box-shadow:0 12px 30px rgba(0,0,0,.3);
+    z-index:260;
+    pointer-events:none;
+    opacity:0;
+    white-space:nowrap;
+  }
+  .phase-flow-pop.run{
+    animation:phaseFlowSlide 2.2s ease-in-out forwards;
+  }
+  @keyframes phaseFlowSlide{
+    0%{transform:translateX(-130%);opacity:0;}
+    15%{opacity:1;}
+    50%{transform:translateX(calc(50vw - 50%));opacity:1;}
+    85%{opacity:1;}
+    100%{transform:translateX(calc(100vw + 140%));opacity:0;}
+  }
 
   .table-center{
     position:relative;
@@ -254,6 +282,12 @@
   }
   .host-settings-btn{right:16px;}
   .host-settings-btn.visible{display:flex;}
+  .host-stage-ready-btn{
+    position:fixed;bottom:16px;right:66px;width:44px;height:44px;border-radius:50%;
+    border:1px solid #111;background:#111;color:#fff;box-shadow:0 8px 20px rgba(0,0,0,.18);
+    display:none;align-items:center;justify-content:center;font-size:20px;font-weight:800;cursor:pointer;z-index:230;
+  }
+  .host-stage-ready-btn.visible{display:flex;}
 
   .start-pop,
   .stage-pop{
@@ -697,7 +731,9 @@
 </div>
 
 <button id="hostSettingsBtn" class="host-settings-btn" title="設定">⚙</button>
+<button id="hostStageReadyBtn" class="host-stage-ready-btn" title="配置フェーズ開始">S</button>
 <button id="helpBtn" class="help-btn" title="正体カード一覧">？</button>
+<div id="phaseFlowPop" class="phase-flow-pop" aria-live="polite"></div>
 
 <div id="helpBackdrop" class="help-pop-backdrop hidden">
   <div class="help-pop" role="dialog" aria-modal="true" aria-label="正体カード一覧">
@@ -801,6 +837,7 @@ const btnChoiceFace = document.getElementById('btnChoiceFace');
 const btnChoiceBack = document.getElementById('btnChoiceBack');
 
 const hostSettingsBtn = document.getElementById('hostSettingsBtn');
+const hostStageReadyBtn = document.getElementById('hostStageReadyBtn');
 const startPop = document.getElementById('startPop');
 const btnStartPopClose = document.getElementById('btnStartPopClose');
 const btnResetRoom = document.getElementById('btnResetRoom');
@@ -816,6 +853,7 @@ const helpBtn = document.getElementById('helpBtn');
 const helpBackdrop = document.getElementById('helpBackdrop');
 const btnHelpClose = document.getElementById('btnHelpClose');
 const helpBody = document.getElementById('helpBody');
+const phaseFlowPop = document.getElementById('phaseFlowPop');
 
 const ROLE_HELP = [
   { name: "カード1", text: "ああああ" },
@@ -840,6 +878,9 @@ const pendingPlacedCardIds = new Set();
 let activeDrag = null;
 let cardChoiceResolver = null;
 const MY_TAG_ONLY_OFFSET_PX = 20;
+let hostHandLockedByStage = false;
+let lastShownPhaseEventTs = 0;
+let revealPhaseAnnouncedForStage = '';
 
 function randomInt(max){
   return Math.floor(Math.random() * max);
@@ -961,8 +1002,38 @@ function updateHostUI(){
   } else {
     hostSettingsBtn.classList.remove('visible');
     startPop.classList.add('hidden');
+    hostHandLockedByStage = false;
   }
+  syncHostStageReadyButton();
   helpBtn.classList.add('visible');
+}
+
+function syncHostStageReadyButton(){
+  const shouldShow = state.isHost && state.joined && !!currentStage && hostHandLockedByStage;
+  hostStageReadyBtn.classList.toggle('visible', shouldShow);
+}
+
+function showPhaseFlow(text){
+  if (!phaseFlowPop) return;
+  phaseFlowPop.textContent = text;
+  phaseFlowPop.classList.remove('run');
+  void phaseFlowPop.offsetWidth;
+  phaseFlowPop.classList.add('run');
+}
+
+async function emitPhaseEvent(type){
+  if (!state.roomCode || !state.isHost) return;
+  const labels = {
+    discussion: '議論フェーズ',
+    placement: '配置フェーズ',
+    reveal: '公開フェーズ'
+  };
+  await set(ref(db, `rooms/${state.roomCode}/phaseEvent`), {
+    type,
+    label: labels[type] || '',
+    ts: Date.now(),
+    stage: currentStage || ''
+  });
 }
 
 function enterLobbyUI(){
@@ -993,6 +1064,7 @@ function subscribeHands(){
   const handsRef = ref(db, `rooms/${state.roomCode}/hands`);
   onValue(handsRef, snap => {
     state.hands = snap.val() || {};
+    maybeAnnounceRevealPhase();
     renderHands();
   });
 }
@@ -1002,7 +1074,19 @@ function subscribePlayedCards(){
   onValue(playedRef, snap => {
     state.playedCards = snap.val() || {};
     syncPlacedCardIdsFromPlayed();
+    maybeAnnounceRevealPhase();
     renderHands();
+  });
+}
+
+function subscribePhaseEvents(){
+  const phaseRef = ref(db, `rooms/${state.roomCode}/phaseEvent`);
+  onValue(phaseRef, snap => {
+    const evt = snap.val();
+    if (!evt || !evt.label || !evt.ts) return;
+    if (evt.ts <= lastShownPhaseEventTs) return;
+    lastShownPhaseEventTs = evt.ts;
+    showPhaseFlow(evt.label);
   });
 }
 
@@ -1013,15 +1097,32 @@ function subscribeStage(){
     const sharedStage = STAGE_CODES.includes(sharedStageRaw) ? sharedStageRaw : '';
 
     if (!sharedStage && state.isHost && currentStage){
+      hostHandLockedByStage = true;
+      syncHostStageReadyButton();
       await set(stageRef, currentStage);
       return;
     }
 
-    if (sharedStage === currentStage) return;
+    if (sharedStage === currentStage){
+      if (state.isHost){
+        hostHandLockedByStage = !!currentStage;
+        syncHostStageReadyButton();
+        renderHands();
+      }
+      return;
+    }
 
     currentStage = sharedStage;
     if (currentStage) localStorage.setItem(STAGE_KEY, currentStage);
     else localStorage.removeItem(STAGE_KEY);
+    if (state.isHost){
+      hostHandLockedByStage = !!currentStage;
+      syncHostStageReadyButton();
+      renderHands();
+    }
+    if (!currentStage){
+      revealPhaseAnnouncedForStage = '';
+    }
 
     renderStageOptions();
     window.dispatchEvent(new CustomEvent('mission:change', { detail:{ value: currentStage }}));
@@ -1055,6 +1156,7 @@ function subscribePlayers(){
 
     syncSeatUI();
     renderPlayerCircle(players);
+    maybeAnnounceRevealPhase();
   });
 }
 
@@ -1063,6 +1165,7 @@ function renderMyHand(){
   const myId = state.userId;
   const handData = state.hands[myId];
   if (!handData || !Array.isArray(handData.cards)) return;
+  const shouldLockHand = state.isHost && hostHandLockedByStage && !!currentStage;
 
   handData.cards.forEach((cardData, index) => {
     const cardId = `${myId}-${index}`;
@@ -1072,14 +1175,22 @@ function renderMyHand(){
     card.className = 'my-card';
     card.dataset.cardId = cardId;
 
-    const num = cardData.num;
-    const color = cardData.color;
-
-    card.textContent = num;
-    card.style.background = color === 'black' ? '#0b1530' : '#fff';
-    card.style.color = color === 'black' ? '#fff' : '#111';
-    card.style.border = color === 'black' ? '1px solid #0b1530' : '1px solid #ddd';
-    card.addEventListener('pointerdown', (ev) => startCardDrag(ev, { ...cardData, id: cardId }));
+    if (shouldLockHand){
+      card.textContent = '';
+      card.style.background = cardData.color === 'black'
+        ? 'repeating-linear-gradient(135deg,#0b1530 0px,#0b1530 4px,#1a274d 4px,#1a274d 8px)'
+        : 'repeating-linear-gradient(135deg,#ffffff 0px,#ffffff 4px,#e5e7eb 4px,#e5e7eb 8px)';
+      card.style.border = cardData.color === 'black' ? '1px solid #58606f' : '1px solid #cfcfcf';
+      card.style.cursor = 'not-allowed';
+    } else {
+      const num = cardData.num;
+      const color = cardData.color;
+      card.textContent = num;
+      card.style.background = color === 'black' ? '#0b1530' : '#fff';
+      card.style.color = color === 'black' ? '#fff' : '#111';
+      card.style.border = color === 'black' ? '1px solid #0b1530' : '1px solid #ddd';
+      card.addEventListener('pointerdown', (ev) => startCardDrag(ev, { ...cardData, id: cardId }));
+    }
 
     myHandEl.appendChild(card);
   });
@@ -1104,6 +1215,32 @@ function syncPlacedCardIdsFromPlayed(){
       placedCardIds.add(card.id);
     }
   });
+}
+
+function maybeAnnounceRevealPhase(){
+  if (!state.isHost || !state.roomCode || !currentStage) return;
+  const tables = state.tables || {};
+  const seatedPlayerIds = Object.values(tables)
+    .filter((seat) => seat?.playerId)
+    .map((seat) => seat.playerId);
+  if (!seatedPlayerIds.length) return;
+
+  const totalCards = seatedPlayerIds.reduce((sum, pid) => {
+    const cards = state.hands[pid]?.cards;
+    return sum + (Array.isArray(cards) ? cards.length : 0);
+  }, 0);
+  if (!totalCards) return;
+
+  const placedCount = Object.values(state.playedCards || {})
+    .filter((card) => card?.playerId && seatedPlayerIds.includes(card.playerId))
+    .length;
+
+  if (placedCount >= totalCards){
+    const key = `${state.roomCode}:${currentStage}`;
+    if (revealPhaseAnnouncedForStage === key) return;
+    revealPhaseAnnouncedForStage = key;
+    emitPhaseEvent('reveal');
+  }
 }
 
 function svgToClientPoint(x, y){
@@ -1187,6 +1324,7 @@ btnChoiceBack.addEventListener('click', () => closeCardChoice('back'));
 function startCardDrag(ev, cardData){
   ev.preventDefault();
   if (activeDrag) return;
+  if (state.isHost && hostHandLockedByStage && currentStage) return;
   const srcEl = ev.currentTarget;
   if (!(srcEl instanceof HTMLElement)) return;
 
@@ -1495,6 +1633,7 @@ btnJoin.addEventListener('click', async () => {
     subscribeHands();
     subscribePlayedCards();
     subscribeStage();
+    subscribePhaseEvents();
 
     syncSeatUI();
   } catch (err) {
@@ -1615,6 +1754,14 @@ hostSettingsBtn.addEventListener('click', () => {
   stagePop.classList.add('hidden');
 });
 
+hostStageReadyBtn.addEventListener('click', async () => {
+  if (!state.isHost || !hostHandLockedByStage) return;
+  hostHandLockedByStage = false;
+  syncHostStageReadyButton();
+  renderHands();
+  await emitPhaseEvent('placement');
+});
+
 btnStartPopClose.addEventListener('click', () => {
   startPop.classList.add('hidden');
 });
@@ -1658,6 +1805,11 @@ async function setStage(code){
   currentStage = STAGE_CODES.includes(code) ? code : '';
   if (currentStage) localStorage.setItem(STAGE_KEY, currentStage);
   else localStorage.removeItem(STAGE_KEY);
+  if (state.isHost){
+    hostHandLockedByStage = !!currentStage;
+    syncHostStageReadyButton();
+  }
+  revealPhaseAnnouncedForStage = '';
 
   if (state.isHost && state.roomCode){
     if (currentStage) await set(ref(db, `rooms/${state.roomCode}/stageCode`), currentStage);
@@ -1672,6 +1824,7 @@ async function setStage(code){
     placedCardIds.clear();
     pendingPlacedCardIds.clear();
     await dealInitialHands();
+    await emitPhaseEvent('discussion');
   }
   window.dispatchEvent(new CustomEvent('mission:change', { detail:{ value: currentStage }}));
 }
