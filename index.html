@@ -645,6 +645,9 @@
             <stop offset="70%" stop-color="#caa032"/>
             <stop offset="100%" stop-color="#fff1a2"/>
           </linearGradient>
+          <pattern id="starPattern" patternUnits="userSpaceOnUse" x="-90" y="-90" width="180" height="180">
+            <image href="star.jpg" x="-90" y="-90" width="180" height="180" preserveAspectRatio="xMidYMid slice"/>
+          </pattern>
 
           <symbol id="notchedBowl" viewBox="0 0 110 65" overflow="visible">
             <path id="bowlFill" fill="#fff" stroke="none"/>
@@ -2855,13 +2858,13 @@ function renderOutwardMarks(mission){
 
 function applyMissionSkin(mission){
   const isMission14 = mission === '1-4';
-  const outerStarBg = stageSvg.querySelector('#outerStarBg');
   const innerLightFill = stageSvg.querySelector('#innerLightFill');
   const ring30StarBg = stageSvg.querySelector('#ring30StarBg');
   const imgInner1 = stageSvg.querySelector('#imgInner1');
   const imgInner3 = stageSvg.querySelector('#imgInner3');
 
-  if (outerStarBg) outerStarBg.style.display = isMission14 ? '' : 'none';
+  const outerStarBg = stageSvg.querySelector('#outerStarBg');
+  if (outerStarBg) outerStarBg.style.display = 'none';
   if (innerLightFill) innerLightFill.style.display = isMission14 ? '' : 'none';
   if (ring30StarBg) ring30StarBg.style.display = isMission14 ? '' : 'none';
   if (imgInner1) imgInner1.style.display = isMission14 ? 'none' : '';
@@ -2964,14 +2967,14 @@ function renderEqTriBackFill(mission){
 
   const outerCircle = triBack.querySelector('#outerCircle');
   if (outerCircle){
-    outerCircle.setAttribute('fill', isMission14 ? 'transparent' : 'var(--circleFill)');
+    outerCircle.setAttribute('fill', isMission14 ? 'url(#starPattern)' : 'var(--circleFill)');
   }
 
   for(let room=1; room<=6; room++){
     const use = triBack.querySelector(`use[data-room="${room}"]`);
     if(!use) continue;
     if (isMission14){
-      use.setAttribute('fill', 'transparent');
+      use.setAttribute('fill', 'url(#starPattern)');
       continue;
     }
     if(specified.has(room)){
@@ -3608,9 +3611,9 @@ function renderRoomTexts(mission){
 
   if (!back || !marks || !outG || !r2 || !orangeFill || !tiny20 || !orangeStroke || !infinityG || !spec || !clockMarks || !centerLineG || !tipG || !roomGuideCircles || !roomTexts || !cardsG || !playedCardsG || !roomTotalsG) return;
 
+  if (back.previousSibling !== outG)     stageSvg.insertBefore(outG, back);
   if (back.nextSibling !== marks)        stageSvg.insertBefore(marks, back.nextSibling);
-  if (marks.nextSibling !== outG)        stageSvg.insertBefore(outG,  marks.nextSibling);
-  if (outG.nextSibling !== r2)           stageSvg.insertBefore(r2,    outG.nextSibling);
+  if (marks.nextSibling !== r2)          stageSvg.insertBefore(r2,    marks.nextSibling);
   if (r2.nextSibling !== tipG)           stageSvg.insertBefore(tipG,  r2.nextSibling);
   if (tipG.nextSibling !== centerLineG)  stageSvg.insertBefore(centerLineG, tipG.nextSibling);
   if (centerLineG.nextSibling !== orangeFill)   stageSvg.insertBefore(orangeFill,   centerLineG.nextSibling);
