@@ -719,8 +719,8 @@
     「リセット」で人数選択へ戻します。
   </div>
   <div class="start-pop-actions">
-    <button id="btnResetRoom" class="btn ghost">リセット</button>
     <button id="btnOpenStagePop" class="btn">ステージ選択</button>
+    <button id="btnResetRoom" class="btn ghost">リセット</button>
   </div>
 </div>
 
@@ -839,6 +839,7 @@ const placedCardIds = new Set();
 const pendingPlacedCardIds = new Set();
 let activeDrag = null;
 let cardChoiceResolver = null;
+const MY_TAG_ONLY_OFFSET_PX = 20;
 
 function randomInt(max){
   return Math.floor(Math.random() * max);
@@ -1002,6 +1003,28 @@ function subscribePlayedCards(){
     state.playedCards = snap.val() || {};
     syncPlacedCardIdsFromPlayed();
     renderHands();
+  });
+}
+
+function subscribeStage(){
+  const stageRef = ref(db, `rooms/${state.roomCode}/stageCode`);
+  onValue(stageRef, async snap => {
+    const sharedStageRaw = snap.val();
+    const sharedStage = STAGE_CODES.includes(sharedStageRaw) ? sharedStageRaw : '';
+
+    if (!sharedStage && state.isHost && currentStage){
+      await set(stageRef, currentStage);
+      return;
+    }
+
+    if (sharedStage === currentStage) return;
+
+    currentStage = sharedStage;
+    if (currentStage) localStorage.setItem(STAGE_KEY, currentStage);
+    else localStorage.removeItem(STAGE_KEY);
+
+    renderStageOptions();
+    window.dispatchEvent(new CustomEvent('mission:change', { detail:{ value: currentStage }}));
   });
 }
 
@@ -1311,7 +1334,9 @@ function updateMyHandPosition(){
 
   const tableRect = tableCenter.getBoundingClientRect();
   const meRect = meTag.getBoundingClientRect();
-  const requiredMarginTop = Math.max(46, (meRect.bottom - tableRect.bottom) + 46);
+  const meTagComp = getComputedStyle(meTag);
+  const meOnlyOffset = parseFloat(meTagComp.getPropertyValue('--me-tag-only-offset')) || 0;
+  const requiredMarginTop = Math.max(46, (meRect.bottom - tableRect.bottom) + 46 - meOnlyOffset);
   const offsetY = Math.max(0, requiredMarginTop - 46);
   myHandEl.style.setProperty('--hand-offset-y', `${Math.round(offsetY)}px`);
 }
@@ -1369,6 +1394,7 @@ function renderPlayerCircle(players){
     if (isMeSlot) verticalOffsetPx += 50;
     if (isTopSlot) verticalOffsetPx += 40;
     if (isLeftOrRightSlot) verticalOffsetPx -= 40;
+    const meOnlyOffsetPx = isMe ? MY_TAG_ONLY_OFFSET_PX : 0;
 
     const tag = document.createElement('div');
     tag.className = 'player-tag' + (isMe ? ' me' : '');
@@ -1376,7 +1402,8 @@ function renderPlayerCircle(players){
     tag.style.left = centerNudgePx === 0
       ? `${x}%`
       : `calc(${x}% ${centerNudgePx > 0 ? '+' : '-'} ${Math.abs(centerNudgePx)}px)`;
-    tag.style.top = `calc(${y}% - 78px + ${verticalOffsetPx}px)`;
+    tag.style.top = `calc(${y}% - 78px + ${verticalOffsetPx + meOnlyOffsetPx}px)`;
+    if (isMe) tag.style.setProperty('--me-tag-only-offset', `${meOnlyOffsetPx}px`);
 
     tag.onclick = () => {
       if (p.id === state.userId) return;
@@ -1469,6 +1496,7 @@ btnJoin.addEventListener('click', async () => {
     subscribePlayers();
     subscribeHands();
     subscribePlayedCards();
+    subscribeStage();
 
     syncSeatUI();
   } catch (err) {
@@ -1632,6 +1660,12 @@ async function setStage(code){
   currentStage = STAGE_CODES.includes(code) ? code : '';
   if (currentStage) localStorage.setItem(STAGE_KEY, currentStage);
   else localStorage.removeItem(STAGE_KEY);
+
+  if (state.isHost && state.roomCode){
+    if (currentStage) await set(ref(db, `rooms/${state.roomCode}/stageCode`), currentStage);
+    else await remove(ref(db, `rooms/${state.roomCode}/stageCode`));
+  }
+
   if (state.isHost && state.roomCode && currentStage){
     await Promise.all([
       remove(ref(db, `rooms/${state.roomCode}/playedCards`)),
