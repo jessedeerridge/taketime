@@ -1095,6 +1095,7 @@ function renderPlayerCircle(players){
   const radius = 70;
   const step = (2 * Math.PI) / n;
   const anchorAngle = Math.PI / 2;
+  const meIndex = players.findIndex(p => p.id === state.userId);
   const SIDE_SLOT_LEFT_X = 2;
   const SIDE_SLOT_RIGHT_X = 98;
   const SIDE_SLOT_Y = 50;
@@ -1111,7 +1112,7 @@ function renderPlayerCircle(players){
   };
 
   players.forEach((p, idx) => {
-    const k = idx;
+    const k = (meIndex === -1) ? idx : (idx - meIndex + n) % n;
     const isMe = p.id === state.userId;
     const fixedLayout = FIXED_LAYOUTS[n];
     const fixedSlot = fixedLayout ? fixedLayout[k] : null;
