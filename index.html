@@ -1434,14 +1434,15 @@ async function maybeRunRevealFlipSequence(){
   try{
     for (let room = 1; room <= 6; room++){
       const roomCards = entries.filter((card) => Number(card.room) === room);
+      if (!roomCards.length) continue;
       for (const card of roomCards){
         if (card.face !== 'back') continue;
         await update(ref(db, `rooms/${state.roomCode}/playedCards/${card.key}`), {
           face: 'face',
           revealedAt: Date.now()
         });
-        await sleep(260);
       }
+      await sleep(2000);
     }
   } finally {
     revealFlipProcessingKey = '';
@@ -3058,6 +3059,7 @@ function renderRoomTotals(){
   const g = stageSvg.querySelector('#roomTotals');
   if (!g) return;
   while (g.firstChild) g.removeChild(g.firstChild);
+  if (state.currentPhase !== 'reveal') return;
 
   const { centerR, outerOffset, guideR } = getGuideMetrics();
   const roomCardsMap = getRoomCardsMap();
@@ -3077,6 +3079,18 @@ function renderRoomTotals(){
     const pOuter = polar(centerR + guideR * 0.5 + outerOffset, midDeg);
     const x = 150 + pOuter.x;
     const y = 150 + pOuter.y;
+
+    const table = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    table.setAttribute('x', String(x - 14));
+    table.setAttribute('y', String(y - 10));
+    table.setAttribute('width', '28');
+    table.setAttribute('height', '20');
+    table.setAttribute('rx', '8');
+    table.setAttribute('ry', '8');
+    table.setAttribute('fill', '#e5e7eb');
+    table.setAttribute('stroke', '#d1d5db');
+    table.setAttribute('stroke-width', '0.9');
+    g.appendChild(table);
 
     const shadow = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     shadow.textContent = String(sum);
