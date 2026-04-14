@@ -1136,7 +1136,16 @@ function renderPlayerCircle(players){
     tag.style.left = centerNudgePx === 0
       ? `${x}%`
       : `calc(${x}% ${centerNudgePx > 0 ? '+' : '-'} ${Math.abs(centerNudgePx)}px)`;
-    tag.style.top = `calc(${y}% - 78px)`;
+    let verticalOffsetPx = 0;
+    const isTopPlayer = !!fixedSlot && fixedSlot.y < 0;
+    if (isMe) {
+      verticalOffsetPx = 40;
+    } else if (isTopPlayer) {
+      verticalOffsetPx = 30;
+    } else if (isSidePlayer) {
+      verticalOffsetPx = -30;
+    }
+    tag.style.top = `calc(${y}% - 78px ${verticalOffsetPx >= 0 ? '+' : '-'} ${Math.abs(verticalOffsetPx)}px)`;
 
     tag.onclick = () => {
       if (p.id === state.userId) return;
