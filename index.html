@@ -1381,7 +1381,8 @@ function renderPlayerCircle(players){
 
   positionedPlayers.forEach((p, idx) => {
     const k = (meIndex === -1) ? idx : (idx - meIndex + n) % n;
-    const isMe = p.id === state.userId;
+    const isCurrentUser = p.id === state.userId;
+    const isSeatedMe = isCurrentUser && !p.isPreSeatPreview;
     const fixedLayout = FIXED_LAYOUTS[n];
     const fixedSlot = fixedLayout ? fixedLayout[k] : null;
     const angle = anchorAngle + step * k;
@@ -1405,10 +1406,10 @@ function renderPlayerCircle(players){
     if (isMeSlot) verticalOffsetPx += 50;
     if (isTopSlot) verticalOffsetPx += 40;
     if (isLeftOrRightSlot) verticalOffsetPx -= 40;
-    const meOnlyOffsetPx = isMe ? MY_TAG_ONLY_OFFSET_PX : 0;
+    const meOnlyOffsetPx = isCurrentUser ? MY_TAG_ONLY_OFFSET_PX : 0;
 
     const tag = document.createElement('div');
-    tag.className = 'player-tag' + (isMe ? ' me' : '');
+    tag.className = 'player-tag' + (isSeatedMe ? ' me' : '');
     tag.textContent = p.name;
     tag.style.left = centerNudgePx === 0
       ? `${x}%`
