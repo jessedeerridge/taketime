@@ -2796,21 +2796,6 @@ function renderOutwardMarks(mission){
     const cR = (()=>{ const midDegR = (aR + midDeg)/2;
       const r = (rBase + (rBase+len))/2 + len * kCurve * 0.6; return polar(r, midDegR); })();
 
-    const dLeftRibbon  = taperedQuadRibbonPath(pL, cL, tip, baseW, tipW, 12);
-    const dRightRibbon = taperedQuadRibbonPath(pR, cR, tip, baseW, tipW, 12);
-
-    const leftRibbon = document.createElementNS('http://www.w3.org/2000/svg','path');
-    leftRibbon.setAttribute('d', dLeftRibbon);
-    leftRibbon.setAttribute('fill', color);
-    leftRibbon.setAttribute('fill-opacity', opacity);
-    stageOutG.appendChild(leftRibbon);
-
-    const rightRibbon = document.createElementNS('http://www.w3.org/2000/svg','path');
-    rightRibbon.setAttribute('d', dRightRibbon);
-    rightRibbon.setAttribute('fill', color);
-    rightRibbon.setAttribute('fill-opacity', opacity);
-    stageOutG.appendChild(rightRibbon);
-
     const dTriArea = [
       `M ${pL.x},${pL.y}`,
       `Q ${cL.x},${cL.y} ${tip.x},${tip.y}`,
@@ -2838,6 +2823,21 @@ function renderOutwardMarks(mission){
       stageOutG.appendChild(specifiedTri);
       continue;
     }
+
+    const dLeftRibbon  = taperedQuadRibbonPath(pL, cL, tip, baseW, tipW, 12);
+    const dRightRibbon = taperedQuadRibbonPath(pR, cR, tip, baseW, tipW, 12);
+
+    const leftRibbon = document.createElementNS('http://www.w3.org/2000/svg','path');
+    leftRibbon.setAttribute('d', dLeftRibbon);
+    leftRibbon.setAttribute('fill', color);
+    leftRibbon.setAttribute('fill-opacity', opacity);
+    stageOutG.appendChild(leftRibbon);
+
+    const rightRibbon = document.createElementNS('http://www.w3.org/2000/svg','path');
+    rightRibbon.setAttribute('d', dRightRibbon);
+    rightRibbon.setAttribute('fill', color);
+    rightRibbon.setAttribute('fill-opacity', opacity);
+    stageOutG.appendChild(rightRibbon);
 
     if (isMission14){
       const imgSize = Math.ceil(2 * (rBase + len));
@@ -2873,7 +2873,12 @@ function applyMissionSkin(mission){
   const imgInner3 = stageSvg.querySelector('#imgInner3');
 
   const outerStarBg = stageSvg.querySelector('#outerStarBg');
+  const bowlFill = stageSvg.querySelector('#bowlFill');
   if (outerStarBg) outerStarBg.style.display = 'none';
+  if (bowlFill){
+    const missionBrown = getComputedStyle(stageSvg).getPropertyValue('--orange').trim() || '#ab5d1a';
+    bowlFill.setAttribute('fill', isMission14 ? missionBrown : '#e0ffff');
+  }
   if (innerLightFill) innerLightFill.style.display = isMission14 ? '' : 'none';
   if (ring30StarBg) ring30StarBg.style.display = isMission14 ? '' : 'none';
   if (imgInner1) imgInner1.style.display = isMission14 ? 'none' : '';
