@@ -1435,6 +1435,7 @@ function startCardDrag(ev, cardData){
   if (state.isHost && hostHandLockedByStage && currentStage) return;
   const srcEl = ev.currentTarget;
   if (!(srcEl instanceof HTMLElement)) return;
+  const srcRect = srcEl.getBoundingClientRect();
 
   srcEl.setPointerCapture(ev.pointerId);
   srcEl.classList.add('dragging');
@@ -1442,14 +1443,19 @@ function startCardDrag(ev, cardData){
 
   const ghost = srcEl.cloneNode(true);
   ghost.classList.remove('dragging');
+  ghost.classList.remove('turn-pulse');
   ghost.style.visibility = 'visible';
   ghost.style.position = 'fixed';
   ghost.style.left = '0';
   ghost.style.top = '0';
   ghost.style.margin = '0';
+  ghost.style.width = `${srcRect.width}px`;
+  ghost.style.height = `${srcRect.height}px`;
   ghost.style.zIndex = '500';
   ghost.style.pointerEvents = 'none';
   ghost.style.opacity = '0.9';
+  ghost.style.animation = 'none';
+  ghost.style.transition = 'none';
   document.body.appendChild(ghost);
 
   activeDrag = { pointerId: ev.pointerId, srcEl, ghost, cardData };
@@ -1457,8 +1463,10 @@ function startCardDrag(ev, cardData){
   dragHoverRoom = findDropRoom(ev.clientX, ev.clientY);
   renderRoomGuideCircles();
 
+  const ghostHalfW = srcRect.width / 2;
+  const ghostHalfH = srcRect.height / 2;
   const move = (x, y) => {
-    ghost.style.transform = `translate(${x - ghost.offsetWidth / 2}px, ${y - ghost.offsetHeight / 2}px)`;
+    ghost.style.transform = `translate(${x - ghostHalfW}px, ${y - ghostHalfH}px)`;
   };
   move(ev.clientX, ev.clientY);
 
