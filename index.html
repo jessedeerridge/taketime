@@ -1398,10 +1398,15 @@ function renderPlayerCircle(players){
     const tag = document.createElement('div');
     tag.className = 'player-tag' + (isMe ? ' me' : '');
     tag.textContent = p.name;
-    tag.style.left = centerNudgePx === 0
+    const computedLeft = centerNudgePx === 0
       ? `${x}%`
       : `calc(${x}% ${centerNudgePx > 0 ? '+' : '-'} ${Math.abs(centerNudgePx)}px)`;
-    tag.style.top = `calc(${y}% - 78px + ${verticalOffsetPx + meOnlyOffsetPx}px)`;
+    const computedTop = `calc(${y}% - 78px + ${verticalOffsetPx + meOnlyOffsetPx}px)`;
+
+    // 自分のタグは着席状態に関係なく常に同じ位置（下中央）に固定する。
+    // DB同期の一瞬で seat 状態が揺れても見た目が跳ねないようにする。
+    tag.style.left = isMe ? '50%' : computedLeft;
+    tag.style.top = isMe ? 'calc(120% - 8px)' : computedTop;
 
     tag.onclick = () => {
       if (p.id === state.userId) return;
