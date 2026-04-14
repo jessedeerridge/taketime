@@ -1350,7 +1350,9 @@ function renderMyHand(){
   const handData = state.hands[myId];
   if (!handData || !Array.isArray(handData.cards)) return;
   const shouldLockHand = state.isHost && hostHandLockedByStage && !!currentStage;
-  const shouldHideInDiscussion = !state.isHost && !!currentStage && state.currentPhase === 'discussion';
+  const shouldHideInDiscussion = !state.isHost && !!currentStage
+    && state.currentPhase !== 'placement'
+    && state.currentPhase !== 'reveal';
   const canDragNow = canCurrentUserDragCard() && !shouldLockHand && !shouldHideInDiscussion;
   const shouldPulse = canDragNow && !activeDrag;
 
@@ -1420,17 +1422,17 @@ function maybeAnnounceRevealPhase(){
     .map((seat) => seat.playerId);
   if (!seatedPlayerIds.length) return;
 
-  const totalCards = seatedPlayerIds.reduce((sum, pid) => {
+  const remainingCards = seatedPlayerIds.reduce((sum, pid) => {
     const cards = state.hands[pid]?.cards;
     return sum + (Array.isArray(cards) ? cards.length : 0);
   }, 0);
-  if (!totalCards) return;
-
   const placedCount = Object.values(state.playedCards || {})
     .filter((card) => card?.playerId && seatedPlayerIds.includes(card.playerId))
     .length;
+  const totalExpectedCards = remainingCards + placedCount;
+  if (!totalExpectedCards) return;
 
-  if (placedCount >= totalCards){
+  if (placedCount >= totalExpectedCards){
     const key = `${state.roomCode}:${currentStage}`;
     if (revealPhaseAnnouncedForStage === key) return;
     revealPhaseAnnouncedForStage = key;
@@ -3209,6 +3211,19 @@ function buildFlyingCard(cardData, width, height){
   return card;
 }
 
+function getPlayedCardPixelSize(){
+  const cs13 = getComputedStyle(stageSvg);
+  const cardW = parseFloat(cs13.getPropertyValue('--cardW')) || 26;
+  const cardH = parseFloat(cs13.getPropertyValue('--cardH')) || 36;
+  const ctm = stageSvg.getScreenCTM();
+  const scaleX = ctm ? Math.hypot(ctm.a, ctm.b) : 1;
+  const scaleY = ctm ? Math.hypot(ctm.c, ctm.d) : 1;
+  return {
+    w: Math.max(16, cardW * scaleX),
+    h: Math.max(22, cardH * scaleY)
+  };
+}
+
 function getRemoteCardSourceCenter(playerId){
   const tag = playerCircle.querySelector(`.player-tag[data-player-id="${playerId}"]`);
   if (!tag) return null;
@@ -3222,23 +3237,20 @@ function getRemoteCardSourceCenter(playerId){
     });
     return {
       x: miniRect.left + miniRect.width / 2,
-      y: miniRect.top + miniRect.height / 2,
-      w: miniRect.width,
-      h: miniRect.height
+      y: miniRect.top + miniRect.height / 2
     };
   }
   const tagRect = tag.getBoundingClientRect();
   return {
     x: tagRect.left + tagRect.width / 2,
-    y: tagRect.bottom + 18,
-    w: 24,
-    h: 33
+    y: tagRect.bottom + 18
   };
 }
 
 function animateRemotePlayedCards(entries){
   const playedList = getPlayedEntriesSorted();
   const layoutMap = getPlayedCardLayouts(playedList);
+  const targetCardSize = getPlayedCardPixelSize();
   entries.forEach((entry) => {
     const source = getRemoteCardSourceCenter(entry.playerId);
     const target = layoutMap.get(entry.key);
@@ -3248,9 +3260,9 @@ function animateRemotePlayedCards(entries){
       return;
     }
     const targetClient = svgToClientPoint(target.x, target.y);
-    const flyer = buildFlyingCard(entry, source.w, source.h);
-    flyer.style.left = `${source.x - source.w / 2}px`;
-    flyer.style.top = `${source.y - source.h / 2}px`;
+    const flyer = buildFlyingCard(entry, targetCardSize.w, targetCardSize.h);
+    flyer.style.left = `${source.x - targetCardSize.w / 2}px`;
+    flyer.style.top = `${source.y - targetCardSize.h / 2}px`;
     flyer.style.transform = 'translate(0,0) rotate(0deg)';
     document.body.appendChild(flyer);
 
