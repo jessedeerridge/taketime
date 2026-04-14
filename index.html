@@ -1095,7 +1095,6 @@ function renderPlayerCircle(players){
   const radius = 70;
   const step = (2 * Math.PI) / n;
   const anchorAngle = Math.PI / 2;
-  const meIndex = players.findIndex(p => p.id === state.userId);
   const SIDE_SLOT_LEFT_X = 2;
   const SIDE_SLOT_RIGHT_X = 98;
   const SIDE_SLOT_Y = 50;
@@ -1112,10 +1111,10 @@ function renderPlayerCircle(players){
   };
 
   players.forEach((p, idx) => {
-    const k = (meIndex === -1) ? idx : (idx - meIndex + n) % n;
+    const k = idx;
     const isMe = p.id === state.userId;
     const fixedLayout = FIXED_LAYOUTS[n];
-    const fixedSlot = !isMe && fixedLayout ? fixedLayout[k] : null;
+    const fixedSlot = fixedLayout ? fixedLayout[k] : null;
     const angle = anchorAngle + step * k;
 
     let x = fixedSlot ? fixedSlot.x : 50 + radius * Math.cos(angle);
@@ -1136,9 +1135,7 @@ function renderPlayerCircle(players){
     tag.style.left = centerNudgePx === 0
       ? `${x}%`
       : `calc(${x}% ${centerNudgePx > 0 ? '+' : '-'} ${Math.abs(centerNudgePx)}px)`;
-    tag.style.top = isMe
-      ? `calc(${y}% + 20px)`
-      : `calc(${y}% - 78px)`;
+    tag.style.top = `calc(${y}% - 78px)`;
 
     tag.onclick = () => {
       if (p.id === state.userId) return;
