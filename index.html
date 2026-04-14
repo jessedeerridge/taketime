@@ -645,6 +645,9 @@
             <stop offset="70%" stop-color="#caa032"/>
             <stop offset="100%" stop-color="#fff1a2"/>
           </linearGradient>
+          <pattern id="starPattern" patternUnits="userSpaceOnUse" x="0" y="0" width="300" height="300">
+            <image href="star.jpg" x="0" y="0" width="300" height="300" preserveAspectRatio="xMidYMid slice"/>
+          </pattern>
 
           <symbol id="notchedBowl" viewBox="0 0 110 65" overflow="visible">
             <path id="bowlFill" fill="#fff" stroke="none"/>
@@ -672,6 +675,7 @@
         </g>
 
         <g transform="translate(150,150)" clip-path="url(#clipInner1)">
+          <circle id="inner1Base" r="60" fill="var(--circleFill)"/>
           <image id="imgInner1" href="star.jpg" x="-60" y="-60" width="120" height="120" preserveAspectRatio="xMidYMid slice"/>
         </g>
         <g transform="translate(150,150)" clip-path="url(#clipInner3)">
@@ -2486,6 +2490,8 @@ function renderStageMarks(mission){
   const centerLineGap   = Math.max(0, parseFloat(cs4.getPropertyValue('--centerLineGap')) || 0);
 
   const defs = stageSvg.querySelector('defs');
+  const useWhiteFillForInnerTriangles = mission === '1-4';
+  const innerFillColor = cs4.getPropertyValue('--circleFill').trim() || '#e6e3e3';
 
   for(let room=1; room<=6; room++){
     if(specified.has(room)) continue;
@@ -2510,16 +2516,23 @@ function renderStageMarks(mission){
     cp.appendChild(pathFill);
     defs.appendChild(cp);
 
-    const imgSize = Math.ceil(2 * rBase);
-    const img = document.createElementNS('http://www.w3.org/2000/svg','image');
-    img.setAttributeNS('http://www.w3.org/1999/xlink','href','star.jpg');
-    img.setAttribute('x', -imgSize/2);
-    img.setAttribute('y', -imgSize/2);
-    img.setAttribute('width',  imgSize);
-    img.setAttribute('height', imgSize);
-    img.setAttribute('preserveAspectRatio','xMidYMid slice');
-    img.setAttribute('clip-path', `url(#${clipId})`);
-    stageMarksG.appendChild(img);
+    if(useWhiteFillForInnerTriangles){
+      const triFill = document.createElementNS('http://www.w3.org/2000/svg','path');
+      triFill.setAttribute('d', dFill);
+      triFill.setAttribute('fill', innerFillColor);
+      stageMarksG.appendChild(triFill);
+    }else{
+      const imgSize = Math.ceil(2 * rBase);
+      const img = document.createElementNS('http://www.w3.org/2000/svg','image');
+      img.setAttributeNS('http://www.w3.org/1999/xlink','href','star.jpg');
+      img.setAttribute('x', -imgSize/2);
+      img.setAttribute('y', -imgSize/2);
+      img.setAttribute('width',  imgSize);
+      img.setAttribute('height', imgSize);
+      img.setAttribute('preserveAspectRatio','xMidYMid slice');
+      img.setAttribute('clip-path', `url(#${clipId})`);
+      stageMarksG.appendChild(img);
+    }
 
     const rCenter = rBase - len * diaPos;
     const deltaDeg = (diaW / Math.max(1, rCenter)) * 180/Math.PI;
@@ -2718,6 +2731,8 @@ function renderOutwardMarks(mission){
   const spread   = Math.abs(parseFloat(cs6.getPropertyValue('--outTriSpreadDeg')) || 22);
 
   const color   = cs6.getPropertyValue('--outTriStroke').trim() || '#111';
+  const useStarBackground = mission === '1-4';
+  const outwardFill = useStarBackground ? 'url(#starPattern)' : color;
   const opacity = parseFloat(cs6.getPropertyValue('--outTriOpacity')) || 1;
 
   const kCurve  = Math.max(0, Math.min(1, parseFloat(cs6.getPropertyValue('--outTriCurveK')) || 0));
@@ -2747,13 +2762,13 @@ function renderOutwardMarks(mission){
 
     const leftRibbon = document.createElementNS('http://www.w3.org/2000/svg','path');
     leftRibbon.setAttribute('d', dLeftRibbon);
-    leftRibbon.setAttribute('fill', color);
+    leftRibbon.setAttribute('fill', outwardFill);
     leftRibbon.setAttribute('fill-opacity', opacity);
     stageOutG.appendChild(leftRibbon);
 
     const rightRibbon = document.createElementNS('http://www.w3.org/2000/svg','path');
     rightRibbon.setAttribute('d', dRightRibbon);
-    rightRibbon.setAttribute('fill', color);
+    rightRibbon.setAttribute('fill', outwardFill);
     rightRibbon.setAttribute('fill-opacity', opacity);
     stageOutG.appendChild(rightRibbon);
 
@@ -2858,15 +2873,29 @@ function renderEqTriBackFill(mission){
   if(!triBack) return;
   const specified = new Set(getSpecifiedRoomsForMission(mission));
   const defaultFill = getComputedStyle(stageSvg).getPropertyValue('--triFill').trim() || '#ddd';
+  const useStarBackground = mission === '1-4';
+  const outerCircle = triBack.querySelector('#outerCircle');
+  if(outerCircle){
+    outerCircle.setAttribute('fill', useStarBackground ? 'url(#starPattern)' : 'var(--circleFill)');
+  }
 
   for(let room=1; room<=6; room++){
     const use = triBack.querySelector(`use[data-room="${room}"]`);
     if(!use) continue;
-    if(specified.has(room)){
+    if(useStarBackground){
+      use.setAttribute('fill', 'url(#starPattern)');
+    }else if(specified.has(room)){
       use.setAttribute('fill', '#e0ffff');
     }else{
       use.setAttribute('fill', defaultFill);
     }
+  }
+}
+
+function applyMissionVisualOverrides(mission){
+  const imgInner1 = stageSvg.querySelector('#imgInner1');
+  if(imgInner1){
+    imgInner1.style.display = mission === '1-4' ? 'none' : '';
   }
 }
 
@@ -3525,6 +3554,7 @@ function redrawAll(m){
   stageNameTag.classList.toggle('hidden', !renderStage || !state.joined);
 
   renderEqTriBackFill(renderStage);
+  applyMissionVisualOverrides(renderStage);
   updateOrangeGraphics();
   renderInnerTinyDiv();
   renderCenterTopDiamond();
