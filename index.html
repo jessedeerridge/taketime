@@ -1095,7 +1095,6 @@ function renderPlayerCircle(players){
   const radius = 70;
   const step = (2 * Math.PI) / n;
   const anchorAngle = Math.PI / 2;
-  const meIndex = players.findIndex(p => p.id === state.userId);
   const SIDE_SLOT_LEFT_X = 2;
   const SIDE_SLOT_RIGHT_X = 98;
   const SIDE_SLOT_Y = 50;
@@ -1111,8 +1110,10 @@ function renderPlayerCircle(players){
     }
   };
 
+  const topSeatK = Math.round(n / 2) % n;
+
   players.forEach((p, idx) => {
-    const k = (meIndex === -1) ? idx : (idx - meIndex + n) % n;
+    const k = idx;
     const isMe = p.id === state.userId;
     const fixedLayout = FIXED_LAYOUTS[n];
     const fixedSlot = fixedLayout ? fixedLayout[k] : null;
@@ -1124,11 +1125,18 @@ function renderPlayerCircle(players){
     x = Math.max(-8, Math.min(108, x));
 
     let centerNudgePx = 0;
-    const isSidePlayer = !!fixedSlot && (k === 1 || k === n - 1);
-    if (isSidePlayer) {
+    const isFixedSidePlayer = !!fixedSlot && (k === 1 || k === n - 1);
+    if (isFixedSidePlayer) {
       if (x < 50) centerNudgePx = 3;
       if (x > 50) centerNudgePx = -3;
     }
+
+    const isTopPlayer = !isMe && k === topSeatK;
+    const isSidePlayer = !isMe && !isTopPlayer && (k === 1 || k === n - 1);
+    let roleOffsetY = 0;
+    if (isMe) roleOffsetY += 40;
+    if (isTopPlayer) roleOffsetY += 30;
+    if (isSidePlayer) roleOffsetY -= 30;
 
     const tag = document.createElement('div');
     tag.className = 'player-tag' + (isMe ? ' me' : '');
@@ -1136,7 +1144,7 @@ function renderPlayerCircle(players){
     tag.style.left = centerNudgePx === 0
       ? `${x}%`
       : `calc(${x}% ${centerNudgePx > 0 ? '+' : '-'} ${Math.abs(centerNudgePx)}px)`;
-    tag.style.top = `calc(${y}% - 78px)`;
+    tag.style.top = `calc(${y}% - 78px + ${roleOffsetY}px)`;
 
     tag.onclick = () => {
       if (p.id === state.userId) return;
