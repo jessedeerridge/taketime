@@ -915,9 +915,18 @@ let revealPhaseAnnouncedForStage = '';
 let lastSeenPhaseTicks = { discussion: 0, placement: 0, reveal: 0 };
 let revealFlipProcessingKey = '';
 let revealResultAnnouncedKey = '';
+let roomTotalsRefreshTimer = null;
 
 function sleep(ms){
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function scheduleRoomTotalsRefresh(delayMs){
+  if (roomTotalsRefreshTimer) clearTimeout(roomTotalsRefreshTimer);
+  roomTotalsRefreshTimer = setTimeout(() => {
+    roomTotalsRefreshTimer = null;
+    renderRoomTotals();
+  }, Math.max(20, Number(delayMs) || 20));
 }
 
 function deriveCurrentPhase(phaseState){
@@ -1236,6 +1245,10 @@ function subscribeStage(){
     }
     revealResultAnnouncedKey = '';
     revealFlipProcessingKey = '';
+    if (roomTotalsRefreshTimer){
+      clearTimeout(roomTotalsRefreshTimer);
+      roomTotalsRefreshTimer = null;
+    }
 
     renderStageOptions();
     window.dispatchEvent(new CustomEvent('mission:change', { detail:{ value: currentStage }}));
@@ -3063,6 +3076,7 @@ function renderRoomTotals(){
 
   const { centerR, outerOffset, guideR } = getGuideMetrics();
   const roomCardsMap = getRoomCardsMap();
+  const revealTick = Number(state.phaseState?.revealTick || 0);
   let canShowNextRoom = true;
   for (let room = 1; room <= 6; room++){
     if (!canShowNextRoom) break;
@@ -3070,6 +3084,17 @@ function renderRoomTotals(){
     if (!cards.length) continue;
     const roomFullyRevealed = cards.every((card) => card.face !== 'back');
     if (!roomFullyRevealed){
+      canShowNextRoom = false;
+      continue;
+    }
+    const latestRoomRevealTs = cards.reduce((latestTs, card) => {
+      const ts = Number(card.revealedAt || 0);
+      return ts > latestTs ? ts : latestTs;
+    }, 0);
+    const roomReadyBaseTs = Math.max(revealTick, latestRoomRevealTs);
+    const waitMs = roomReadyBaseTs + 2000 - Date.now();
+    if (waitMs > 0){
+      scheduleRoomTotalsRefresh(waitMs);
       canShowNextRoom = false;
       continue;
     }
@@ -3082,32 +3107,21 @@ function renderRoomTotals(){
 
     const table = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     table.setAttribute('x', String(x - 14));
-    table.setAttribute('y', String(y - 10));
+    table.setAttribute('y', String(y - 12));
     table.setAttribute('width', '28');
-    table.setAttribute('height', '20');
+    table.setAttribute('height', '24');
     table.setAttribute('rx', '8');
     table.setAttribute('ry', '8');
-    table.setAttribute('fill', '#e5e7eb');
-    table.setAttribute('stroke', '#d1d5db');
-    table.setAttribute('stroke-width', '0.9');
+    table.setAttribute('fill', 'rgba(31, 41, 55, 0.58)');
+    table.setAttribute('stroke', 'rgba(17, 24, 39, 0.78)');
+    table.setAttribute('stroke-width', '1');
     g.appendChild(table);
-
-    const shadow = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    shadow.textContent = String(sum);
-    shadow.setAttribute('x', String(x + 1.3));
-    shadow.setAttribute('y', String(y + 1.3));
-    shadow.setAttribute('fill', '#d1d5db');
-    shadow.setAttribute('font-size', '15');
-    shadow.setAttribute('font-weight', '800');
-    shadow.setAttribute('text-anchor', 'middle');
-    shadow.setAttribute('dominant-baseline', 'middle');
-    g.appendChild(shadow);
 
     const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     text.textContent = String(sum);
     text.setAttribute('x', String(x));
     text.setAttribute('y', String(y));
-    text.setAttribute('fill', '#111');
+    text.setAttribute('fill', '#fff');
     text.setAttribute('font-size', '15');
     text.setAttribute('font-weight', '800');
     text.setAttribute('text-anchor', 'middle');
