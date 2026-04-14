@@ -35,10 +35,29 @@
   }
   main.prejoin{ background-image:url('maemain.jpg'); }
   main.joined{ background-image:url('maingazo.jpg'); }
+  .stage-name-box{
+    position:absolute;
+    top:8px;
+    right:12px;
+    z-index:210;
+    border:1px solid #111;
+    border-collapse:separate;
+    border-spacing:0;
+    border-radius:12px;
+    overflow:hidden;
+    background:#fff;
+    font-size:18px;
+  }
+  .stage-name-box td{
+    border:0;
+    padding:5px 14px;
+    color:#111;
+    font-weight:700;
+  }
 
   .seat-pop{
     position:fixed;left:50%;bottom:10px;transform:translateX(-50%);
-    background:orange;border:1px solid #eee;border-radius:12px;
+    background:#fff;border:1px solid #111;border-radius:12px;
     box-shadow:0 12px 28px rgba(0,0,0,.12);
     padding:10px;z-index:220;display:flex;flex-direction:column;gap:10px;min-width:280px;
   }
@@ -50,6 +69,23 @@
   .tab.disabled{opacity:.45; pointer-events:none;}
   .tab.disabled::after{content:'✕';position:absolute;inset:0;display:grid;place-items:center;font-size:18px;font-weight:700;color:#b91c1c;pointer-events:none;}
   .tab.active{background:#111;color:#fff;border-color:#111;}
+  .seat-pop .tab{
+    background:#fff;
+    color:#111;
+    border-color:#111;
+  }
+  .seat-pop .tab.active{
+    background:#fff;
+    color:#111;
+    border-color:#111;
+    box-shadow:inset 0 0 0 1px #111;
+  }
+  .seat-pop .btn,
+  .seat-pop .btn.primary{
+    background:#fff;
+    color:#111;
+    border-color:#111;
+  }
 
   .host-selecting-pop{
     position:fixed;left:50%;bottom:10px;transform:translateX(-50%);
@@ -65,7 +101,7 @@
     position:relative;
     width:min(92vw, 360px);
     height:260px;
-    margin:0 auto 0;
+    margin:20px auto 0;
   }
   .player-circle{
     position:absolute;inset:0;
@@ -181,7 +217,7 @@
   .stage-pop-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:4px;flex-wrap:wrap;}
   .start-pop-actions{flex-direction:column;align-items:flex-end;}
   .start-pop-primary-actions{display:flex;gap:8px;}
-  .stage-option-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+  .stage-option-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;max-height:48vh;overflow:auto;}
   .stage-option-btn.active{background:#111;color:#fff;border-color:#111;}
 
   #roomInfoLobby, #lobby h2, #lobby p {display:none;}
@@ -393,6 +429,7 @@
   }
   #stageBoard .sharp{ stroke-linecap:butt; stroke-linejoin:miter; }
   #stageBoard #sectorHits .sector { fill: rgba(255,255,0,0); cursor: pointer; pointer-events: fill; }
+  #missionText{display:none;}
 </style>
 </head>
 <body>
@@ -406,6 +443,10 @@
 </header>
 
 <main id="main" class="prejoin">
+  <table id="stageNameTag" class="stage-name-box hidden" aria-label="現在のステージ">
+    <tr><td id="stageNameText">1-1</td></tr>
+  </table>
+
   <div class="join-box" id="joinBox">
     <input id="userName" placeholder="名前（未入力で自動）" maxlength="4" />
     <input id="roomCode" placeholder="ルームコード（未入力で自動生成）" maxlength="12" />
@@ -699,6 +740,8 @@ const stagePop = document.getElementById('stagePop');
 const btnStagePopClose = document.getElementById('btnStagePopClose');
 const stageOptionGrid = document.getElementById('stageOptionGrid');
 const btnOpenStagePop = document.getElementById('btnOpenStagePop');
+const stageNameTag = document.getElementById('stageNameTag');
+const stageNameText = document.getElementById('stageNameText');
 
 const helpBtn = document.getElementById('helpBtn');
 const helpBackdrop = document.getElementById('helpBackdrop');
@@ -712,9 +755,12 @@ const ROLE_HELP = [
   { name: "カード4", text: "うううう" },
 ];
 
-const STAGE_CODES = ['1-1', '1-2', '1-3', '2-3'];
+const STAGE_CODES = Array.from({ length: 10 }, (_, rowIndex) =>
+  Array.from({ length: 4 }, (_, colIndex) => `${rowIndex + 1}-${colIndex + 1}`)
+).flat();
 const STAGE_KEY = 'stageCode';
-let currentStage = localStorage.getItem(STAGE_KEY) || '1-1';
+let currentStage = localStorage.getItem(STAGE_KEY) || '';
+if (currentStage && !STAGE_CODES.includes(currentStage)) currentStage = '';
 
 let pendingSeatIndexToSteal = null;
 let pendingSeatPlayerIdToSteal = null;
@@ -852,6 +898,7 @@ function enterLobbyUI(){
   joinBox.classList.add('hidden');
   lobby.classList.remove('hidden');
   lobby.classList.add('entered');
+  redrawAll(currentStage);
 }
 
 function subscribeRoom(){
@@ -958,7 +1005,7 @@ function renderSeatTabs(){
   if (state.isHost && !maxPlayers){
     seatLabel.textContent = '人数を選択';
 
-    for(let i = 2; i <= 8; i++){
+    for(let i = 2; i <= 4; i++){
       const tab = document.createElement('div');
       tab.className = 'tab';
       tab.textContent = i;
@@ -983,7 +1030,7 @@ function renderSeatTabs(){
 
   seatLabel.textContent = '席を選択';
 
-  const effectiveMax = maxPlayers || 8;
+  const effectiveMax = Math.min(maxPlayers || 4, 4);
   const tables = state.tables || {};
 
   for(let i = 1; i <= effectiveMax; i++){
@@ -1045,22 +1092,20 @@ function renderPlayerCircle(players){
     const y = 50 + radius * Math.sin(angle);
     const isMe = p.id === state.userId;
 
-    if (!isMe) {
-      if (n === 4) {
-        if (k === 1) x -= 38;
-        if (k === 3) x += 38;
-      } else if (n === 3) {
-        if (k === 1) x -= 40;
-        if (k === 2) x += 40;
-      }
+    if (n === 4) {
+      if (k === 1) x += 22;
+      if (k === 3) x -= 22;
+    } else if (n === 3) {
+      if (k === 1) x = 2;
+      if (k === 2) x = 98;
     }
 
     x = Math.max(-8, Math.min(108, x));
 
     let centerNudgePx = 0;
-    if (!isMe && (n === 3 || n === 4)) {
-      if (x < 50) centerNudgePx = 5;
-      if (x > 50) centerNudgePx = -5;
+    if (n === 3 || n === 4) {
+      if (x < 50) centerNudgePx = 3;
+      if (x > 50) centerNudgePx = -3;
     }
 
     const tag = document.createElement('div');
@@ -1071,8 +1116,11 @@ function renderPlayerCircle(players){
       : `calc(${x}% ${centerNudgePx > 0 ? '+' : '-'} ${Math.abs(centerNudgePx)}px)`;
     const isSidePlayer3 = n === 3 && (k === 1 || k === 2);
     const isSidePlayer4 = n === 4 && (k === 1 || k === 3);
-    const yForTag = (!isMe && (isSidePlayer3 || isSidePlayer4)) ? 32.5 : y;
-    tag.style.top = isMe ? `calc(${y}% + 40px)` : `calc(${yForTag}% - 58px)`;
+    const isBottomSeat = k === 0;
+    const yForTag = (isSidePlayer3 || isSidePlayer4) ? 32.5 : y;
+    tag.style.top = isBottomSeat
+      ? `calc(${y}% + 20px)`
+      : `calc(${yForTag}% - 78px)`;
 
     tag.onclick = () => {
       if (p.id === state.userId) return;
@@ -1135,6 +1183,7 @@ btnJoin.addEventListener('click', async () => {
 
     state.userName = finalName;
     state.roomCode = finalRoomCode;
+    state.seatedTable = null;
 
     const roomRef = ref(db, `rooms/${state.roomCode}`);
     const roomSnap = await get(roomRef);
@@ -1325,32 +1374,21 @@ function renderStageOptions(){
   });
 }
 
-function positionStagePopBelowStart(){
-  const rect = startPop.getBoundingClientRect();
-  stagePop.style.left = `${Math.max(12, rect.left)}px`;
-  stagePop.style.top = `${Math.min(window.innerHeight - stagePop.offsetHeight - 12, rect.bottom + 8)}px`;
-  stagePop.style.right = 'auto';
-  stagePop.style.bottom = 'auto';
-}
-
 function setStage(code){
-  currentStage = STAGE_CODES.includes(code) ? code : '1-1';
-  localStorage.setItem(STAGE_KEY, currentStage);
+  currentStage = STAGE_CODES.includes(code) ? code : '';
+  if (currentStage) localStorage.setItem(STAGE_KEY, currentStage);
+  else localStorage.removeItem(STAGE_KEY);
   window.dispatchEvent(new CustomEvent('mission:change', { detail:{ value: currentStage }}));
 }
 
 btnOpenStagePop.addEventListener('click', () => {
   renderStageOptions();
-  stagePop.classList.toggle('hidden');
-  if (!stagePop.classList.contains('hidden')) positionStagePopBelowStart();
+  startPop.classList.add('hidden');
+  stagePop.classList.remove('hidden');
 });
 btnStagePopClose.addEventListener('click', () => {
   stagePop.classList.add('hidden');
-});
-window.addEventListener('resize', () => {
-  if (!stagePop.classList.contains('hidden') && !startPop.classList.contains('hidden')){
-    positionStagePopBelowStart();
-  }
+  if (state.isHost) startPop.classList.remove('hidden');
 });
 window.addEventListener('resize', updateMyHandPosition);
 
@@ -2140,7 +2178,7 @@ function renderCenterTopDiamond(){
   g.appendChild(path);
 }
 
-function renderRoomCards(){
+function renderRoomCards(mission = currentStage){
   const g = stageSvg.querySelector('#roomCards');
   if(!g) return;
   while(g.firstChild) g.removeChild(g.firstChild);
@@ -2182,8 +2220,6 @@ function renderRoomCards(){
   const localY = parseFloat(cs13.getPropertyValue('--cardLocalY')) || 0;
 
   const rBase = (outerR + innerR) / 2 + baseOffset;
-  const mission = currentStage;
-
   function getFillStrokeFor(room){
     if(room===6) return {fill: fillRoom6, stroke: strokeRoom6};
     if(room===4 && mission==='1-2') return {fill: fillRoom4, stroke: strokeRoom4};
@@ -2378,20 +2414,23 @@ function renderRoomTexts(mission){
 })();
 
 function redrawAll(m){
-  currentStage = m || currentStage || '1-1';
-  missionTextEl.textContent = currentStage;
-  renderEqTriBackFill(currentStage);
-  renderStageMarks(currentStage);
-  renderOutwardMarks(currentStage);
-  renderSpecifiedBowls(currentStage);
-  renderClockMarks(currentStage);
+  if (typeof m === 'string') currentStage = m;
+  const renderStage = STAGE_CODES.includes(currentStage) ? currentStage : '1-1';
+  missionTextEl.textContent = renderStage;
+  stageNameText.textContent = currentStage || '';
+  stageNameTag.classList.toggle('hidden', !currentStage || !state.joined);
+  renderEqTriBackFill(renderStage);
+  renderStageMarks(renderStage);
+  renderOutwardMarks(renderStage);
+  renderSpecifiedBowls(renderStage);
+  renderClockMarks(renderStage);
   updateOrangeGraphics();
   renderInnerTinyDiv();
-  renderInfinity(currentStage);
+  renderInfinity(renderStage);
   renderCenterTopDiamond();
   renderRoomGuideCircles();
-  renderRoomTexts(currentStage);
-  renderRoomCards();
+  renderRoomTexts(renderStage);
+  renderRoomCards(renderStage);
 }
 window.addEventListener('mission:change', (e)=>{
   redrawAll(e.detail?.value || currentStage);
