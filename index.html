@@ -2764,9 +2764,8 @@ function appendGoldX(parentG, triClipId, midDeg, len, rBase, spread){
 function renderOutwardMarks(mission){
   while(stageOutG.firstChild) stageOutG.removeChild(stageOutG.firstChild);
 
-  const specified = new Set(getSpecifiedRoomsForMission(mission));
   const isMission14 = mission === '1-4';
-  const stageOutwardFilledRooms = new Set(specified);
+  const stageOutwardFilledRooms = new Set();
   if (isMission14){
     const roomCardsMap = getRoomCardsMap();
     for (let room = 1; room <= 6; room++){
