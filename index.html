@@ -1082,9 +1082,10 @@ function renderPlayerCircle(players){
   const radius = 70;
   const step = (2 * Math.PI) / n;
   const anchorAngle = Math.PI / 2;
+  const meIndex = players.findIndex(p => p.id === state.userId);
 
   players.forEach((p, idx) => {
-    const k = idx;
+    const k = (meIndex === -1) ? idx : (idx - meIndex + n) % n;
     const angle = anchorAngle + step * k;
 
     let x = 50 + radius * Math.cos(angle);
