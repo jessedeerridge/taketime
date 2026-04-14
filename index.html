@@ -98,9 +98,9 @@
   .host-selecting-pop.hidden{display:none;}
   .phase-flow-pop{
     position:fixed;
-    top:84px;
+    top:50%;
     left:0;
-    transform:translateX(-130%);
+    transform:translate(-130%, -50%);
     background:rgba(17,17,17,.94);
     color:#fff;
     padding:10px 18px;
@@ -118,11 +118,11 @@
     animation:phaseFlowSlide 2.2s ease-in-out forwards;
   }
   @keyframes phaseFlowSlide{
-    0%{transform:translateX(-130%);opacity:0;}
+    0%{transform:translate(-130%, -50%);opacity:0;}
     15%{opacity:1;}
-    50%{transform:translateX(calc(50vw - 50%));opacity:1;}
+    50%{transform:translate(calc(50vw - 50%), -50%);opacity:1;}
     85%{opacity:1;}
-    100%{transform:translateX(calc(100vw + 140%));opacity:0;}
+    100%{transform:translate(calc(100vw + 140%), -50%);opacity:0;}
   }
 
   .table-center{
@@ -866,8 +866,7 @@ const STAGE_CODES = Array.from({ length: 10 }, (_, rowIndex) =>
   Array.from({ length: 4 }, (_, colIndex) => `${rowIndex + 1}-${colIndex + 1}`)
 ).flat();
 const STAGE_KEY = 'stageCode';
-let currentStage = localStorage.getItem(STAGE_KEY) || '';
-if (currentStage && !STAGE_CODES.includes(currentStage)) currentStage = '';
+let currentStage = '';
 
 let pendingSeatIndexToSteal = null;
 let pendingSeatPlayerIdToSteal = null;
@@ -881,6 +880,7 @@ const MY_TAG_ONLY_OFFSET_PX = 20;
 let hostHandLockedByStage = false;
 let lastShownPhaseEventTs = 0;
 let revealPhaseAnnouncedForStage = '';
+let lastSeenPhaseTicks = { discussion: 0, placement: 0, reveal: 0 };
 
 function randomInt(max){
   return Math.floor(Math.random() * max);
@@ -1028,11 +1028,16 @@ async function emitPhaseEvent(type){
     placement: '配置フェーズ',
     reveal: '公開フェーズ'
   };
+  const ts = Date.now();
   await set(ref(db, `rooms/${state.roomCode}/phaseEvent`), {
     type,
     label: labels[type] || '',
-    ts: Date.now(),
+    ts,
     stage: currentStage || ''
+  });
+  await update(ref(db, `rooms/${state.roomCode}/phaseState`), {
+    stage: currentStage || '',
+    [`${type}Tick`]: ts
   });
 }
 
@@ -1086,7 +1091,26 @@ function subscribePhaseEvents(){
     if (!evt || !evt.label || !evt.ts) return;
     if (evt.ts <= lastShownPhaseEventTs) return;
     lastShownPhaseEventTs = evt.ts;
+    if (evt.type && lastSeenPhaseTicks[evt.type] != null){
+      lastSeenPhaseTicks[evt.type] = Math.max(lastSeenPhaseTicks[evt.type], evt.ts);
+    }
     showPhaseFlow(evt.label);
+  });
+
+  const phaseStateRef = ref(db, `rooms/${state.roomCode}/phaseState`);
+  onValue(phaseStateRef, snap => {
+    const data = snap.val() || {};
+    const mapping = [
+      { key: 'discussionTick', phase: 'discussion', label: '議論フェーズ' },
+      { key: 'placementTick', phase: 'placement', label: '配置フェーズ' },
+      { key: 'revealTick', phase: 'reveal', label: '公開フェーズ' }
+    ];
+    mapping.forEach(({ key, phase, label }) => {
+      const tick = Number(data[key] || 0);
+      if (!tick || tick <= (lastSeenPhaseTicks[phase] || 0)) return;
+      lastSeenPhaseTicks[phase] = tick;
+      showPhaseFlow(label);
+    });
   });
 }
 
@@ -1095,13 +1119,6 @@ function subscribeStage(){
   onValue(stageRef, async snap => {
     const sharedStageRaw = snap.val();
     const sharedStage = STAGE_CODES.includes(sharedStageRaw) ? sharedStageRaw : '';
-
-    if (!sharedStage && state.isHost && currentStage){
-      hostHandLockedByStage = true;
-      syncHostStageReadyButton();
-      await set(stageRef, currentStage);
-      return;
-    }
 
     if (sharedStage === currentStage){
       if (state.isHost){
