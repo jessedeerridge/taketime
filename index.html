@@ -3000,6 +3000,7 @@ function renderSpecifiedBowls(mission){
   const VB_TOP = 5, VB_CX = 50;
 
   const fillColor   = cs9.getPropertyValue('--bowlFillColor').trim() || '#fff';
+  const mission14Fill = cs9.getPropertyValue('--orange').trim() || '#ab5d1a';
   const fillOpacity = Math.max(0, Math.min(1, parseFloat(cs9.getPropertyValue('--bowlFillOpacity')) || 1));
 
   const defs = stageSvg.querySelector('defs');
@@ -3039,7 +3040,8 @@ function renderSpecifiedBowls(mission){
 
     const sectorFill = document.createElementNS('http://www.w3.org/2000/svg','path');
     sectorFill.setAttribute('d', dSector);
-    sectorFill.setAttribute('fill', fillColor);
+    const perRoomFill = (mission === '1-4' && room === 4) ? mission14Fill : fillColor;
+    sectorFill.setAttribute('fill', perRoomFill);
     sectorFill.setAttribute('fill-opacity', String(fillOpacity));
     sectorFill.setAttribute('mask', `url(#${maskId})`);
     sectorFill.setAttribute('clip-path', 'url(#clipOuterUnion)');
@@ -3218,36 +3220,6 @@ function renderRoomCards(mission = currentStage){
     g.appendChild(cardG);
   }
 
-  function appendRoomBackground(room, {
-    fill = '#ab5d1a',
-    width = cardW * 2 + 16,
-    height = cardH + 16,
-    radius = cardR + 4
-  } = {}){
-    const midDeg = (room-1)*60 + 30;
-    const tr = [
-      'translate(150,150)',
-      `rotate(${midDeg})`,
-      `translate(${(roomTan[room]||0)}, 0)`,
-      `translate(0, ${-(rBase + (roomRad[room]||0))})`,
-      `rotate(${inwardBase + (roomAdjust[room]||0)})`,
-      `translate(${localX}, ${localY})`
-    ].join(' ');
-
-    const bgG = document.createElementNS('http://www.w3.org/2000/svg','g');
-    bgG.setAttribute('transform', tr);
-    const bg = document.createElementNS('http://www.w3.org/2000/svg','rect');
-    bg.setAttribute('x', (-width/2).toFixed(3));
-    bg.setAttribute('y', (-height/2).toFixed(3));
-    bg.setAttribute('width', width);
-    bg.setAttribute('height', height);
-    bg.setAttribute('rx', radius);
-    bg.setAttribute('ry', radius);
-    bg.setAttribute('fill', fill);
-    bgG.appendChild(bg);
-    g.appendChild(bgG);
-  }
-
   const specifiedRooms = new Set(getSpecifiedRoomsForMission(mission));
 
   if (mission==='1-1'){
@@ -3278,10 +3250,8 @@ function renderRoomCards(mission = currentStage){
   }
 
   if (mission==='1-4' && specifiedRooms.has(4)) {
-    const centerOrange = cs13.getPropertyValue('--orange').trim() || '#ab5d1a';
-    appendRoomBackground(4, { fill: centerOrange });
-    appendCardAt(4, -12, 0, -6, { fill: '#0b1530', stroke: '#ffffff' });
-    appendCardAt(4,  12, 0,  6, { fill: '#ffffff', stroke: '#000000' });
+    appendCardAt(4, -5, 0, -2, { fill: '#0b1530', stroke: '#ffffff' });
+    appendCardAt(4,  5, 0,  2, { fill: '#ffffff', stroke: '#000000' });
   }
 }
 
