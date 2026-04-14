@@ -218,6 +218,25 @@
     cursor:grab;
   }
   .my-card.dragging{opacity:.45;cursor:grabbing;}
+  .my-card.turn-pulse:not(.dragging){
+    animation:myCardTurnPulse 1.05s ease-in-out infinite;
+    transform-origin:center;
+    will-change:transform;
+  }
+  @keyframes myCardTurnPulse{
+    0%,100%{transform:scale(1);}
+    50%{transform:scale(1.08);}
+  }
+
+  .mini-hand.turn-pulse{
+    animation:miniHandTurnPulse 1.05s ease-in-out infinite;
+    transform-origin:50% 0%;
+    will-change:transform;
+  }
+  @keyframes miniHandTurnPulse{
+    0%,100%{transform:translate(-50%,3px) scale(1);}
+    50%{transform:translate(-50%,3px) scale(1.12);}
+  }
 
   .dialog-backdrop{
     position:fixed;inset:0;background:rgba(0,0,0,.35);
@@ -807,6 +826,8 @@ const state = {
   isHost: false,
   hands: {},
   playedCards: {},
+  phaseState: {},
+  currentPhase: '',
   room: {},
   tables: {},
   joined: false
@@ -887,6 +908,55 @@ let hostHandLockedByStage = false;
 let lastShownPhaseEventTs = 0;
 let revealPhaseAnnouncedForStage = '';
 let lastSeenPhaseTicks = { discussion: 0, placement: 0, reveal: 0 };
+
+function deriveCurrentPhase(phaseState){
+  const discussionTick = Number(phaseState?.discussionTick || 0);
+  const placementTick = Number(phaseState?.placementTick || 0);
+  const revealTick = Number(phaseState?.revealTick || 0);
+  const latest = Math.max(discussionTick, placementTick, revealTick);
+  if (!latest) return '';
+  if (latest === revealTick) return 'reveal';
+  if (latest === placementTick) return 'placement';
+  return 'discussion';
+}
+
+function getActiveTurnPlayerIds(){
+  if (state.currentPhase !== 'placement') return [];
+  const players = latestPlayers
+    .filter((p) => p?.id)
+    .map((p) => p.id);
+  if (!players.length) return [];
+
+  const playedList = Object.values(state.playedCards || {})
+    .filter((card) => card?.playerId && players.includes(card.playerId))
+    .sort((a, b) => Number(a.placedAt || 0) - Number(b.placedAt || 0));
+
+  if (!playedList.length) return players;
+
+  const firstPlayerId = playedList[0].playerId;
+  const firstIndex = players.indexOf(firstPlayerId);
+  if (firstIndex === -1) return [players[0]];
+  const turnIndex = (firstIndex + playedList.length) % players.length;
+  return [players[turnIndex]];
+}
+
+function isMyTurnInPlacement(){
+  const activePlayers = getActiveTurnPlayerIds();
+  return activePlayers.includes(state.userId);
+}
+
+function canCurrentUserDragCard(){
+  if (!currentStage) return false;
+  if (state.currentPhase !== 'placement') return false;
+  return isMyTurnInPlacement();
+}
+
+function syncMyHandPulseDom(){
+  const shouldPulse = canCurrentUserDragCard() && !activeDrag;
+  myHandEl.querySelectorAll('.my-card').forEach((cardEl) => {
+    cardEl.classList.toggle('turn-pulse', shouldPulse);
+  });
+}
 
 function randomInt(max){
   return Math.floor(Math.random() * max);
@@ -1106,6 +1176,8 @@ function subscribePhaseEvents(){
   const phaseStateRef = ref(db, `rooms/${state.roomCode}/phaseState`);
   onValue(phaseStateRef, snap => {
     const data = snap.val() || {};
+    state.phaseState = data;
+    state.currentPhase = deriveCurrentPhase(data);
     const mapping = [
       { key: 'discussionTick', phase: 'discussion', label: '議論フェーズ' },
       { key: 'placementTick', phase: 'placement', label: '配置フェーズ' },
@@ -1117,6 +1189,7 @@ function subscribePhaseEvents(){
       lastSeenPhaseTicks[phase] = tick;
       showPhaseFlow(label);
     });
+    renderHands();
   });
 }
 
@@ -1189,6 +1262,9 @@ function renderMyHand(){
   const handData = state.hands[myId];
   if (!handData || !Array.isArray(handData.cards)) return;
   const shouldLockHand = state.isHost && hostHandLockedByStage && !!currentStage;
+  const shouldHideInDiscussion = !state.isHost && !!currentStage && state.currentPhase === 'discussion';
+  const canDragNow = canCurrentUserDragCard() && !shouldLockHand && !shouldHideInDiscussion;
+  const shouldPulse = canDragNow && !activeDrag;
 
   handData.cards.forEach((cardData, index) => {
     const cardId = `${myId}-${index}`;
@@ -1198,13 +1274,17 @@ function renderMyHand(){
     card.className = 'my-card';
     card.dataset.cardId = cardId;
 
-    if (shouldLockHand){
+    if (shouldPulse){
+      card.classList.add('turn-pulse');
+    }
+
+    if (shouldLockHand || shouldHideInDiscussion){
       card.textContent = '';
       card.style.background = cardData.color === 'black'
         ? 'repeating-linear-gradient(135deg,#0b1530 0px,#0b1530 4px,#1a274d 4px,#1a274d 8px)'
         : 'repeating-linear-gradient(135deg,#ffffff 0px,#ffffff 4px,#e5e7eb 4px,#e5e7eb 8px)';
       card.style.border = cardData.color === 'black' ? '1px solid #58606f' : '1px solid #cfcfcf';
-      card.style.cursor = 'not-allowed';
+      card.style.cursor = shouldLockHand ? 'not-allowed' : 'default';
     } else {
       const num = cardData.num;
       const color = cardData.color;
@@ -1212,7 +1292,11 @@ function renderMyHand(){
       card.style.background = color === 'black' ? '#0b1530' : '#fff';
       card.style.color = color === 'black' ? '#fff' : '#111';
       card.style.border = color === 'black' ? '1px solid #0b1530' : '1px solid #ddd';
-      card.addEventListener('pointerdown', (ev) => startCardDrag(ev, { ...cardData, id: cardId }));
+      if (canDragNow){
+        card.addEventListener('pointerdown', (ev) => startCardDrag(ev, { ...cardData, id: cardId }));
+      } else {
+        card.style.cursor = 'default';
+      }
     }
 
     myHandEl.appendChild(card);
@@ -1347,9 +1431,11 @@ btnChoiceBack.addEventListener('click', () => closeCardChoice('back'));
 function startCardDrag(ev, cardData){
   ev.preventDefault();
   if (activeDrag) return;
+  if (!canCurrentUserDragCard()) return;
   if (state.isHost && hostHandLockedByStage && currentStage) return;
   const srcEl = ev.currentTarget;
   if (!(srcEl instanceof HTMLElement)) return;
+  const srcRect = srcEl.getBoundingClientRect();
 
   srcEl.setPointerCapture(ev.pointerId);
   srcEl.classList.add('dragging');
@@ -1357,22 +1443,30 @@ function startCardDrag(ev, cardData){
 
   const ghost = srcEl.cloneNode(true);
   ghost.classList.remove('dragging');
+  ghost.classList.remove('turn-pulse');
   ghost.style.visibility = 'visible';
   ghost.style.position = 'fixed';
   ghost.style.left = '0';
   ghost.style.top = '0';
   ghost.style.margin = '0';
+  ghost.style.width = `${srcRect.width}px`;
+  ghost.style.height = `${srcRect.height}px`;
   ghost.style.zIndex = '500';
   ghost.style.pointerEvents = 'none';
   ghost.style.opacity = '0.9';
+  ghost.style.animation = 'none';
+  ghost.style.transition = 'none';
   document.body.appendChild(ghost);
 
   activeDrag = { pointerId: ev.pointerId, srcEl, ghost, cardData };
+  syncMyHandPulseDom();
   dragHoverRoom = findDropRoom(ev.clientX, ev.clientY);
   renderRoomGuideCircles();
 
+  const ghostHalfW = srcRect.width / 2;
+  const ghostHalfH = srcRect.height / 2;
   const move = (x, y) => {
-    ghost.style.transform = `translate(${x - ghost.offsetWidth / 2}px, ${y - ghost.offsetHeight / 2}px)`;
+    ghost.style.transform = `translate(${x - ghostHalfW}px, ${y - ghostHalfH}px)`;
   };
   move(ev.clientX, ev.clientY);
 
@@ -1393,6 +1487,7 @@ function startCardDrag(ev, cardData){
     activeDrag.srcEl.style.visibility = '';
     activeDrag.ghost.remove();
     activeDrag = null;
+    syncMyHandPulseDom();
     dragHoverRoom = null;
     renderRoomGuideCircles();
     window.removeEventListener('pointermove', onMove);
@@ -1516,6 +1611,7 @@ function renderPlayerCircle(players){
     updateMyHandPosition();
     return;
   }
+  const activeTurnPlayers = new Set(getActiveTurnPlayerIds());
 
   const n = players.length;
   const radius = 70;
@@ -1588,6 +1684,9 @@ function renderPlayerCircle(players){
     if (p.id !== state.userId && handData && Array.isArray(handData.cards) && handData.cards.length){
       const miniHand = document.createElement('div');
       miniHand.className = 'mini-hand';
+      if (activeTurnPlayers.has(p.id)){
+        miniHand.classList.add('turn-pulse');
+      }
 
       const count = handData.cards.length;
       const spread = 70;
