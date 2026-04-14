@@ -22,7 +22,7 @@
   .btn.ghost{background:transparent;}
   .hidden{display:none;}
   #lobby{padding:20px;border-top:1px solid #eee; position:relative; z-index:2;}
-  .copy-btn.copied, .btn.ghost.copied{background:#16a34a;color:#fff;border-color:#16a34a;}
+  .copy-btn.copied, .btn.ghost.copied{background:var(--black-card);color:#fff;border-color:var(--black-card);}
 
   main{
     position:relative;
@@ -2177,6 +2177,7 @@ async function setStage(code){
     syncHostStageReadyButton();
   }
   revealPhaseAnnouncedForStage = '';
+  window.dispatchEvent(new CustomEvent('mission:change', { detail:{ value: currentStage }}));
 
   if (state.isHost && state.roomCode){
     if (currentStage) await set(ref(db, `rooms/${state.roomCode}/stageCode`), currentStage);
@@ -2193,7 +2194,6 @@ async function setStage(code){
     await dealInitialHands();
     await emitPhaseEvent('discussion');
   }
-  window.dispatchEvent(new CustomEvent('mission:change', { detail:{ value: currentStage }}));
 }
 
 btnOpenStagePop.addEventListener('click', () => {
@@ -2602,6 +2602,7 @@ function renderClockMarks(mission){
     t.textContent = text;
     t.setAttribute('x', '0');
     t.setAttribute('y', '0.8');
+    t.setAttribute('transform', `rotate(${midDeg})`);
     t.setAttribute('fill', textColor);
     t.setAttribute('font-size', String(Math.max(4, size * 0.34 * textScale)));
     t.setAttribute('font-weight', '700');
@@ -2944,7 +2945,7 @@ function renderInfinity(mission){
   const g = stageSvg.querySelector('#r5Infinity');
   if(!g) return;
   while(g.firstChild) g.removeChild(g.firstChild);
-  if(mission !== '1-1') return;
+  if(!['1-1','1-2','1-3'].includes(mission)) return;
 
   const cs11 = getComputedStyle(stageSvg);
   const r5 = parseFloat(cs11.getPropertyValue('--innerR5')) || 14;
@@ -3344,7 +3345,8 @@ function renderRoomTotals(){
   }
 }
 
-function renderRoomGuideCircles(){
+function renderRoomGuideCircles(mission = currentStage){
+  if (!STAGE_CODES.includes(mission)) return;
   const g = stageSvg.querySelector('#roomGuideCircles');
   if(!g) return;
   while(g.firstChild) g.removeChild(g.firstChild);
@@ -3478,20 +3480,56 @@ function renderRoomTexts(mission){
 
 function redrawAll(m){
   if (typeof m === 'string') currentStage = m;
-  const renderStage = STAGE_CODES.includes(currentStage) ? currentStage : '1-1';
+  const hasStage = STAGE_CODES.includes(currentStage);
+  const renderStage = hasStage ? currentStage : '';
+
   missionTextEl.textContent = renderStage;
-  stageNameText.textContent = currentStage || '';
-  stageNameTag.classList.toggle('hidden', !currentStage || !state.joined);
+  stageNameText.textContent = renderStage;
+  stageNameTag.classList.toggle('hidden', !renderStage || !state.joined);
+
   renderEqTriBackFill(renderStage);
+  updateOrangeGraphics();
+  renderInnerTinyDiv();
+  renderCenterTopDiamond();
+
+  if (!hasStage){
+    [stageMarksG, stageOutG, stageSpecifiedG, stageClockG].forEach(group => {
+      if (!group) return;
+      while (group.firstChild) group.removeChild(group.firstChild);
+    });
+    const infinityG = stageSvg.querySelector('#r5Infinity');
+    if (infinityG){
+      while (infinityG.firstChild) infinityG.removeChild(infinityG.firstChild);
+    }
+    const roomTextsG = stageSvg.querySelector('#roomTexts');
+    if (roomTextsG){
+      while (roomTextsG.firstChild) roomTextsG.removeChild(roomTextsG.firstChild);
+    }
+    const roomCardsG = stageSvg.querySelector('#roomCards');
+    if (roomCardsG){
+      while (roomCardsG.firstChild) roomCardsG.removeChild(roomCardsG.firstChild);
+    }
+    const playedCardsG = stageSvg.querySelector('#playedCards');
+    if (playedCardsG){
+      while (playedCardsG.firstChild) playedCardsG.removeChild(playedCardsG.firstChild);
+    }
+    const roomTotalsG = stageSvg.querySelector('#roomTotals');
+    if (roomTotalsG){
+      while (roomTotalsG.firstChild) roomTotalsG.removeChild(roomTotalsG.firstChild);
+    }
+    const roomGuideCirclesG = stageSvg.querySelector('#roomGuideCircles');
+    if (roomGuideCirclesG){
+      while (roomGuideCirclesG.firstChild) roomGuideCirclesG.removeChild(roomGuideCirclesG.firstChild);
+    }
+    return;
+  }
+
   renderStageMarks(renderStage);
   renderOutwardMarks(renderStage);
   renderSpecifiedBowls(renderStage);
   renderClockMarks(renderStage);
-  updateOrangeGraphics();
-  renderInnerTinyDiv();
   renderInfinity(renderStage);
-  renderCenterTopDiamond();
-  renderRoomGuideCircles();
+  renderRoomGuideCircles(renderStage);
   renderRoomTexts(renderStage);
   renderRoomCards(renderStage);
   renderPlayedCards();
