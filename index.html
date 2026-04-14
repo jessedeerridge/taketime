@@ -149,6 +149,7 @@
   .player-tag .mini-hand{
     position:absolute;left:50%;top:100%;
     transform:translate(-50%,3px);
+    transform-origin:50% 0;
     width:92px;height:48px;pointer-events:none;
   }
   .player-tag .mini-card{
@@ -219,11 +220,12 @@
   }
   .my-card.dragging{opacity:.45;cursor:grabbing;}
   .turn-pulse{
-    animation:turnPulse 1s ease-in-out infinite;
+    animation:turnPulseScale 1s ease-in-out infinite;
+    transform-origin:center;
   }
-  @keyframes turnPulse{
-    0%,100%{transform:scale(1);}
-    50%{transform:scale(1.08);}
+  @keyframes turnPulseScale{
+    0%,100%{scale:1;}
+    50%{scale:1.08;}
   }
 
   .dialog-backdrop{
@@ -1427,6 +1429,7 @@ function startCardDrag(ev, cardData){
 
   const ghost = srcEl.cloneNode(true);
   ghost.classList.remove('dragging');
+  ghost.classList.remove('turn-pulse');
   ghost.style.visibility = 'visible';
   ghost.style.position = 'fixed';
   ghost.style.left = '0';
