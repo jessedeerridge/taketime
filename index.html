@@ -2816,11 +2816,13 @@ function renderOutwardMarks(mission){
     defs.appendChild(cp);
 
     if (specified.has(room)){
-      const specifiedTri = document.createElementNS('http://www.w3.org/2000/svg','path');
-      specifiedTri.setAttribute('d', dTriArea);
-      specifiedTri.setAttribute('fill', specifiedFill);
-      specifiedTri.setAttribute('fill-opacity', String(opacity));
-      stageOutG.appendChild(specifiedTri);
+      if (isMission14){
+        const specifiedTri = document.createElementNS('http://www.w3.org/2000/svg','path');
+        specifiedTri.setAttribute('d', dTriArea);
+        specifiedTri.setAttribute('fill', specifiedFill);
+        specifiedTri.setAttribute('fill-opacity', String(opacity));
+        stageOutG.appendChild(specifiedTri);
+      }
       continue;
     }
 
