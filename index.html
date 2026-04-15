@@ -1384,13 +1384,13 @@ function renderMainGearVisual(){
       ]
     : divisionCount === 3
       ? [
-          { x: 0, y: -42, rot: 0, scale: 0.95 },
-          { x: -36, y: 24, rot: 58, scale: 0.95 },
-          { x: 36, y: 24, rot: -58, scale: 0.95 }
+          { x: 36, y: -20, rot: -30, scale: 0.92 },
+          { x: 0, y: 42, rot: 90, scale: 0.92 },
+          { x: -36, y: -20, rot: 30, scale: 0.92 }
         ]
       : [
-          { x: -40, y: 0, rot: -90, scale: 0.95 },
-          { x: 40, y: 0, rot: 90, scale: 0.95 }
+          { x: 0, y: -36, rot: 0, scale: 0.95 },
+          { x: 0, y: 36, rot: 180, scale: 0.95 }
         ];
 
   diameterAngles.forEach((angle) => {
@@ -1444,6 +1444,7 @@ function syncHostStageReadyButton(){
 }
 
 async function setSubgearCount(nextCount){
+  if (deriveCurrentPhase(state.phaseState) !== 'discussion') return;
   const normalized = Math.max(0, Math.min(3, Number(nextCount) || 0));
   currentSubgearCount = normalized;
   applySubgearCountToDom();
@@ -2613,7 +2614,8 @@ const stageSvg = document.getElementById('stageBoard');
 
 stageNameGear.addEventListener('click', async () => {
   if (!currentStage) return;
-  if (state.currentPhase !== 'discussion') return;
+  if (!stageNameGear.classList.contains('clickable')) return;
+  if (deriveCurrentPhase(state.phaseState) !== 'discussion') return;
   const nextCount = (currentSubgearCount + 1) % 4;
   await setSubgearCount(nextCount);
 });
@@ -4048,24 +4050,49 @@ function renderRoomTexts(mission){
 function getStageRoomHintText(stage, room){
   const placementRule = getRoomPlacementRule(stage, room);
   const sumCondition = (STAGE_ROOM_SUCCESS_CONDITIONS[stage] || []).find((cond) => Number(cond.room) === Number(room));
+  const clockLabels = getClockLabelsForMission(stage);
+  const clockLabel = clockLabels?.[room];
+  const stageTextSpec = stage === '1-4' && room === 1 ? '6' : '';
+
+  if (clockLabel){
+    return `${clockLabel}枚目のカードは必ずここに置かなければならない。それ以降に他のカードを置いてもよい。`;
+  }
+  if (stageTextSpec){
+    return `もっとも${stageTextSpec}に近いエリアがこのエリアでなければならない。`;
+  }
 
   if (stage === '1-2' && room === 4){
-    return '茶カードをちょうど3枚置く';
+    return 'カードを必ず3枚だけ置かなければならない。';
   }
   if (sumCondition){
-    return `合計${sumCondition.min}〜${sumCondition.max}`;
+    return `このエリアの合計値が必ず${sumCondition.min}~${sumCondition.max}の数値にならなければならない。`;
   }
   if (!placementRule){
     return '';
   }
-  if (placementRule.maxTotal === 1){
-    return 'カード1枚のみ';
+  if (
+    placementRule.maxTotal === 1
+    && Array.isArray(placementRule.allowedColors)
+    && placementRule.allowedColors.length === 1
+    && placementRule.allowedColors[0] === 'white'
+  ){
+    return '白カードを必ず1枚だけ置かなければならない。';
   }
-  if (placementRule.maxTotal === 2){
-    return 'カード2枚まで';
+  if (
+    placementRule.maxTotal === 1
+    && Array.isArray(placementRule.allowedColors)
+    && placementRule.allowedColors.length === 1
+    && placementRule.allowedColors[0] === 'black'
+  ){
+    return '黒カードを必ず1枚だけ置かなければならない。';
   }
-  if (placementRule.maxTotal === 3){
-    return 'カード3枚まで';
+  if (
+    placementRule.maxTotal === 2
+    && placementRule.perColorMax
+    && Number(placementRule.perColorMax.white) === 1
+    && Number(placementRule.perColorMax.black) === 1
+  ){
+    return '白カード、黒カードを必ず１枚ずつだけ置かなければならない。';
   }
   return '';
 }
@@ -4081,8 +4108,9 @@ function renderRoomConditionHints(mission = currentStage){
   if (!specifiedRooms.length) return;
 
   const { centerR, guideR, outerOffset } = getGuideMetrics();
-  const boxW = 104;
-  const boxH = 44;
+  const maxCharsPerLine = 14;
+  const boxW = 210;
+  const lineH = 12;
 
   specifiedRooms.forEach((room) => {
     const hintText = getStageRoomHintText(mission, room);
@@ -4091,6 +4119,12 @@ function renderRoomConditionHints(mission = currentStage){
     const pOuter = polar(centerR + guideR * 0.5 + outerOffset, midDeg);
     const x = pOuter.x;
     const y = pOuter.y;
+
+    const lines = [];
+    for (let idx = 0; idx < hintText.length; idx += maxCharsPerLine){
+      lines.push(hintText.slice(idx, idx + maxCharsPerLine));
+    }
+    const boxH = Math.max(44, 20 + lines.length * lineH);
 
     const table = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     table.setAttribute('x', String(x - boxW / 2));
@@ -4105,11 +4139,8 @@ function renderRoomConditionHints(mission = currentStage){
     g.appendChild(table);
 
     const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    const lines = hintText.length > 10
-      ? [hintText.slice(0, Math.ceil(hintText.length / 2)), hintText.slice(Math.ceil(hintText.length / 2))]
-      : [hintText];
     text.setAttribute('x', String(x));
-    text.setAttribute('y', String(lines.length > 1 ? y - 6 : y));
+    text.setAttribute('y', String(lines.length > 1 ? y - ((lines.length - 1) * lineH) / 2 : y));
     text.setAttribute('fill', '#fff');
     text.setAttribute('font-size', '10');
     text.setAttribute('font-weight', '700');
@@ -4119,7 +4150,7 @@ function renderRoomConditionHints(mission = currentStage){
       const tspan = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
       tspan.textContent = line;
       tspan.setAttribute('x', String(x));
-      tspan.setAttribute('dy', idx === 0 ? '0' : '12');
+      tspan.setAttribute('dy', idx === 0 ? '0' : String(lineH));
       text.appendChild(tspan);
     });
     g.appendChild(text);
