@@ -627,6 +627,7 @@
   }
   #stageBoard .sharp{ stroke-linecap:butt; stroke-linejoin:miter; }
   #stageBoard #sectorHits .sector { fill: rgba(255,255,0,0); cursor: pointer; pointer-events: fill; }
+  #stageBoard .room-guide-handle { cursor: grab; }
   #missionText{display:none;}
 </style>
 </head>
@@ -948,7 +949,7 @@
               fill="#111"></text>
 
         <g id="sectorHits" transform="translate(150,150)"></g>
-        <g id="roomGuideCircles" transform="translate(150,150)" style="pointer-events:none"></g>
+        <g id="roomGuideCircles" transform="translate(150,150)" style="pointer-events:auto"></g>
         <g id="roomTexts" transform="translate(150,150)" style="pointer-events:none"></g>
         <g id="roomConditionHints" transform="translate(150,150)" style="pointer-events:none"></g>
         <g id="roomCards" style="pointer-events:none"></g>
@@ -3006,6 +3007,7 @@ function isRotationGrabTarget(event){
   return path.some((node) => {
     if (!node) return false;
     if (node.id === 'needleRotateHit') return true;
+    if (node.dataset?.rotateHandle === 'room') return true;
     return !!node.classList?.contains?.('sector');
   });
 }
@@ -4418,10 +4420,14 @@ function renderRoomGuideCircles(mission = currentStage){
     const canDrop = !!activeDrag && canPlaceCardInRoom(activeDrag.cardData, room, mission);
     const isHoverInner = canDrop && dragHoverRoom === room;
     const circle = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    circle.setAttribute('class', 'room-guide-handle');
+    circle.dataset.rotateHandle = 'room';
+    circle.dataset.room = String(room);
     circle.setAttribute('cx', pInner.x.toFixed(2));
     circle.setAttribute('cy', pInner.y.toFixed(2));
     circle.setAttribute('r', guideR.toFixed(2));
     circle.setAttribute('stroke', 'none');
+    circle.setAttribute('pointer-events', 'fill');
     if (isDragging){
       if (canDrop){
         circle.setAttribute('fill', isHoverInner ? dragHoverFill : dragFill);
@@ -4431,8 +4437,8 @@ function renderRoomGuideCircles(mission = currentStage){
         circle.setAttribute('fill-opacity', '0');
       }
     } else {
-      circle.setAttribute('fill', 'none');
-      circle.setAttribute('fill-opacity', String(normalOpacity));
+      circle.setAttribute('fill', '#ffffff');
+      circle.setAttribute('fill-opacity', String(Math.max(normalOpacity, 0.001)));
     }
     g.appendChild(circle);
   }
