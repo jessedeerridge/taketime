@@ -3292,7 +3292,10 @@ function renderOutwardMarks(mission){
 
     const whiteOnlyRoom = isWhiteOnlyRoom(mission, room);
     const specifiedRoom = specified.has(room);
-    const outwardLineFill = (whiteOnlyRoom || specifiedRoom) ? '#ffffff' : color;
+    const specifiedRoomWhite = '#e0ffff';
+    const outwardLineFill = specifiedRoom
+      ? specifiedRoomWhite
+      : (whiteOnlyRoom ? '#ffffff' : color);
 
     const dLeftRibbon  = taperedQuadRibbonPath(pL, cL, tip, baseW, tipW, 12);
     const dRightRibbon = taperedQuadRibbonPath(pR, cR, tip, baseW, tipW, 12);
@@ -3322,7 +3325,9 @@ function renderOutwardMarks(mission){
       stageOutG.appendChild(img);
     }
 
-    const goldXStroke = (specifiedRoom || whiteOnlyRoom) ? '#ffffff' : '#facc15';
+    const goldXStroke = specifiedRoom
+      ? specifiedRoomWhite
+      : (whiteOnlyRoom ? '#ffffff' : '#facc15');
     appendGoldX(stageOutG, clipId, midDeg, len, rBase, spread, goldXStroke);
 
     if (isMission14 && !whiteOnlyRoom){
