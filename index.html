@@ -97,10 +97,10 @@
   }
   .stage-name-gear .eyeSlot.used .eyeStroke,
   .stage-name-gear .eyeSlot.used .eyePupil{
-    stroke:#111;
+    stroke:#6b7280;
   }
   .stage-name-gear .eyeSlot.used .eyeText{
-    fill:#111;
+    fill:#6b7280;
   }
   .stage-name-gear .mainDivider{
     stroke:#f8cb8d;
@@ -4233,6 +4233,9 @@ function getStageRoomHintText(stage, room){
   if (stage === '1-2' && room === 4){
     return 'カードを必ず3枚だけ置かなければならない。';
   }
+  if (stage === '1-1' && room === 6){
+    return 'このエリアはカード3枚まで。表向きカードの合計値が24以下にならなければならない。';
+  }
   if (sumCondition){
     return `このエリアの合計値が必ず${sumCondition.min}~${sumCondition.max}の数値にならなければならない。`;
   }
@@ -4283,6 +4286,7 @@ function renderRoomConditionHints(mission = currentStage){
   const boxH = 56;
   const lineH = 12;
   const roomOrder = specifiedRooms.slice().sort((a, b) => a - b);
+  const levelOffsets = [12, 22, 32];
   const xMin = -150 + boxW / 2 + 2;
   const xMax = 150 - boxW / 2 - 2;
   const yMin = -150 + boxH / 2 + 2;
@@ -4293,7 +4297,8 @@ function renderRoomConditionHints(mission = currentStage){
     if (!hintText) return;
     const midDeg = (room - 1) * 60 + 30;
     const roomOrderIndex = roomOrder.indexOf(room);
-    const radialOut = centerR + guideR + outerOffset + 18 + roomOrderIndex * 18;
+    const levelIndex = roomOrderIndex % levelOffsets.length;
+    const radialOut = centerR + guideR + outerOffset + levelOffsets[levelIndex];
     const pOuter = polar(radialOut, midDeg);
     const x = pOuter.x;
     const y = pOuter.y;
@@ -4381,11 +4386,10 @@ function renderRoomConditionHints(mission = currentStage){
   if (spec.nextSibling !== clockMarks)          stageSvg.insertBefore(clockMarks,   spec.nextSibling);
   if (clockMarks.nextSibling !== roomGuideCircles) stageSvg.insertBefore(roomGuideCircles, clockMarks.nextSibling);
   if (roomGuideCircles.nextSibling !== roomTexts) stageSvg.insertBefore(roomTexts, roomGuideCircles.nextSibling);
-  if (roomTexts.nextSibling !== roomConditionHints) stageSvg.insertBefore(roomConditionHints, roomTexts.nextSibling);
-
-  if (roomConditionHints.nextSibling !== cardsG) stageSvg.insertBefore(cardsG, roomConditionHints.nextSibling);
+  if (roomTexts.nextSibling !== cardsG) stageSvg.insertBefore(cardsG, roomTexts.nextSibling);
   if (cardsG.nextSibling !== playedCardsG) stageSvg.insertBefore(playedCardsG, cardsG.nextSibling);
-  if (playedCardsG.nextSibling !== roomTotalsG) stageSvg.insertBefore(roomTotalsG, playedCardsG.nextSibling);
+  if (playedCardsG.nextSibling !== roomConditionHints) stageSvg.insertBefore(roomConditionHints, playedCardsG.nextSibling);
+  if (roomConditionHints.nextSibling !== roomTotalsG) stageSvg.insertBefore(roomTotalsG, roomConditionHints.nextSibling);
   if (stageSvg.lastElementChild !== roomTotalsG) stageSvg.appendChild(roomTotalsG);
 })();
 
