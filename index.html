@@ -38,7 +38,7 @@
   .stage-name-wrap{
     position:absolute;
     top:0px;
-    right:0px;
+    right:10px;
     z-index:210;
     display:flex;
     flex-direction:row;
@@ -67,6 +67,10 @@
     width:144px;
     height:auto;
     filter:drop-shadow(0 2px 4px rgba(0,0,0,.18));
+  }
+  .stage-name-gear .subgear-hidden{
+    visibility:hidden;
+    pointer-events:none;
   }
   .stage-name-gear .eyeText{
     fill:#f8cb8d;
@@ -657,30 +661,11 @@
           <path d="M -12 -87.2 L -12 -105 Q -12 -112 -5 -112 L 5 -112 Q 12 -112 12 -105 L 12 -87.2" transform="rotate(334.284)" />
         </g>
         <circle r="74" fill="#ae6f73" />
-        <g transform="rotate(-12.8)">
-          <line class="mainDivider" x1="-74" y1="0" x2="74" y2="0" />
-          <line class="mainDivider" x1="0" y1="-74" x2="0" y2="74" />
-          <g transform="translate(-34,-34) rotate(-45)">
-            <path class="eyeStroke" d="M -27 0 Q 0 -22 27 0 Q 0 22 -27 0 Z" />
-            <circle class="eyePupil" cx="0" cy="0" r="10.5" />
-          </g>
-          <g transform="translate(34,-34) rotate(45)">
-            <path class="eyeStroke" d="M -27 0 Q 0 -22 27 0 Q 0 22 -27 0 Z" />
-            <circle class="eyePupil" cx="0" cy="0" r="10.5" />
-          </g>
-          <g transform="translate(-34,34) rotate(45)">
-            <path class="eyeStroke" d="M -27 0 Q 0 -22 27 0 Q 0 22 -27 0 Z" />
-            <circle class="eyePupil" cx="0" cy="0" r="10.5" />
-          </g>
-          <g transform="translate(34,34) rotate(-45)">
-            <path class="eyeStroke" d="M -27 0 Q 0 -22 27 0 Q 0 22 -27 0 Z" />
-            <circle class="eyePupil" cx="0" cy="0" r="10.5" />
-          </g>
-        </g>
+        <g id="maingearFace" transform="rotate(-12.8)"></g>
         <circle r="28" fill="#f8cb8d" />
       </g>
 
-      <g id="subgear1" transform="translate(96.5,120) rotate(-4)">
+      <g id="subgear1" transform="translate(96.5,120) rotate(-4)" class="subgear">
         <circle r="50" fill="#f8cb8d" stroke="#8b5a2b" stroke-width="2" />
         <g fill="#f8cb8d">
           <rect x="-11" y="-72" width="22" height="34" rx="4.5" transform="rotate(0)" />
@@ -710,7 +695,7 @@
         </g>
       </g>
 
-      <g id="subgear2" transform="translate(363.5,120) rotate(4)">
+      <g id="subgear2" transform="translate(363.5,120) rotate(4)" class="subgear">
         <circle r="50" fill="#f8cb8d" stroke="#8b5a2b" stroke-width="2" />
         <g fill="#f8cb8d">
           <rect x="-11" y="-72" width="22" height="34" rx="4.5" transform="rotate(0)" />
@@ -740,7 +725,7 @@
         </g>
       </g>
 
-      <g id="subgear3" transform="translate(230,400)">
+      <g id="subgear3" transform="translate(230,400)" class="subgear">
         <circle r="50" fill="#f8cb8d" stroke="#8b5a2b" stroke-width="2" />
         <g fill="#f8cb8d">
           <rect x="-11" y="-72" width="22" height="34" rx="4.5" transform="rotate(0)" />
@@ -1106,6 +1091,12 @@ const btnOpenStagePop = document.getElementById('btnOpenStagePop');
 const stageNameTag = document.getElementById('stageNameTag');
 const stageNameGear = document.getElementById('stageNameGear');
 const stageNameText = document.getElementById('stageNameText');
+const maingearFace = document.getElementById('maingearFace');
+const subgearEls = [
+  document.getElementById('subgear1'),
+  document.getElementById('subgear2'),
+  document.getElementById('subgear3')
+].filter(Boolean);
 
 const helpBtn = document.getElementById('helpBtn');
 const helpBackdrop = document.getElementById('helpBackdrop');
@@ -1155,6 +1146,8 @@ let revealResultDelayTimer = null;
 let lastPlayedCardKeys = new Set();
 const inFlightPlayedCardKeys = new Set();
 let hasPlayedCardsSnapshot = false;
+let stageSubgearVisibleCount = 0;
+let lastRenderedGearStage = '';
 
 function sleep(ms){
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -1193,6 +1186,78 @@ function deriveCurrentPhase(phaseState){
   if (latest === revealTick) return 'reveal';
   if (latest === placementTick) return 'placement';
   return 'discussion';
+}
+
+function getGearDivisionCount(){
+  const seatedCount = Number(latestPlayers.length || 0);
+  if (seatedCount === 2 || seatedCount === 3) return seatedCount;
+  return 4;
+}
+
+function renderMainGearFace(divisions){
+  if (!maingearFace) return;
+  while (maingearFace.firstChild) maingearFace.removeChild(maingearFace.firstChild);
+
+  const ns = 'http://www.w3.org/2000/svg';
+  const dividerRadius = 74;
+  const eyeRadius = divisions === 2 ? 36 : 42;
+  const eyeLook = 'M -27 0 Q 0 -22 27 0 Q 0 22 -27 0 Z';
+
+  for (let i = 0; i < divisions; i += 1){
+    const deg = (360 / divisions) * i;
+    const rad = (deg * Math.PI) / 180;
+    const x = Math.cos(rad) * dividerRadius;
+    const y = Math.sin(rad) * dividerRadius;
+    const line = document.createElementNS(ns, 'line');
+    line.setAttribute('class', 'mainDivider');
+    line.setAttribute('x1', '0');
+    line.setAttribute('y1', '0');
+    line.setAttribute('x2', x.toFixed(2));
+    line.setAttribute('y2', y.toFixed(2));
+    maingearFace.appendChild(line);
+  }
+
+  for (let i = 0; i < divisions; i += 1){
+    const centerDeg = (360 / divisions) * i + (180 / divisions) - 90;
+    const rad = (centerDeg * Math.PI) / 180;
+    const x = Math.cos(rad) * eyeRadius;
+    const y = Math.sin(rad) * eyeRadius;
+    const eye = document.createElementNS(ns, 'g');
+    eye.setAttribute('transform', `translate(${x.toFixed(2)},${y.toFixed(2)}) rotate(${(centerDeg + 90).toFixed(2)})`);
+
+    const eyePath = document.createElementNS(ns, 'path');
+    eyePath.setAttribute('class', 'eyeStroke');
+    eyePath.setAttribute('d', eyeLook);
+    eye.appendChild(eyePath);
+
+    const pupil = document.createElementNS(ns, 'circle');
+    pupil.setAttribute('class', 'eyePupil');
+    pupil.setAttribute('cx', '0');
+    pupil.setAttribute('cy', '0');
+    pupil.setAttribute('r', '10.5');
+    eye.appendChild(pupil);
+
+    maingearFace.appendChild(eye);
+  }
+}
+
+function applySubgearVisibility(){
+  subgearEls.forEach((el, idx) => {
+    const hidden = idx >= stageSubgearVisibleCount;
+    el.classList.toggle('subgear-hidden', hidden);
+  });
+}
+
+function syncStageGearVisuals(force = false){
+  const hasStage = STAGE_CODES.includes(currentStage) && state.joined;
+  if (!hasStage) return;
+  if (force || currentStage !== lastRenderedGearStage){
+    stageSubgearVisibleCount = 0;
+    lastRenderedGearStage = currentStage;
+  }
+  const divisions = getGearDivisionCount();
+  renderMainGearFace(divisions);
+  applySubgearVisibility();
 }
 
 function getActiveTurnPlayerIds(){
@@ -1336,6 +1401,12 @@ helpBtn.addEventListener('click', () => {
 btnHelpClose.addEventListener('click', closeHelp);
 helpBackdrop.addEventListener('click', (e) => {
   if (e.target === helpBackdrop) closeHelp();
+});
+stageNameGear.addEventListener('click', () => {
+  if (!state.joined || !currentStage) return;
+  if (state.currentPhase !== 'discussion') return;
+  stageSubgearVisibleCount = (stageSubgearVisibleCount + 1) % (subgearEls.length + 1);
+  applySubgearVisibility();
 });
 
 function refreshRoomLabels(){
@@ -1490,6 +1561,7 @@ function subscribePhaseEvents(){
       lastSeenPhaseTicks[phase] = tick;
       showPhaseFlow(label);
     });
+    syncStageGearVisuals();
     maybeRunRevealFlipSequence();
     maybeAnnounceRevealResult();
     renderHands();
@@ -1569,6 +1641,7 @@ function subscribePlayers(){
 
     syncSeatUI();
     renderPlayerCircle(players);
+    syncStageGearVisuals();
     maybeAnnounceRevealPhase();
   });
 }
@@ -3986,6 +4059,7 @@ function renderRoomTexts(mission){
 })();
 
 function redrawAll(m){
+  const prevStage = currentStage;
   if (typeof m === 'string') currentStage = m;
   const hasStage = STAGE_CODES.includes(currentStage);
   const renderStage = hasStage ? currentStage : '';
@@ -3995,6 +4069,11 @@ function redrawAll(m){
   const hideStageName = !renderStage || !state.joined;
   stageNameTag.classList.toggle('hidden', hideStageName);
   stageNameGear.classList.toggle('hidden', hideStageName);
+  if (!hasStage){
+    lastRenderedGearStage = '';
+    stageSubgearVisibleCount = 0;
+  }
+  syncStageGearVisuals(prevStage !== currentStage);
 
   applyMissionSkin(renderStage);
   renderEqTriBackFill(renderStage);
