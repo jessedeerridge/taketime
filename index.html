@@ -1066,7 +1066,8 @@ const state = {
   currentPhase: '',
   room: {},
   tables: {},
-  joined: false
+  joined: false,
+  boardRotation: 0
 };
 
 const mainEl = document.getElementById('main');
@@ -1166,6 +1167,10 @@ const inFlightPlayedCardKeys = new Set();
 const placingCardIds = new Set();
 let hasPlayedCardsSnapshot = false;
 let currentSubgearCount = 0;
+let boardRotationWriteTimer = null;
+let boardRotationAnimFrame = null;
+let boardRotationAnimId = '';
+let boardRotateDrag = null;
 
 function getBlackBackGradient(){
   return 'repeating-linear-gradient(135deg,var(--black-card) 0px,var(--black-card) 4px,var(--black-card-stripe) 4px,var(--black-card-stripe) 8px)';
@@ -1209,6 +1214,70 @@ function deriveCurrentPhase(phaseState){
   if (latest === placementTick) return 'placement';
   return 'discussion';
 }
+
+function normalizeRotationDeg(deg){
+  const normalized = Number(deg) || 0;
+  return ((normalized % 360) + 360) % 360;
+}
+
+function shortestRotationDelta(fromDeg, toDeg){
+  return ((toDeg - fromDeg + 540) % 360) - 180;
+}
+
+function canRotateBoardNow(){
+  return !!state.joined && deriveCurrentPhase(state.phaseState) === 'discussion';
+}
+
+function applyBoardRotation(angleDeg){
+  const normalized = normalizeRotationDeg(angleDeg);
+  state.boardRotation = normalized;
+  stageSvg.style.transformOrigin = '50% 50%';
+  stageSvg.style.transform = `rotate(${normalized}deg)`;
+}
+
+function animateBoardRotationTo(fromDeg, toDeg, durationMs = 260, startAt = Date.now()){
+  const from = normalizeRotationDeg(fromDeg);
+  const delta = shortestRotationDelta(from, toDeg);
+  const duration = Math.max(1, Number(durationMs) || 1);
+  if (boardRotationAnimFrame){
+    cancelAnimationFrame(boardRotationAnimFrame);
+    boardRotationAnimFrame = null;
+  }
+  const tick = () => {
+    const progress = Math.min(1, (Date.now() - startAt) / duration);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    applyBoardRotation(from + delta * eased);
+    if (progress < 1){
+      boardRotationAnimFrame = requestAnimationFrame(tick);
+    } else {
+      boardRotationAnimFrame = null;
+      applyBoardRotation(from + delta);
+    }
+  };
+  tick();
+}
+
+function writeBoardRotationShared(payload){
+  if (!state.roomCode) return Promise.resolve();
+  return set(ref(db, `rooms/${state.roomCode}/boardRotation`), payload);
+}
+
+function queueBoardRotationUpdate(payload){
+  queueBoardRotationUpdate.pendingPayload = payload;
+  if (boardRotationWriteTimer) return;
+  boardRotationWriteTimer = setTimeout(async () => {
+    boardRotationWriteTimer = null;
+    const next = queueBoardRotationUpdate.pendingPayload;
+    queueBoardRotationUpdate.pendingPayload = null;
+    if (!next) return;
+    try {
+      await writeBoardRotationShared(next);
+    } catch (err){
+      console.error('boardRotation sync failed', err);
+    }
+  }, 80);
+}
+queueBoardRotationUpdate.pendingPayload = null;
 
 function getActiveTurnPlayerIds(){
   if (state.currentPhase !== 'placement') return [];
@@ -1654,6 +1723,32 @@ function subscribeSubgearCount(){
   onValue(subgearCountRef, snap => {
     currentSubgearCount = Math.max(0, Math.min(3, Number(snap.val()) || 0));
     applySubgearCountToDom();
+  });
+}
+
+function subscribeBoardRotation(){
+  const boardRotationRef = ref(db, `rooms/${state.roomCode}/boardRotation`);
+  onValue(boardRotationRef, snap => {
+    const data = snap.val();
+    if (!data || typeof data !== 'object'){
+      applyBoardRotation(0);
+      return;
+    }
+    const from = Number(data.fromDeg);
+    const to = Number(data.toDeg);
+    const duration = Number(data.durationMs || 0);
+    const startAt = Number(data.startAt || 0);
+    const animId = String(data.animId || '');
+    if (Number.isFinite(from) && Number.isFinite(to) && duration > 0 && startAt > 0 && animId && animId !== boardRotationAnimId){
+      boardRotationAnimId = animId;
+      animateBoardRotationTo(from, to, duration, startAt);
+      return;
+    }
+    if (Number.isFinite(to)){
+      applyBoardRotation(to);
+      return;
+    }
+    if (Number.isFinite(data.deg)) applyBoardRotation(Number(data.deg));
   });
 }
 
@@ -2490,6 +2585,9 @@ btnJoin.addEventListener('click', async () => {
     if (!roomData.hostId) {
       updates.hostId = state.userId;
     }
+    if (typeof roomData.boardRotation !== 'object') {
+      updates.boardRotation = { toDeg: 0, updatedAt: Date.now(), by: state.userId };
+    }
 
     await update(roomRef, updates);
 
@@ -2507,6 +2605,7 @@ btnJoin.addEventListener('click', async () => {
     subscribeStage();
     subscribePhaseEvents();
     subscribeSubgearCount();
+    subscribeBoardRotation();
 
     syncSeatUI();
   } catch (err) {
@@ -2790,6 +2889,75 @@ stageNameGear.addEventListener('click', async () => {
   if (deriveCurrentPhase(state.phaseState) !== 'discussion') return;
   const nextCount = (currentSubgearCount + 1) % 4;
   await setSubgearCount(nextCount);
+});
+
+stageSvg.style.touchAction = 'none';
+
+function getBoardPointerAngleDeg(clientX, clientY){
+  const rect = stageSvg.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  const dx = clientX - cx;
+  const dy = clientY - cy;
+  const deg = Math.atan2(dy, dx) * 180 / Math.PI + 90;
+  return normalizeRotationDeg(deg);
+}
+
+stageSvg.addEventListener('pointerdown', (event) => {
+  if (!canRotateBoardNow()) return;
+  if (event.button !== 0 && event.pointerType !== 'touch' && event.pointerType !== 'pen') return;
+  boardRotateDrag = {
+    pointerId: event.pointerId,
+    startAngle: getBoardPointerAngleDeg(event.clientX, event.clientY),
+    startRotation: state.boardRotation
+  };
+  stageSvg.setPointerCapture(event.pointerId);
+  event.preventDefault();
+});
+
+stageSvg.addEventListener('pointermove', (event) => {
+  if (!boardRotateDrag || event.pointerId !== boardRotateDrag.pointerId) return;
+  if (!canRotateBoardNow()) return;
+  const currentAngle = getBoardPointerAngleDeg(event.clientX, event.clientY);
+  const delta = shortestRotationDelta(boardRotateDrag.startAngle, currentAngle);
+  const nextRotation = normalizeRotationDeg(boardRotateDrag.startRotation + delta);
+  applyBoardRotation(nextRotation);
+  queueBoardRotationUpdate({
+    toDeg: nextRotation,
+    updatedAt: Date.now(),
+    by: state.userId
+  });
+});
+
+async function finalizeBoardDrag(event){
+  if (!boardRotateDrag || (event && event.pointerId !== boardRotateDrag.pointerId)) return;
+  const drag = boardRotateDrag;
+  boardRotateDrag = null;
+  try {
+    if (event) stageSvg.releasePointerCapture(drag.pointerId);
+  } catch {}
+  const snapped = normalizeRotationDeg(Math.round(state.boardRotation / 60) * 60);
+  const from = state.boardRotation;
+  const duration = 260;
+  const startAt = Date.now();
+  const animId = `${state.userId}:${startAt}`;
+  boardRotationAnimId = animId;
+  animateBoardRotationTo(from, snapped, duration, startAt);
+  await writeBoardRotationShared({
+    fromDeg: from,
+    toDeg: snapped,
+    durationMs: duration,
+    startAt,
+    animId,
+    updatedAt: startAt,
+    by: state.userId
+  });
+}
+
+stageSvg.addEventListener('pointerup', finalizeBoardDrag);
+stageSvg.addEventListener('pointercancel', finalizeBoardDrag);
+window.addEventListener('blur', () => {
+  finalizeBoardDrag();
 });
 
 /* ================== 基本三角（角丸・内向き配置） ================== */
