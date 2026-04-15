@@ -4300,8 +4300,17 @@ function renderRoomConditionHints(mission = currentStage){
     const sideExtraOffset = Math.abs(Math.cos(midRad)) > 0.8 ? 16 : 0;
     const radialOut = centerR + guideR + outerOffset + 18 + roomOrderIndex * 18 + sideExtraOffset;
     const pOuter = polar(radialOut, midDeg);
-    const x = pOuter.x;
-    const y = pOuter.y;
+    let x = pOuter.x;
+    let y = pOuter.y;
+
+    if (roomOrder.length >= 3){
+      if (roomOrderIndex === 0 || roomOrderIndex === 2){
+        y *= 0.86;
+      }
+      if (roomOrderIndex === 1){
+        x += x >= 0 ? 14 : -14;
+      }
+    }
 
     const lines = [];
     for (let idx = 0; idx < hintText.length; idx += maxCharsPerLine){
