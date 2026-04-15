@@ -72,6 +72,7 @@
     max-width:calc(100vw - 24px);
     height:auto;
     filter:drop-shadow(0 2px 4px rgba(0,0,0,.18));
+    pointer-events:auto;
   }
   .stage-name-gear .eyeText{
     fill:#f8cb8d;
@@ -1372,11 +1373,27 @@ function renderMainGearVisual(){
   while (mainGearEyes.firstChild) mainGearEyes.removeChild(mainGearEyes.firstChild);
 
   const divisionCount = getMainGearDivisionCount();
-  const eyeCenterRadius = divisionCount === 2 ? 34 : (divisionCount === 3 ? 36 : 42);
-  const eyeScale = divisionCount === 2 ? 0.95 : (divisionCount === 3 ? 0.88 : 1);
+  const diameterAngles = divisionCount === 4 ? [0, 90] : (divisionCount === 2 ? [0] : []);
+  const radialAngles = divisionCount === 3 ? [-90, 30, 150] : [];
+  const eyeConfigs = divisionCount === 4
+    ? [
+        { x: -34, y: -34, rot: -45, scale: 1 },
+        { x: 34, y: -34, rot: 45, scale: 1 },
+        { x: -34, y: 34, rot: 45, scale: 1 },
+        { x: 34, y: 34, rot: -45, scale: 1 }
+      ]
+    : divisionCount === 3
+      ? [
+          { x: 0, y: -42, rot: 0, scale: 0.95 },
+          { x: -36, y: 24, rot: 58, scale: 0.95 },
+          { x: 36, y: 24, rot: -58, scale: 0.95 }
+        ]
+      : [
+          { x: -40, y: 0, rot: -90, scale: 0.95 },
+          { x: 40, y: 0, rot: 90, scale: 0.95 }
+        ];
 
-  for (let i = 0; i < divisionCount; i++){
-    const angle = i * (360 / divisionCount);
+  diameterAngles.forEach((angle) => {
     const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     line.setAttribute('class', 'mainDivider');
     line.setAttribute('x1', '-74');
@@ -1385,21 +1402,28 @@ function renderMainGearVisual(){
     line.setAttribute('y2', '0');
     line.setAttribute('transform', `rotate(${angle})`);
     mainGearDividers.appendChild(line);
-  }
+  });
 
-  for (let i = 0; i < divisionCount; i++){
-    const baseDeg = -90 + i * (360 / divisionCount);
-    const rad = baseDeg * Math.PI / 180;
-    const x = Math.cos(rad) * eyeCenterRadius;
-    const y = Math.sin(rad) * eyeCenterRadius;
+  radialAngles.forEach((angle) => {
+    const rad = angle * Math.PI / 180;
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('class', 'mainDivider');
+    line.setAttribute('x1', '0');
+    line.setAttribute('y1', '0');
+    line.setAttribute('x2', String(Math.cos(rad) * 74));
+    line.setAttribute('y2', String(Math.sin(rad) * 74));
+    mainGearDividers.appendChild(line);
+  });
+
+  eyeConfigs.forEach(({ x, y, rot, scale }) => {
     const eye = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    eye.setAttribute('transform', `translate(${x},${y}) rotate(${baseDeg + 90}) scale(${eyeScale})`);
+    eye.setAttribute('transform', `translate(${x},${y}) rotate(${rot}) scale(${scale})`);
     eye.innerHTML = `
       <path class="eyeStroke" d="M -27 0 Q 0 -22 27 0 Q 0 22 -27 0 Z"></path>
       <circle class="eyePupil" cx="0" cy="0" r="10.5"></circle>
     `;
     mainGearEyes.appendChild(eye);
-  }
+  });
 }
 
 function applySubgearCountToDom(){
