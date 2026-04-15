@@ -85,7 +85,7 @@
   }
   .stage-name-gear .subgearBonusText{
     fill:#f8cb8d;
-    font-size:18px;
+    font-size:20px;
     font-weight:800;
     text-anchor:middle;
     dominant-baseline:middle;
@@ -183,6 +183,24 @@
   }
   .phase-flow-pop.run{
     animation:phaseFlowSlide 3.6s ease-in-out forwards;
+  }
+  .click-name-bubble{
+    position:fixed;
+    transform:translate(-50%, calc(-100% - 12px));
+    background:#1e2a78;
+    color:#fff;
+    padding:6px 12px;
+    border-radius:999px;
+    font-size:14px;
+    font-weight:700;
+    z-index:270;
+    pointer-events:none;
+    opacity:0;
+    transition:opacity .12s ease;
+    white-space:nowrap;
+  }
+  .click-name-bubble.visible{
+    opacity:1;
   }
   @keyframes phaseFlowSlide{
     0%{transform:translate(-130%, -50%);opacity:0;}
@@ -962,6 +980,8 @@
   </div>
 </main>
 
+<div id="clickNameBubble" class="click-name-bubble hidden" aria-hidden="true"></div>
+
 <div id="hostSelectingPop" class="host-selecting-pop hidden">ホストが人数を選択中</div>
 
 <div id="seatPop" class="seat-pop hidden">
@@ -1120,6 +1140,7 @@ const helpBackdrop = document.getElementById('helpBackdrop');
 const btnHelpClose = document.getElementById('btnHelpClose');
 const helpBody = document.getElementById('helpBody');
 const phaseFlowPop = document.getElementById('phaseFlowPop');
+const clickNameBubble = document.getElementById('clickNameBubble');
 
 const ROLE_HELP = [
   { name: "カード1", text: "ああああ" },
@@ -1166,6 +1187,34 @@ const inFlightPlayedCardKeys = new Set();
 const placingCardIds = new Set();
 let hasPlayedCardsSnapshot = false;
 let currentSubgearCount = 0;
+let clickNameBubbleTimer = null;
+
+
+function hideClickNameBubble(){
+  if (clickNameBubbleTimer) {
+    clearTimeout(clickNameBubbleTimer);
+    clickNameBubbleTimer = null;
+  }
+  if (!clickNameBubble) return;
+  clickNameBubble.classList.remove('visible');
+  clickNameBubble.classList.add('hidden');
+}
+
+function showClickNameBubble(clientX, clientY){
+  if (!clickNameBubble || !state.userName) return;
+  clickNameBubble.textContent = state.userName;
+  clickNameBubble.style.left = `${clientX}px`;
+  clickNameBubble.style.top = `${clientY}px`;
+  clickNameBubble.classList.remove('hidden');
+  clickNameBubble.classList.add('visible');
+
+  if (clickNameBubbleTimer) clearTimeout(clickNameBubbleTimer);
+  clickNameBubbleTimer = setTimeout(() => {
+    clickNameBubble.classList.remove('visible');
+    clickNameBubble.classList.add('hidden');
+    clickNameBubbleTimer = null;
+  }, 2000);
+}
 
 function getBlackBackGradient(){
   return 'repeating-linear-gradient(135deg,var(--black-card) 0px,var(--black-card) 4px,var(--black-card-stripe) 4px,var(--black-card-stripe) 8px)';
@@ -2779,6 +2828,16 @@ btnStagePopClose.addEventListener('click', () => {
 window.addEventListener('resize', () => {
   updateMyHandPosition();
   renderPlayedCards();
+});
+
+mainEl.addEventListener('click', (ev) => {
+  if (!state.joined || !state.userName) return;
+  if (deriveCurrentPhase(state.phaseState) !== 'discussion') return;
+
+  const interactiveTarget = ev.target.closest('button, input, .seat-pop, .start-pop, .stage-pop, .dialog-backdrop, .help-pop, .host-settings-btn, .host-stage-ready-btn');
+  if (interactiveTarget) return;
+
+  showClickNameBubble(ev.clientX, ev.clientY);
 });
 
 /* ===== ステージSVGロジック：元コードをそのまま移植 ===== */
