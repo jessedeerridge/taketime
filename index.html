@@ -4230,11 +4230,8 @@ function getStageRoomHintText(stage, room){
     return `もっとも${stageTextSpec}に近いエリアがこのエリアでなければならない。`;
   }
 
-  if (stage === '1-2' && room === 4){
+  if ((stage === '1-2' && room === 4) || (stage === '1-1' && room === 6)){
     return 'カードを必ず3枚だけ置かなければならない。';
-  }
-  if (stage === '1-1' && room === 6){
-    return 'カードを3枚まで置くことができる。';
   }
   if (sumCondition){
     return `このエリアの合計値が必ず${sumCondition.min}~${sumCondition.max}の数値にならなければならない。`;
