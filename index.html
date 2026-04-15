@@ -96,10 +96,10 @@
   }
   .stage-name-gear .eyeSlot.used .eyeStroke,
   .stage-name-gear .eyeSlot.used .eyePupil{
-    stroke:#111;
+    stroke:#6b7280;
   }
   .stage-name-gear .eyeSlot.used .eyeText{
-    fill:#111;
+    fill:#6b7280;
   }
   .stage-name-gear .mainDivider{
     stroke:#f8cb8d;
@@ -4140,6 +4140,9 @@ function getStageRoomHintText(stage, room){
   ){
     return '白カード、黒カードを必ず１枚ずつだけ置かなければならない。';
   }
+  if (placementRule.maxTotal === 3){
+    return 'カードを3枚まで置ける。';
+  }
   return '';
 }
 
@@ -4170,10 +4173,14 @@ function renderRoomConditionHints(mission = currentStage){
     if (!hintText) return;
     const midDeg = (room - 1) * 60 + 30;
     const roomOrderIndex = roomOrder.indexOf(room);
-    const radialOut = centerR + guideR + outerOffset + 18 + roomOrderIndex * 18;
+    const rowYOffsetMap = [20, 0, -20];
+    const rowRadialExtraMap = [0, 16, 0];
+    const rowYOffset = rowYOffsetMap[roomOrderIndex] || 0;
+    const rowRadialExtra = rowRadialExtraMap[roomOrderIndex] || 0;
+    const radialOut = centerR + guideR + outerOffset + 18 + roomOrderIndex * 18 + rowRadialExtra;
     const pOuter = polar(radialOut, midDeg);
     const x = pOuter.x;
-    const y = pOuter.y;
+    const y = pOuter.y + rowYOffset;
 
     const lines = [];
     for (let idx = 0; idx < hintText.length; idx += maxCharsPerLine){
