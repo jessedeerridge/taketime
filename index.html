@@ -35,11 +35,18 @@
   }
   main.prejoin{ background-image:url('maemain.jpg'); }
   main.joined{ background-image:url('taketimeback.jpg'); }
-  .stage-name-box{
+  .stage-name-wrap{
     position:absolute;
     top:8px;
     right:12px;
     z-index:210;
+    display:flex;
+    flex-direction:column;
+    align-items:flex-end;
+    gap:8px;
+    pointer-events:none;
+  }
+  .stage-name-box{
     border:1px solid #111;
     border-collapse:separate;
     border-spacing:0;
@@ -47,12 +54,44 @@
     overflow:hidden;
     background:#fff;
     font-size:18px;
+    pointer-events:auto;
   }
   .stage-name-box td{
     border:0;
     padding:5px 14px;
     color:#111;
     font-weight:700;
+  }
+
+  .stage-name-gear{
+    width:96px;
+    height:auto;
+    filter:drop-shadow(0 2px 4px rgba(0,0,0,.18));
+  }
+  .stage-name-gear .eyeText{
+    fill:#f8cb8d;
+    font-size:26px;
+    font-weight:700;
+    text-anchor:middle;
+    dominant-baseline:middle;
+    font-family:Arial, "Hiragino Sans", "Yu Gothic", sans-serif;
+  }
+  .stage-name-gear .eyeStroke{
+    fill:none;
+    stroke:#f8cb8d;
+    stroke-width:2.8;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+  }
+  .stage-name-gear .eyePupil{
+    fill:none;
+    stroke:#f8cb8d;
+    stroke-width:2.3;
+  }
+  .stage-name-gear .mainDivider{
+    stroke:#f8cb8d;
+    stroke-width:6;
+    stroke-linecap:round;
   }
 
   .seat-pop{
@@ -581,9 +620,161 @@
 </header>
 
 <main id="main" class="prejoin">
-  <table id="stageNameTag" class="stage-name-box hidden" aria-label="現在のステージ">
-    <tr><td id="stageNameText">1-1</td></tr>
-  </table>
+  <div class="stage-name-wrap">
+    <table id="stageNameTag" class="stage-name-box hidden" aria-label="現在のステージ">
+      <tr><td id="stageNameText">1-1</td></tr>
+    </table>
+
+    <svg id="stageNameGear" class="stage-name-gear hidden" viewBox="0 0 460 480" aria-label="ステージ装飾ギア" role="img">
+      <g id="maingear" transform="translate(230,230) rotate(12.8)">
+        <circle r="88" fill="#f8cb8d" stroke="#8b5a2b" stroke-width="2" />
+        <g fill="#f8cb8d">
+          <rect x="-12" y="-112" width="24" height="36" rx="6" transform="rotate(0)" />
+          <rect x="-12" y="-112" width="24" height="36" rx="6" transform="rotate(25.714)" />
+          <rect x="-12" y="-112" width="24" height="36" rx="6" transform="rotate(51.428)" />
+          <rect x="-12" y="-112" width="24" height="36" rx="6" transform="rotate(77.142)" />
+          <rect x="-12" y="-112" width="24" height="36" rx="6" transform="rotate(102.856)" />
+          <rect x="-12" y="-112" width="24" height="36" rx="6" transform="rotate(128.57)" />
+          <rect x="-12" y="-112" width="24" height="36" rx="6" transform="rotate(154.284)" />
+          <rect x="-12" y="-112" width="24" height="36" rx="6" transform="rotate(180)" />
+          <rect x="-12" y="-112" width="24" height="36" rx="6" transform="rotate(205.714)" />
+          <rect x="-12" y="-112" width="24" height="36" rx="6" transform="rotate(231.428)" />
+          <rect x="-12" y="-112" width="24" height="36" rx="6" transform="rotate(257.142)" />
+          <rect x="-12" y="-112" width="24" height="36" rx="6" transform="rotate(282.856)" />
+          <rect x="-12" y="-112" width="24" height="36" rx="6" transform="rotate(308.57)" />
+          <rect x="-12" y="-112" width="24" height="36" rx="6" transform="rotate(334.284)" />
+        </g>
+        <g fill="none" stroke="#8b5a2b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M -12 -87.2 L -12 -105 Q -12 -112 -5 -112 L 5 -112 Q 12 -112 12 -105 L 12 -87.2" transform="rotate(0)" />
+          <path d="M -12 -87.2 L -12 -105 Q -12 -112 -5 -112 L 5 -112 Q 12 -112 12 -105 L 12 -87.2" transform="rotate(25.714)" />
+          <path d="M -12 -87.2 L -12 -105 Q -12 -112 -5 -112 L 5 -112 Q 12 -112 12 -105 L 12 -87.2" transform="rotate(51.428)" />
+          <path d="M -12 -87.2 L -12 -105 Q -12 -112 -5 -112 L 5 -112 Q 12 -112 12 -105 L 12 -87.2" transform="rotate(77.142)" />
+          <path d="M -12 -87.2 L -12 -105 Q -12 -112 -5 -112 L 5 -112 Q 12 -112 12 -105 L 12 -87.2" transform="rotate(102.856)" />
+          <path d="M -12 -87.2 L -12 -105 Q -12 -112 -5 -112 L 5 -112 Q 12 -112 12 -105 L 12 -87.2" transform="rotate(128.57)" />
+          <path d="M -12 -87.2 L -12 -105 Q -12 -112 -5 -112 L 5 -112 Q 12 -112 12 -105 L 12 -87.2" transform="rotate(154.284)" />
+          <path d="M -12 -87.2 L -12 -105 Q -12 -112 -5 -112 L 5 -112 Q 12 -112 12 -105 L 12 -87.2" transform="rotate(180)" />
+          <path d="M -12 -87.2 L -12 -105 Q -12 -112 -5 -112 L 5 -112 Q 12 -112 12 -105 L 12 -87.2" transform="rotate(205.714)" />
+          <path d="M -12 -87.2 L -12 -105 Q -12 -112 -5 -112 L 5 -112 Q 12 -112 12 -105 L 12 -87.2" transform="rotate(231.428)" />
+          <path d="M -12 -87.2 L -12 -105 Q -12 -112 -5 -112 L 5 -112 Q 12 -112 12 -105 L 12 -87.2" transform="rotate(257.142)" />
+          <path d="M -12 -87.2 L -12 -105 Q -12 -112 -5 -112 L 5 -112 Q 12 -112 12 -105 L 12 -87.2" transform="rotate(282.856)" />
+          <path d="M -12 -87.2 L -12 -105 Q -12 -112 -5 -112 L 5 -112 Q 12 -112 12 -105 L 12 -87.2" transform="rotate(308.57)" />
+          <path d="M -12 -87.2 L -12 -105 Q -12 -112 -5 -112 L 5 -112 Q 12 -112 12 -105 L 12 -87.2" transform="rotate(334.284)" />
+        </g>
+        <circle r="74" fill="#ae6f73" />
+        <g transform="rotate(-12.8)">
+          <line class="mainDivider" x1="-74" y1="0" x2="74" y2="0" />
+          <line class="mainDivider" x1="0" y1="-74" x2="0" y2="74" />
+          <g transform="translate(-34,-34) rotate(-45)">
+            <path class="eyeStroke" d="M -27 0 Q 0 -22 27 0 Q 0 22 -27 0 Z" />
+            <circle class="eyePupil" cx="0" cy="0" r="10.5" />
+          </g>
+          <g transform="translate(34,-34) rotate(45)">
+            <path class="eyeStroke" d="M -27 0 Q 0 -22 27 0 Q 0 22 -27 0 Z" />
+            <circle class="eyePupil" cx="0" cy="0" r="10.5" />
+          </g>
+          <g transform="translate(-34,34) rotate(45)">
+            <path class="eyeStroke" d="M -27 0 Q 0 -22 27 0 Q 0 22 -27 0 Z" />
+            <circle class="eyePupil" cx="0" cy="0" r="10.5" />
+          </g>
+          <g transform="translate(34,34) rotate(-45)">
+            <path class="eyeStroke" d="M -27 0 Q 0 -22 27 0 Q 0 22 -27 0 Z" />
+            <circle class="eyePupil" cx="0" cy="0" r="10.5" />
+          </g>
+        </g>
+        <circle r="28" fill="#f8cb8d" />
+      </g>
+
+      <g id="subgear1" transform="translate(96.5,120) rotate(-4)">
+        <circle r="50" fill="#f8cb8d" stroke="#8b5a2b" stroke-width="2" />
+        <g fill="#f8cb8d">
+          <rect x="-11" y="-72" width="22" height="34" rx="4.5" transform="rotate(0)" />
+          <rect x="-11" y="-72" width="22" height="34" rx="4.5" transform="rotate(45)" />
+          <rect x="-11" y="-72" width="22" height="34" rx="4.5" transform="rotate(90)" />
+          <rect x="-11" y="-72" width="22" height="34" rx="4.5" transform="rotate(135)" />
+          <rect x="-11" y="-72" width="22" height="34" rx="4.5" transform="rotate(180)" />
+          <rect x="-11" y="-72" width="22" height="34" rx="4.5" transform="rotate(225)" />
+          <rect x="-11" y="-72" width="22" height="34" rx="4.5" transform="rotate(270)" />
+          <rect x="-11" y="-72" width="22" height="34" rx="4.5" transform="rotate(315)" />
+        </g>
+        <g fill="none" stroke="#8b5a2b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M -11 -48.8 L -11 -66 Q -11 -72 -5 -72 L 5 -72 Q 11 -72 11 -66 L 11 -48.8" transform="rotate(0)" />
+          <path d="M -11 -48.8 L -11 -66 Q -11 -72 -5 -72 L 5 -72 Q 11 -72 11 -66 L 11 -48.8" transform="rotate(45)" />
+          <path d="M -11 -48.8 L -11 -66 Q -11 -72 -5 -72 L 5 -72 Q 11 -72 11 -66 L 11 -48.8" transform="rotate(90)" />
+          <path d="M -11 -48.8 L -11 -66 Q -11 -72 -5 -72 L 5 -72 Q 11 -72 11 -66 L 11 -48.8" transform="rotate(135)" />
+          <path d="M -11 -48.8 L -11 -66 Q -11 -72 -5 -72 L 5 -72 Q 11 -72 11 -66 L 11 -48.8" transform="rotate(180)" />
+          <path d="M -11 -48.8 L -11 -66 Q -11 -72 -5 -72 L 5 -72 Q 11 -72 11 -66 L 11 -48.8" transform="rotate(225)" />
+          <path d="M -11 -48.8 L -11 -66 Q -11 -72 -5 -72 L 5 -72 Q 11 -72 11 -66 L 11 -48.8" transform="rotate(270)" />
+          <path d="M -11 -48.8 L -11 -66 Q -11 -72 -5 -72 L 5 -72 Q 11 -72 11 -66 L 11 -48.8" transform="rotate(315)" />
+        </g>
+        <circle r="39" fill="#ae6f73" />
+        <text class="eyeText" x="0" y="-12">+1</text>
+        <g transform="translate(0,11)">
+          <path class="eyeStroke" d="M -24 0 Q 0 -22 24 0 Q 0 22 -24 0 Z" />
+          <circle class="eyePupil" cx="0" cy="0" r="9" />
+        </g>
+      </g>
+
+      <g id="subgear2" transform="translate(363.5,120) rotate(4)">
+        <circle r="50" fill="#f8cb8d" stroke="#8b5a2b" stroke-width="2" />
+        <g fill="#f8cb8d">
+          <rect x="-11" y="-72" width="22" height="34" rx="4.5" transform="rotate(0)" />
+          <rect x="-11" y="-72" width="22" height="34" rx="4.5" transform="rotate(45)" />
+          <rect x="-11" y="-72" width="22" height="34" rx="4.5" transform="rotate(90)" />
+          <rect x="-11" y="-72" width="22" height="34" rx="4.5" transform="rotate(135)" />
+          <rect x="-11" y="-72" width="22" height="34" rx="4.5" transform="rotate(180)" />
+          <rect x="-11" y="-72" width="22" height="34" rx="4.5" transform="rotate(225)" />
+          <rect x="-11" y="-72" width="22" height="34" rx="4.5" transform="rotate(270)" />
+          <rect x="-11" y="-72" width="22" height="34" rx="4.5" transform="rotate(315)" />
+        </g>
+        <g fill="none" stroke="#8b5a2b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M -11 -48.8 L -11 -66 Q -11 -72 -5 -72 L 5 -72 Q 11 -72 11 -66 L 11 -48.8" transform="rotate(0)" />
+          <path d="M -11 -48.8 L -11 -66 Q -11 -72 -5 -72 L 5 -72 Q 11 -72 11 -66 L 11 -48.8" transform="rotate(45)" />
+          <path d="M -11 -48.8 L -11 -66 Q -11 -72 -5 -72 L 5 -72 Q 11 -72 11 -66 L 11 -48.8" transform="rotate(90)" />
+          <path d="M -11 -48.8 L -11 -66 Q -11 -72 -5 -72 L 5 -72 Q 11 -72 11 -66 L 11 -48.8" transform="rotate(135)" />
+          <path d="M -11 -48.8 L -11 -66 Q -11 -72 -5 -72 L 5 -72 Q 11 -72 11 -66 L 11 -48.8" transform="rotate(180)" />
+          <path d="M -11 -48.8 L -11 -66 Q -11 -72 -5 -72 L 5 -72 Q 11 -72 11 -66 L 11 -48.8" transform="rotate(225)" />
+          <path d="M -11 -48.8 L -11 -66 Q -11 -72 -5 -72 L 5 -72 Q 11 -72 11 -66 L 11 -48.8" transform="rotate(270)" />
+          <path d="M -11 -48.8 L -11 -66 Q -11 -72 -5 -72 L 5 -72 Q 11 -72 11 -66 L 11 -48.8" transform="rotate(315)" />
+        </g>
+        <circle r="39" fill="#ae6f73" />
+        <text class="eyeText" x="0" y="-12">+1</text>
+        <g transform="translate(0,11)">
+          <path class="eyeStroke" d="M -24 0 Q 0 -22 24 0 Q 0 22 -24 0 Z" />
+          <circle class="eyePupil" cx="0" cy="0" r="9" />
+        </g>
+      </g>
+
+      <g id="subgear3" transform="translate(230,400)">
+        <circle r="50" fill="#f8cb8d" stroke="#8b5a2b" stroke-width="2" />
+        <g fill="#f8cb8d">
+          <rect x="-11" y="-72" width="22" height="34" rx="4.5" transform="rotate(0)" />
+          <rect x="-11" y="-72" width="22" height="34" rx="4.5" transform="rotate(45)" />
+          <rect x="-11" y="-72" width="22" height="34" rx="4.5" transform="rotate(90)" />
+          <rect x="-11" y="-72" width="22" height="34" rx="4.5" transform="rotate(135)" />
+          <rect x="-11" y="-72" width="22" height="34" rx="4.5" transform="rotate(180)" />
+          <rect x="-11" y="-72" width="22" height="34" rx="4.5" transform="rotate(225)" />
+          <rect x="-11" y="-72" width="22" height="34" rx="4.5" transform="rotate(270)" />
+          <rect x="-11" y="-72" width="22" height="34" rx="4.5" transform="rotate(315)" />
+        </g>
+        <g fill="none" stroke="#8b5a2b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M -11 -48.8 L -11 -66 Q -11 -72 -5 -72 L 5 -72 Q 11 -72 11 -66 L 11 -48.8" transform="rotate(0)" />
+          <path d="M -11 -48.8 L -11 -66 Q -11 -72 -5 -72 L 5 -72 Q 11 -72 11 -66 L 11 -48.8" transform="rotate(45)" />
+          <path d="M -11 -48.8 L -11 -66 Q -11 -72 -5 -72 L 5 -72 Q 11 -72 11 -66 L 11 -48.8" transform="rotate(90)" />
+          <path d="M -11 -48.8 L -11 -66 Q -11 -72 -5 -72 L 5 -72 Q 11 -72 11 -66 L 11 -48.8" transform="rotate(135)" />
+          <path d="M -11 -48.8 L -11 -66 Q -11 -72 -5 -72 L 5 -72 Q 11 -72 11 -66 L 11 -48.8" transform="rotate(180)" />
+          <path d="M -11 -48.8 L -11 -66 Q -11 -72 -5 -72 L 5 -72 Q 11 -72 11 -66 L 11 -48.8" transform="rotate(225)" />
+          <path d="M -11 -48.8 L -11 -66 Q -11 -72 -5 -72 L 5 -72 Q 11 -72 11 -66 L 11 -48.8" transform="rotate(270)" />
+          <path d="M -11 -48.8 L -11 -66 Q -11 -72 -5 -72 L 5 -72 Q 11 -72 11 -66 L 11 -48.8" transform="rotate(315)" />
+        </g>
+        <circle r="39" fill="#ae6f73" />
+        <text class="eyeText" x="0" y="-12">+1</text>
+        <g transform="translate(0,11)">
+          <path class="eyeStroke" d="M -24 0 Q 0 -22 24 0 Q 0 22 -24 0 Z" />
+          <circle class="eyePupil" cx="0" cy="0" r="9" />
+        </g>
+      </g>
+    </svg>
+  </div>
 
   <div class="join-box" id="joinBox">
     <input id="userName" placeholder="名前（未入力で自動）" maxlength="4" />
@@ -913,6 +1104,7 @@ const btnStagePopClose = document.getElementById('btnStagePopClose');
 const stageOptionGrid = document.getElementById('stageOptionGrid');
 const btnOpenStagePop = document.getElementById('btnOpenStagePop');
 const stageNameTag = document.getElementById('stageNameTag');
+const stageNameGear = document.getElementById('stageNameGear');
 const stageNameText = document.getElementById('stageNameText');
 
 const helpBtn = document.getElementById('helpBtn');
@@ -3800,7 +3992,9 @@ function redrawAll(m){
 
   missionTextEl.textContent = renderStage;
   stageNameText.textContent = renderStage;
-  stageNameTag.classList.toggle('hidden', !renderStage || !state.joined);
+  const hideStageName = !renderStage || !state.joined;
+  stageNameTag.classList.toggle('hidden', hideStageName);
+  stageNameGear.classList.toggle('hidden', hideStageName);
 
   applyMissionSkin(renderStage);
   renderEqTriBackFill(renderStage);
