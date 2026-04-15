@@ -97,10 +97,10 @@
   }
   .stage-name-gear .eyeSlot.used .eyeStroke,
   .stage-name-gear .eyeSlot.used .eyePupil{
-    stroke:#111;
+    stroke:#6b7280;
   }
   .stage-name-gear .eyeSlot.used .eyeText{
-    fill:#111;
+    fill:#6b7280;
   }
   .stage-name-gear .mainDivider{
     stroke:#f8cb8d;
@@ -4263,6 +4263,9 @@ function getStageRoomHintText(stage, room){
   ){
     return '白カード、黒カードを必ず１枚ずつだけ置かなければならない。';
   }
+  if (placementRule.maxTotal === 3){
+    return 'カードを3枚まで置くことができる。';
+  }
   return '';
 }
 
@@ -4287,13 +4290,26 @@ function renderRoomConditionHints(mission = currentStage){
   const xMax = 150 - boxW / 2 - 2;
   const yMin = -150 + boxH / 2 + 2;
   const yMax = 150 - boxH / 2 - 2;
+  const roomHeightLevel = {
+    1: 0,
+    4: 0,
+    3: 1,
+    6: 1,
+    2: 2,
+    5: 2
+  };
+  const radialByHeight = [18, 34, 50];
+  const sideRoomExtraOffset = 60;
 
   specifiedRooms.forEach((room) => {
     const hintText = getStageRoomHintText(mission, room);
     if (!hintText) return;
     const midDeg = (room - 1) * 60 + 30;
     const roomOrderIndex = roomOrder.indexOf(room);
-    const radialOut = centerR + guideR + outerOffset + 18 + roomOrderIndex * 18;
+    const level = roomHeightLevel[room] ?? 0;
+    const baseRadial = radialByHeight[Math.max(0, Math.min(radialByHeight.length - 1, level))];
+    const sideOffset = (room === 2 || room === 5) ? sideRoomExtraOffset : 0;
+    const radialOut = centerR + guideR + outerOffset + baseRadial + roomOrderIndex * 10 + sideOffset;
     const pOuter = polar(radialOut, midDeg);
     const x = pOuter.x;
     const y = pOuter.y;
@@ -4381,12 +4397,11 @@ function renderRoomConditionHints(mission = currentStage){
   if (spec.nextSibling !== clockMarks)          stageSvg.insertBefore(clockMarks,   spec.nextSibling);
   if (clockMarks.nextSibling !== roomGuideCircles) stageSvg.insertBefore(roomGuideCircles, clockMarks.nextSibling);
   if (roomGuideCircles.nextSibling !== roomTexts) stageSvg.insertBefore(roomTexts, roomGuideCircles.nextSibling);
-  if (roomTexts.nextSibling !== roomConditionHints) stageSvg.insertBefore(roomConditionHints, roomTexts.nextSibling);
-
-  if (roomConditionHints.nextSibling !== cardsG) stageSvg.insertBefore(cardsG, roomConditionHints.nextSibling);
+  if (roomTexts.nextSibling !== cardsG) stageSvg.insertBefore(cardsG, roomTexts.nextSibling);
   if (cardsG.nextSibling !== playedCardsG) stageSvg.insertBefore(playedCardsG, cardsG.nextSibling);
   if (playedCardsG.nextSibling !== roomTotalsG) stageSvg.insertBefore(roomTotalsG, playedCardsG.nextSibling);
-  if (stageSvg.lastElementChild !== roomTotalsG) stageSvg.appendChild(roomTotalsG);
+  if (roomTotalsG.nextSibling !== roomConditionHints) stageSvg.insertBefore(roomConditionHints, roomTotalsG.nextSibling);
+  if (stageSvg.lastElementChild !== roomConditionHints) stageSvg.appendChild(roomConditionHints);
 })();
 
 function redrawAll(m){
