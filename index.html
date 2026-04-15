@@ -3465,16 +3465,14 @@ function renderEqTriBackFill(mission){
   for(let room=1; room<=6; room++){
     const use = triBack.querySelector(`use[data-room="${room}"]`);
     if(!use) continue;
-    if (isWhiteOnlyRoom(mission, room)){
-      use.setAttribute('fill', '#ffffff');
-      continue;
-    }
     if (isMission14){
       use.setAttribute('fill', mission14SpecifiedRooms.has(room) ? missionBrown : 'url(#starPattern)');
       continue;
     }
     if(specified.has(room)){
       use.setAttribute('fill', '#e0ffff');
+    }else if (isWhiteOnlyRoom(mission, room)){
+      use.setAttribute('fill', '#ffffff');
     }else{
       use.setAttribute('fill', defaultFill);
     }
