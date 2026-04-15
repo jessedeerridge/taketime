@@ -1163,6 +1163,7 @@ let lastSeenPhaseTicks = { discussion: 0, placement: 0, reveal: 0 };
 let revealFlipProcessingKey = '';
 let revealFlipRetryTimer = null;
 let revealResultAnnouncedKey = '';
+let revealNeedleMovePendingKey = '';
 let roomTotalsRefreshTimer = null;
 let revealResultDelayTimer = null;
 let lastPlayedCardKeys = new Set();
@@ -1174,6 +1175,8 @@ let boardRotationWriteTimer = null;
 let boardRotationAnimFrame = null;
 let boardRotationAnimId = '';
 let boardRotateDrag = null;
+let needleRotationDeg = 0;
+let needleRotationAnimFrame = null;
 
 function getBlackBackGradient(){
   return 'repeating-linear-gradient(135deg,var(--black-card) 0px,var(--black-card) 4px,var(--black-card-stripe) 4px,var(--black-card-stripe) 8px)';
@@ -1225,6 +1228,54 @@ function normalizeRotationDeg(deg){
 
 function shortestRotationDelta(fromDeg, toDeg){
   return ((toDeg - fromDeg + 540) % 360) - 180;
+}
+
+function getDefaultNeedleRotationDeg(){
+  return parseFloat(getComputedStyle(stageSvg).getPropertyValue('--centerTopRotate')) || 0;
+}
+
+function applyNeedleRotation(angleDeg){
+  needleRotationDeg = normalizeRotationDeg(angleDeg);
+  const base = `translate(150,150) rotate(${needleRotationDeg})`;
+  stageSvg.querySelector('#centerTopLineG')?.setAttribute('transform', base);
+  stageSvg.querySelector('#centerTopDiamondG')?.setAttribute('transform', base);
+  stageSvg.querySelector('#needleRotateHitG')?.setAttribute('transform', base);
+}
+
+function animateNeedleRotationTo(toDeg, durationMs = 520, startAt = Date.now()){
+  const from = normalizeRotationDeg(needleRotationDeg);
+  const delta = shortestRotationDelta(from, toDeg);
+  const duration = Math.max(1, Number(durationMs) || 1);
+  if (needleRotationAnimFrame){
+    cancelAnimationFrame(needleRotationAnimFrame);
+    needleRotationAnimFrame = null;
+  }
+  const tick = () => {
+    const progress = Math.min(1, (Date.now() - startAt) / duration);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    applyNeedleRotation(from + delta * eased);
+    if (progress < 1){
+      needleRotationAnimFrame = requestAnimationFrame(tick);
+    } else {
+      needleRotationAnimFrame = null;
+      applyNeedleRotation(from + delta);
+    }
+  };
+  tick();
+}
+
+function getNeedlePointingRoom(){
+  let closestRoom = 1;
+  let closestDiff = Infinity;
+  for (let room = 1; room <= 6; room++){
+    const midDeg = (room - 1) * 60 + 30;
+    const diff = Math.abs(shortestRotationDelta(needleRotationDeg, midDeg));
+    if (diff < closestDiff){
+      closestDiff = diff;
+      closestRoom = room;
+    }
+  }
+  return closestRoom;
 }
 
 function canRotateBoardNow(){
@@ -1703,6 +1754,9 @@ function subscribePhaseEvents(){
     const data = snap.val() || {};
     state.phaseState = data;
     state.currentPhase = deriveCurrentPhase(data);
+    if (state.currentPhase !== 'reveal'){
+      revealNeedleMovePendingKey = '';
+    }
     const mapping = [
       { key: 'discussionTick', phase: 'discussion', label: '議論フェーズ' },
       { key: 'placementTick', phase: 'placement', label: '配置フェーズ' },
@@ -1773,6 +1827,9 @@ function subscribeStage(){
     currentStage = sharedStage;
     if (currentStage) localStorage.setItem(STAGE_KEY, currentStage);
     else localStorage.removeItem(STAGE_KEY);
+    applyBoardRotation(0);
+    applyNeedleRotation(getDefaultNeedleRotationDeg());
+    revealNeedleMovePendingKey = '';
     if (state.isHost){
       hostHandLockedByStage = !!currentStage;
       syncHostStageReadyButton();
@@ -1955,13 +2012,27 @@ function evaluatePlacementResult(stage, roomCardsMap){
     roomSums.push({ room, sum });
   }
 
-  let isAscending = true;
-  for (let i = 1; i < roomSums.length; i++){
-    if (roomSums[i].sum < roomSums[i - 1].sum){
-      isAscending = false;
-      break;
+  let ascendingStartRoom = null;
+  if (roomSums.length <= 1){
+    ascendingStartRoom = roomSums[0]?.room || 1;
+  } else {
+    for (let start = 0; start < roomSums.length; start++){
+      let ok = true;
+      for (let offset = 1; offset < roomSums.length; offset++){
+        const prev = roomSums[(start + offset - 1) % roomSums.length].sum;
+        const curr = roomSums[(start + offset) % roomSums.length].sum;
+        if (curr < prev){
+          ok = false;
+          break;
+        }
+      }
+      if (ok){
+        ascendingStartRoom = roomSums[start].room;
+        break;
+      }
     }
   }
+  const isAscending = ascendingStartRoom != null;
 
   let conditionsOk = true;
   const conditions = STAGE_ROOM_SUCCESS_CONDITIONS[stage] || [];
@@ -1977,7 +2048,10 @@ function evaluatePlacementResult(stage, roomCardsMap){
   const room6Sum = (roomCardsMap.get(6) || []).reduce((acc, card) => acc + Number(card.num || 0), 0);
   const room6Ok = hasInfinity || room6Sum <= 24;
 
-  return isAscending && conditionsOk && room6Ok;
+  return {
+    success: isAscending && conditionsOk && room6Ok,
+    ascendingStartRoom
+  };
 }
 
 async function maybeRunRevealFlipSequence(){
@@ -2034,25 +2108,42 @@ function maybeAnnounceRevealResult(){
   if (!allFaceUp) return;
 
   const roomCardsMap = getRoomCardsMap(entries);
-  const room6Cards = roomCardsMap.get(6) || [];
   const revealTickTs = Number(state.phaseState?.revealTick || 0);
-  if (room6Cards.length){
-    const latestRoom6RevealTs = room6Cards.reduce((latestTs, card) => {
+
+  let totalsReadyAt = revealTickTs;
+  for (let room = 1; room <= 6; room++){
+    const cards = roomCardsMap.get(room) || [];
+    if (!cards.length) continue;
+    const latestRoomRevealTs = cards.reduce((latestTs, card) => {
       const ts = Number(card.revealedAt || 0);
       return ts > latestTs ? ts : latestTs;
     }, 0);
-    const room6TotalShownAt = Math.max(revealTickTs, latestRoom6RevealTs) + ROOM_TOTAL_DISPLAY_DELAY_MS;
-    const resultPopAt = room6TotalShownAt + RESULT_POP_DELAY_AFTER_ROOM6_TOTAL_MS;
-    const waitMs = resultPopAt - Date.now();
-    if (waitMs > 0){
-      scheduleRevealResultRetry(waitMs);
+    totalsReadyAt = Math.max(totalsReadyAt, Math.max(revealTickTs, latestRoomRevealTs) + ROOM_TOTAL_DISPLAY_DELAY_MS);
+  }
+  const resultPopAt = totalsReadyAt + RESULT_POP_DELAY_AFTER_ROOM6_TOTAL_MS;
+  const waitMs = resultPopAt - Date.now();
+  if (waitMs > 0){
+    scheduleRevealResultRetry(waitMs);
+    return;
+  }
+
+  const result = evaluatePlacementResult(currentStage, roomCardsMap);
+  if (result.success && result.ascendingStartRoom){
+    const currentNeedleRoom = getNeedlePointingRoom();
+    if (currentNeedleRoom !== result.ascendingStartRoom){
+      if (revealNeedleMovePendingKey !== phaseKey){
+        revealNeedleMovePendingKey = phaseKey;
+        const targetNeedleDeg = (result.ascendingStartRoom - 1) * 60 + 30;
+        animateNeedleRotationTo(targetNeedleDeg, 560);
+      }
+      scheduleRevealResultRetry(620);
       return;
     }
   }
 
-  const success = evaluatePlacementResult(currentStage, roomCardsMap);
-  showPhaseFlow(success ? '配置成功' : '配置失敗');
+  showPhaseFlow(result.success ? '配置成功' : '配置失敗');
   revealResultAnnouncedKey = phaseKey;
+  revealNeedleMovePendingKey = '';
 }
 
 function svgToClientPoint(x, y){
@@ -2844,6 +2935,8 @@ async function setStage(code){
   currentStage = STAGE_CODES.includes(code) ? code : '';
   if (currentStage) localStorage.setItem(STAGE_KEY, currentStage);
   else localStorage.removeItem(STAGE_KEY);
+  applyBoardRotation(0);
+  applyNeedleRotation(getDefaultNeedleRotationDeg());
   if (state.isHost){
     hostHandLockedByStage = !!currentStage;
     syncHostStageReadyButton();
@@ -2854,6 +2947,7 @@ async function setStage(code){
   if (state.isHost && state.roomCode){
     if (currentStage) await set(ref(db, `rooms/${state.roomCode}/stageCode`), currentStage);
     else await remove(ref(db, `rooms/${state.roomCode}/stageCode`));
+    await writeBoardRotationShared({ toDeg: 0, updatedAt: Date.now(), by: state.userId });
   }
 
   if (state.isHost && state.roomCode && currentStage){
@@ -2885,6 +2979,7 @@ window.addEventListener('resize', () => {
 
 /* ===== ステージSVGロジック：元コードをそのまま移植 ===== */
 const stageSvg = document.getElementById('stageBoard');
+needleRotationDeg = normalizeRotationDeg(getDefaultNeedleRotationDeg());
 
 stageNameGear.addEventListener('click', async () => {
   if (!currentStage) return;
@@ -2906,13 +3001,19 @@ function getBoardPointerAngleDeg(clientX, clientY){
   return normalizeRotationDeg(deg);
 }
 
+function isRotationGrabTarget(event){
+  const path = event.composedPath?.() || [];
+  return path.some((node) => {
+    if (!node) return false;
+    if (node.id === 'needleRotateHit') return true;
+    return !!node.classList?.contains?.('sector');
+  });
+}
+
 stageSvg.addEventListener('pointerdown', (event) => {
   if (!canRotateBoardNow()) return;
   if (event.button !== 0 && event.pointerType !== 'touch' && event.pointerType !== 'pen') return;
-  const targetEl = event.target;
-  const isRoomHandle = !!targetEl.closest?.('.sector');
-  const isNeedleHandle = !!targetEl.closest?.('#needleRotateHit');
-  if (!isRoomHandle && !isNeedleHandle) return;
+  if (!isRotationGrabTarget(event)) return;
   boardRotateDrag = {
     pointerId: event.pointerId,
     startAngle: getBoardPointerAngleDeg(event.clientX, event.clientY),
@@ -4267,27 +4368,31 @@ function renderRoomTotals(){
     const x = 150 + pOuter.x;
     const y = 150 + pOuter.y;
 
+    const wrapper = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    wrapper.setAttribute('transform', `translate(${x},${y}) rotate(${-state.boardRotation})`);
+
     const table = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    table.setAttribute('x', String(x - 14));
-    table.setAttribute('y', String(y - 12));
+    table.setAttribute('x', '-14');
+    table.setAttribute('y', '-12');
     table.setAttribute('width', '28');
     table.setAttribute('height', '24');
     table.setAttribute('rx', '8');
     table.setAttribute('ry', '8');
     table.setAttribute('fill', 'rgba(31, 41, 55, 0.58)');
     table.setAttribute('stroke', 'none');
-    g.appendChild(table);
+    wrapper.appendChild(table);
 
     const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     text.textContent = String(sum);
-    text.setAttribute('x', String(x));
-    text.setAttribute('y', String(y));
+    text.setAttribute('x', '0');
+    text.setAttribute('y', '0');
     text.setAttribute('fill', '#fff');
     text.setAttribute('font-size', '15');
     text.setAttribute('font-weight', '800');
     text.setAttribute('text-anchor', 'middle');
     text.setAttribute('dominant-baseline', 'middle');
-    g.appendChild(text);
+    wrapper.appendChild(text);
+    g.appendChild(wrapper);
   }
 }
 
@@ -4576,6 +4681,7 @@ function renderRoomConditionHints(mission = currentStage){
   const spec         = stageSvg.querySelector('#stageSpecified');
   const clockMarks   = stageSvg.querySelector('#stageClockMarks');
   const centerLineG  = stageSvg.querySelector('#centerTopLineG');
+  const needleHitG   = stageSvg.querySelector('#needleRotateHitG');
   const tipG         = stageSvg.querySelector('#centerTopDiamondG');
   const roomGuideCircles = stageSvg.querySelector('#roomGuideCircles');
   const roomTexts    = stageSvg.querySelector('#roomTexts');
@@ -4584,11 +4690,9 @@ function renderRoomConditionHints(mission = currentStage){
   const playedCardsG = stageSvg.querySelector('#playedCards');
   const roomTotalsG  = stageSvg.querySelector('#roomTotals');
 
-  const rot = parseFloat(getComputedStyle(stageSvg).getPropertyValue('--centerTopRotate')) || 0;
-  centerLineG?.setAttribute('transform', `translate(150,150) rotate(${rot})`);
-  tipG?.setAttribute('transform',         `translate(150,150) rotate(${rot})`);
+  applyNeedleRotation(needleRotationDeg);
 
-  if (!back || !marks || !outG || !r2 || !orangeFill || !tiny20 || !orangeStroke || !infinityG || !spec || !clockMarks || !centerLineG || !tipG || !roomGuideCircles || !roomTexts || !roomConditionHints || !cardsG || !playedCardsG || !roomTotalsG) return;
+  if (!back || !marks || !outG || !r2 || !orangeFill || !tiny20 || !orangeStroke || !infinityG || !spec || !clockMarks || !centerLineG || !needleHitG || !tipG || !roomGuideCircles || !roomTexts || !roomConditionHints || !cardsG || !playedCardsG || !roomTotalsG) return;
 
   if (innerLightFill && innerLightFill.previousSibling !== outG) stageSvg.insertBefore(outG, innerLightFill);
   else if (!innerLightFill && back.previousSibling !== outG)     stageSvg.insertBefore(outG, back);
@@ -4596,7 +4700,8 @@ function renderRoomConditionHints(mission = currentStage){
   if (marks.nextSibling !== r2)          stageSvg.insertBefore(r2,    marks.nextSibling);
   if (r2.nextSibling !== tipG)           stageSvg.insertBefore(tipG,  r2.nextSibling);
   if (tipG.nextSibling !== centerLineG)  stageSvg.insertBefore(centerLineG, tipG.nextSibling);
-  if (centerLineG.nextSibling !== orangeFill)   stageSvg.insertBefore(orangeFill,   centerLineG.nextSibling);
+  if (centerLineG.nextSibling !== needleHitG) stageSvg.insertBefore(needleHitG, centerLineG.nextSibling);
+  if (needleHitG.nextSibling !== orangeFill)   stageSvg.insertBefore(orangeFill,   needleHitG.nextSibling);
   if (orangeFill.nextSibling !== tiny20)        stageSvg.insertBefore(tiny20,       orangeFill.nextSibling);
   if (tiny20.nextSibling !== orangeStroke)      stageSvg.insertBefore(orangeStroke, tiny20.nextSibling);
   if (orangeStroke.nextSibling !== infinityG)   stageSvg.insertBefore(infinityG,    orangeStroke.nextSibling);
