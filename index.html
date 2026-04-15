@@ -3291,19 +3291,21 @@ function renderOutwardMarks(mission){
     }
 
     const whiteOnlyRoom = isWhiteOnlyRoom(mission, room);
+    const specifiedRoom = specified.has(room);
+    const outwardLineFill = (whiteOnlyRoom || specifiedRoom) ? '#ffffff' : color;
 
     const dLeftRibbon  = taperedQuadRibbonPath(pL, cL, tip, baseW, tipW, 12);
     const dRightRibbon = taperedQuadRibbonPath(pR, cR, tip, baseW, tipW, 12);
 
     const leftRibbon = document.createElementNS('http://www.w3.org/2000/svg','path');
     leftRibbon.setAttribute('d', dLeftRibbon);
-    leftRibbon.setAttribute('fill', whiteOnlyRoom ? '#ffffff' : color);
+    leftRibbon.setAttribute('fill', outwardLineFill);
     leftRibbon.setAttribute('fill-opacity', opacity);
     stageOutG.appendChild(leftRibbon);
 
     const rightRibbon = document.createElementNS('http://www.w3.org/2000/svg','path');
     rightRibbon.setAttribute('d', dRightRibbon);
-    rightRibbon.setAttribute('fill', whiteOnlyRoom ? '#ffffff' : color);
+    rightRibbon.setAttribute('fill', outwardLineFill);
     rightRibbon.setAttribute('fill-opacity', opacity);
     stageOutG.appendChild(rightRibbon);
 
