@@ -4288,27 +4288,36 @@ function renderRoomConditionHints(mission = currentStage){
   const roomOrder = specifiedRooms.slice().sort((a, b) => a - b);
   const xMin = -150 + boxW / 2 + 2;
   const xMax = 150 - boxW / 2 - 2;
-  const yMinBase = -150 + boxHeights[2] / 2 + 2;
-  const yMaxBase = 150 - boxHeights[2] / 2 - 2;
+  const hintItems = roomOrder
+    .map((room) => ({ room, hintText: getStageRoomHintText(mission, room) }))
+    .filter((item) => item.hintText);
+  const hintCount = hintItems.length;
 
-  specifiedRooms.forEach((room) => {
-    const hintText = getStageRoomHintText(mission, room);
-    if (!hintText) return;
+  hintItems.forEach(({ room, hintText }, hintIdx) => {
     const midDeg = (room - 1) * 60 + 30;
     const midRad = (midDeg * Math.PI) / 180;
-    const roomOrderIndex = roomOrder.indexOf(room);
-    const sideExtraOffset = Math.abs(Math.cos(midRad)) > 0.8 ? 16 : 0;
-    const radialOut = centerR + guideR + outerOffset + 18 + roomOrderIndex * 18 + sideExtraOffset;
+    const isSidePosition = Math.abs(Math.cos(midRad)) > 0.82;
+    const sideExtraOffset = isSidePosition ? 30 : 0;
+    let radialOut = centerR + guideR + outerOffset + 18 + hintIdx * 20 + sideExtraOffset;
+
+    if (hintCount >= 3){
+      if (hintIdx === 0 || hintIdx === 2){
+        radialOut -= 14;
+      } else if (hintIdx === 1){
+        radialOut += 18;
+      }
+    }
+
     const pOuter = polar(radialOut, midDeg);
     let x = pOuter.x;
     let y = pOuter.y;
 
-    if (roomOrder.length >= 3){
-      if (roomOrderIndex === 0 || roomOrderIndex === 2){
-        y *= 0.86;
+    if (hintCount >= 3){
+      if (hintIdx === 0 || hintIdx === 2){
+        y *= 0.72;
       }
-      if (roomOrderIndex === 1){
-        x += x >= 0 ? 14 : -14;
+      if (hintIdx === 1){
+        x *= 1.22;
       }
     }
 
@@ -4318,8 +4327,8 @@ function renderRoomConditionHints(mission = currentStage){
     }
     const lineCount = Math.max(1, Math.min(maxLines, lines.length));
     const boxH = lineCount <= 2 ? boxHeights[0] : (lineCount === 3 ? boxHeights[1] : boxHeights[2]);
-    const yMin = Math.max(yMinBase, -150 + boxH / 2 + 2);
-    const yMax = Math.min(yMaxBase, 150 - boxH / 2 - 2);
+    const yMin = -150 + boxH / 2 + 2;
+    const yMax = 150 - boxH / 2 - 2;
     const boxX = Math.max(xMin, Math.min(xMax, x));
     const boxY = Math.max(yMin, Math.min(yMax, y));
 
