@@ -98,6 +98,9 @@
     stroke-width:6;
     stroke-linecap:round;
   }
+  .stage-name-gear.clickable{
+    cursor:pointer;
+  }
 
   .seat-pop{
     position:fixed;left:50%;bottom:10px;transform:translateX(-50%);
@@ -654,24 +657,8 @@
         </g>
         <circle r="74" fill="#ae6f73" />
         <g transform="rotate(-12.8)">
-          <line class="mainDivider" x1="-74" y1="0" x2="74" y2="0" />
-          <line class="mainDivider" x1="0" y1="-74" x2="0" y2="74" />
-          <g transform="translate(-34,-34) rotate(-45)">
-            <path class="eyeStroke" d="M -27 0 Q 0 -22 27 0 Q 0 22 -27 0 Z" />
-            <circle class="eyePupil" cx="0" cy="0" r="10.5" />
-          </g>
-          <g transform="translate(34,-34) rotate(45)">
-            <path class="eyeStroke" d="M -27 0 Q 0 -22 27 0 Q 0 22 -27 0 Z" />
-            <circle class="eyePupil" cx="0" cy="0" r="10.5" />
-          </g>
-          <g transform="translate(-34,34) rotate(45)">
-            <path class="eyeStroke" d="M -27 0 Q 0 -22 27 0 Q 0 22 -27 0 Z" />
-            <circle class="eyePupil" cx="0" cy="0" r="10.5" />
-          </g>
-          <g transform="translate(34,34) rotate(-45)">
-            <path class="eyeStroke" d="M -27 0 Q 0 -22 27 0 Q 0 22 -27 0 Z" />
-            <circle class="eyePupil" cx="0" cy="0" r="10.5" />
-          </g>
+          <g id="mainGearDividers"></g>
+          <g id="mainGearEyes"></g>
         </g>
         <circle r="28" fill="#f8cb8d" />
       </g>
@@ -1102,6 +1089,9 @@ const btnOpenStagePop = document.getElementById('btnOpenStagePop');
 const stageNameTag = document.getElementById('stageNameTag');
 const stageNameGear = document.getElementById('stageNameGear');
 const stageNameText = document.getElementById('stageNameText');
+const mainGearDividers = document.getElementById('mainGearDividers');
+const mainGearEyes = document.getElementById('mainGearEyes');
+const subgearEls = [1, 2, 3].map((idx) => document.getElementById(`subgear${idx}`));
 
 const helpBackdrop = document.getElementById('helpBackdrop');
 const btnHelpClose = document.getElementById('btnHelpClose');
@@ -1151,6 +1141,7 @@ let revealResultDelayTimer = null;
 let lastPlayedCardKeys = new Set();
 const inFlightPlayedCardKeys = new Set();
 let hasPlayedCardsSnapshot = false;
+let currentSubgearCount = 0;
 
 function sleep(ms){
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -1368,9 +1359,72 @@ function updateHostUI(){
   syncHostStageReadyButton();
 }
 
+function getMainGearDivisionCount(){
+  const seatedCount = latestPlayers.length;
+  if (seatedCount <= 2) return 2;
+  if (seatedCount === 3) return 3;
+  return 4;
+}
+
+function renderMainGearVisual(){
+  if (!mainGearDividers || !mainGearEyes) return;
+  while (mainGearDividers.firstChild) mainGearDividers.removeChild(mainGearDividers.firstChild);
+  while (mainGearEyes.firstChild) mainGearEyes.removeChild(mainGearEyes.firstChild);
+
+  const divisionCount = getMainGearDivisionCount();
+  const eyeCenterRadius = divisionCount === 2 ? 34 : (divisionCount === 3 ? 36 : 42);
+  const eyeScale = divisionCount === 2 ? 0.95 : (divisionCount === 3 ? 0.88 : 1);
+
+  for (let i = 0; i < divisionCount; i++){
+    const angle = i * (360 / divisionCount);
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('class', 'mainDivider');
+    line.setAttribute('x1', '-74');
+    line.setAttribute('y1', '0');
+    line.setAttribute('x2', '74');
+    line.setAttribute('y2', '0');
+    line.setAttribute('transform', `rotate(${angle})`);
+    mainGearDividers.appendChild(line);
+  }
+
+  for (let i = 0; i < divisionCount; i++){
+    const baseDeg = -90 + i * (360 / divisionCount);
+    const rad = baseDeg * Math.PI / 180;
+    const x = Math.cos(rad) * eyeCenterRadius;
+    const y = Math.sin(rad) * eyeCenterRadius;
+    const eye = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    eye.setAttribute('transform', `translate(${x},${y}) rotate(${baseDeg + 90}) scale(${eyeScale})`);
+    eye.innerHTML = `
+      <path class="eyeStroke" d="M -27 0 Q 0 -22 27 0 Q 0 22 -27 0 Z"></path>
+      <circle class="eyePupil" cx="0" cy="0" r="10.5"></circle>
+    `;
+    mainGearEyes.appendChild(eye);
+  }
+}
+
+function applySubgearCountToDom(){
+  subgearEls.forEach((el, idx) => {
+    if (!el) return;
+    el.style.display = idx < currentSubgearCount ? '' : 'none';
+  });
+}
+
+function syncGearClickableState(){
+  const canEdit = !!currentStage && state.currentPhase === 'discussion';
+  stageNameGear.classList.toggle('clickable', canEdit);
+}
+
 function syncHostStageReadyButton(){
   const shouldShow = state.isHost && state.joined && !!currentStage && hostHandLockedByStage;
   hostStageReadyBtn.classList.toggle('visible', shouldShow);
+}
+
+async function setSubgearCount(nextCount){
+  const normalized = Math.max(0, Math.min(3, Number(nextCount) || 0));
+  currentSubgearCount = normalized;
+  applySubgearCountToDom();
+  if (!state.roomCode) return;
+  await set(ref(db, `rooms/${state.roomCode}/subgearCount`), normalized);
 }
 
 function showPhaseFlow(text){
@@ -1502,6 +1556,15 @@ function subscribePhaseEvents(){
     maybeRunRevealFlipSequence();
     maybeAnnounceRevealResult();
     renderHands();
+    syncGearClickableState();
+  });
+}
+
+function subscribeSubgearCount(){
+  const subgearCountRef = ref(db, `rooms/${state.roomCode}/subgearCount`);
+  onValue(subgearCountRef, snap => {
+    currentSubgearCount = Math.max(0, Math.min(3, Number(snap.val()) || 0));
+    applySubgearCountToDom();
   });
 }
 
@@ -1578,6 +1641,7 @@ function subscribePlayers(){
 
     syncSeatUI();
     renderPlayerCircle(players);
+    renderMainGearVisual();
     maybeAnnounceRevealPhase();
   });
 }
@@ -2308,6 +2372,7 @@ btnJoin.addEventListener('click', async () => {
     subscribePlayedCards();
     subscribeStage();
     subscribePhaseEvents();
+    subscribeSubgearCount();
 
     syncSeatUI();
   } catch (err) {
@@ -2495,7 +2560,8 @@ async function setStage(code){
   if (state.isHost && state.roomCode && currentStage){
     await Promise.all([
       remove(ref(db, `rooms/${state.roomCode}/playedCards`)),
-      remove(ref(db, `rooms/${state.roomCode}/hands`))
+      remove(ref(db, `rooms/${state.roomCode}/hands`)),
+      set(ref(db, `rooms/${state.roomCode}/subgearCount`), 0)
     ]);
     placedCardIds.clear();
     pendingPlacedCardIds.clear();
@@ -2520,6 +2586,13 @@ window.addEventListener('resize', () => {
 
 /* ===== ステージSVGロジック：元コードをそのまま移植 ===== */
 const stageSvg = document.getElementById('stageBoard');
+
+stageNameGear.addEventListener('click', async () => {
+  if (!currentStage) return;
+  if (state.currentPhase !== 'discussion') return;
+  const nextCount = (currentSubgearCount + 1) % 4;
+  await setSubgearCount(nextCount);
+});
 
 /* ================== 基本三角（角丸・内向き配置） ================== */
 const SCALE  = 0.92;
@@ -4089,6 +4162,9 @@ function redrawAll(m){
   stageNameTag.classList.toggle('hidden', hideStageName);
   stageNameGear.classList.toggle('hidden', hideStageName);
   if (hideStageName) isStageTagPressed = false;
+  renderMainGearVisual();
+  applySubgearCountToDom();
+  syncGearClickableState();
 
   applyMissionSkin(renderStage);
   renderEqTriBackFill(renderStage);
