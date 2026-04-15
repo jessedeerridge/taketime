@@ -7,6 +7,7 @@
 <style>
   :root{
     --black-card:#0b1530;
+    --black-card-stripe:#1a274d;
     --black-card-border-soft:#58606f;
   }
 
@@ -234,8 +235,8 @@
         135deg,
         var(--black-card) 0px,
         var(--black-card) 4px,
-        #1a274d 4px,
-        #1a274d 8px
+        var(--black-card-stripe) 4px,
+        var(--black-card-stripe) 8px
       );
     border:1px solid var(--black-card-border-soft);
   }
@@ -345,6 +346,7 @@
     font-size:24px;
     font-weight:600;
     cursor:pointer;
+    touch-action:manipulation;
     box-shadow:0 4px 12px rgba(0,0,0,.15);
   }
   .choice-card.back-white{
@@ -364,8 +366,8 @@
         135deg,
         var(--black-card) 0px,
         var(--black-card) 4px,
-        #1a274d 4px,
-        #1a274d 8px
+        var(--black-card-stripe) 4px,
+        var(--black-card-stripe) 8px
       );
     border:1px solid var(--black-card-border-soft);
   }
@@ -1146,8 +1148,13 @@ let roomTotalsRefreshTimer = null;
 let revealResultDelayTimer = null;
 let lastPlayedCardKeys = new Set();
 const inFlightPlayedCardKeys = new Set();
+const placingCardIds = new Set();
 let hasPlayedCardsSnapshot = false;
 let currentSubgearCount = 0;
+
+function getBlackBackGradient(){
+  return 'repeating-linear-gradient(135deg,var(--black-card) 0px,var(--black-card) 4px,var(--black-card-stripe) 4px,var(--black-card-stripe) 8px)';
+}
 
 function sleep(ms){
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -1740,7 +1747,7 @@ function renderMyHand(){
     if (shouldLockHand || shouldHideInDiscussion){
       card.textContent = '';
       card.style.background = cardData.color === 'black'
-        ? 'repeating-linear-gradient(135deg,#0b1530 0px,#0b1530 4px,#1a274d 4px,#1a274d 8px)'
+        ? getBlackBackGradient()
         : 'repeating-linear-gradient(135deg,#ffffff 0px,#ffffff 4px,#e5e7eb 4px,#e5e7eb 8px)';
       card.style.border = cardData.color === 'black' ? '1px solid #58606f' : '1px solid #cfcfcf';
       card.style.cursor = shouldLockHand ? 'not-allowed' : 'default';
@@ -1966,6 +1973,12 @@ function getRoomPlacementRule(stage, room){
   return null;
 }
 
+function isWhiteOnlyRoom(stage, room){
+  const rule = getRoomPlacementRule(stage, Number(room));
+  if (!rule || !Array.isArray(rule.allowedColors)) return false;
+  return rule.allowedColors.length === 1 && rule.allowedColors[0] === 'white';
+}
+
 function getRoomPlacementCounts(room){
   const playedEntries = Object.values(state.playedCards || {});
   let total = 0;
@@ -2013,13 +2026,9 @@ function findDropRoom(clientX, clientY, cardData = activeDrag?.cardData){
 
 async function placeDroppedCard(cardData, room, face = 'face'){
   if (!state.roomCode) return;
-  pendingPlacedCardIds.delete(cardData.id);
-  placedCardIds.add(cardData.id);
-  renderHands();
-  await removeCardFromHandInDb(state.userId, cardData);
   const placedAt = Date.now();
   const key = `${state.userId}_${cardData.id}_${placedAt}`;
-  await set(ref(db, `rooms/${state.roomCode}/playedCards/${key}`), {
+  const localCard = {
     id: cardData.id,
     num: cardData.num,
     color: cardData.color,
@@ -2027,7 +2036,28 @@ async function placeDroppedCard(cardData, room, face = 'face'){
     room,
     playerId: state.userId,
     placedAt
-  });
+  };
+  pendingPlacedCardIds.delete(cardData.id);
+  placedCardIds.add(cardData.id);
+  state.playedCards = {
+    ...(state.playedCards || {}),
+    [key]: localCard
+  };
+  lastPlayedCardKeys.add(key);
+  renderHands();
+  try {
+    await Promise.all([
+      set(ref(db, `rooms/${state.roomCode}/playedCards/${key}`), localCard),
+      removeCardFromHandInDb(state.userId, cardData)
+    ]);
+  } catch (err){
+    delete state.playedCards[key];
+    lastPlayedCardKeys.delete(key);
+    placedCardIds.delete(cardData.id);
+    pendingPlacedCardIds.delete(cardData.id);
+    renderHands();
+    throw err;
+  }
 }
 
 async function removeCardFromHandInDb(playerId, cardData){
@@ -2100,8 +2130,18 @@ function closeCardChoice(choice){
   }
 }
 
-btnChoiceFace.addEventListener('click', () => closeCardChoice('face'));
-btnChoiceBack.addEventListener('click', () => closeCardChoice('back'));
+function bindChoiceButton(button, choice){
+  button.addEventListener('pointerup', (ev) => {
+    ev.preventDefault();
+    closeCardChoice(choice);
+  });
+  button.addEventListener('click', () => {
+    closeCardChoice(choice);
+  });
+}
+
+bindChoiceButton(btnChoiceFace, 'face');
+bindChoiceButton(btnChoiceBack, 'back');
 
 function startCardDrag(ev, cardData){
   ev.preventDefault();
@@ -2169,10 +2209,18 @@ function startCardDrag(ev, cardData){
     window.removeEventListener('pointerup', onUp);
     window.removeEventListener('pointercancel', onUp);
     if (dropRoom){
+      if (placingCardIds.has(droppedCardData.id)) return;
+      placingCardIds.add(droppedCardData.id);
       pendingPlacedCardIds.add(droppedCardData.id);
       renderHands();
-      const choice = await openCardChoice(droppedCardData);
-      await placeDroppedCard(droppedCardData, dropRoom, choice);
+      try {
+        const choice = await openCardChoice(droppedCardData);
+        await placeDroppedCard(droppedCardData, dropRoom, choice);
+      } catch (err){
+        console.error('カード配置に失敗しました', err);
+      } finally {
+        placingCardIds.delete(droppedCardData.id);
+      }
     }
   };
   window.addEventListener('pointermove', onMove);
@@ -3140,7 +3188,7 @@ function taperedQuadRibbonPath(p0, c, p1, w0, w1, steps = 12){
 
 const stageOutG = stageSvg.querySelector('#stageOutward');
 
-function appendGoldX(parentG, triClipId, midDeg, len, rBase, spread){
+function appendGoldX(parentG, triClipId, midDeg, len, rBase, spread, strokeColor = '#facc15'){
   const cs5  = getComputedStyle(stageSvg);
   const g = document.createElementNS('http://www.w3.org/2000/svg','g');
   g.setAttribute('clip-path', `url(#${triClipId})`);
@@ -3157,7 +3205,7 @@ function appendGoldX(parentG, triClipId, midDeg, len, rBase, spread){
     const p = document.createElementNS('http://www.w3.org/2000/svg','path');
     p.setAttribute('d', dStr);
     p.setAttribute('fill', 'none');
-    p.setAttribute('stroke', '#facc15');
+    p.setAttribute('stroke', strokeColor);
     const baseW = parseFloat(cs5.getPropertyValue('--goldXStrokeW')) || 0.40;
     p.setAttribute('stroke-width', baseW);
     p.setAttribute('stroke-linecap','round');
@@ -3242,18 +3290,25 @@ function renderOutwardMarks(mission){
       continue;
     }
 
+    const whiteOnlyRoom = isWhiteOnlyRoom(mission, room);
+    const specifiedRoom = specified.has(room);
+    const specifiedRoomWhite = '#e0ffff';
+    const outwardLineFill = specifiedRoom
+      ? specifiedRoomWhite
+      : (whiteOnlyRoom ? '#ffffff' : color);
+
     const dLeftRibbon  = taperedQuadRibbonPath(pL, cL, tip, baseW, tipW, 12);
     const dRightRibbon = taperedQuadRibbonPath(pR, cR, tip, baseW, tipW, 12);
 
     const leftRibbon = document.createElementNS('http://www.w3.org/2000/svg','path');
     leftRibbon.setAttribute('d', dLeftRibbon);
-    leftRibbon.setAttribute('fill', color);
+    leftRibbon.setAttribute('fill', outwardLineFill);
     leftRibbon.setAttribute('fill-opacity', opacity);
     stageOutG.appendChild(leftRibbon);
 
     const rightRibbon = document.createElementNS('http://www.w3.org/2000/svg','path');
     rightRibbon.setAttribute('d', dRightRibbon);
-    rightRibbon.setAttribute('fill', color);
+    rightRibbon.setAttribute('fill', outwardLineFill);
     rightRibbon.setAttribute('fill-opacity', opacity);
     stageOutG.appendChild(rightRibbon);
 
@@ -3270,9 +3325,12 @@ function renderOutwardMarks(mission){
       stageOutG.appendChild(img);
     }
 
-    appendGoldX(stageOutG, clipId, midDeg, len, rBase, spread);
+    const goldXStroke = specifiedRoom
+      ? specifiedRoomWhite
+      : (whiteOnlyRoom ? '#ffffff' : '#facc15');
+    appendGoldX(stageOutG, clipId, midDeg, len, rBase, spread, goldXStroke);
 
-    if (isMission14){
+    if (isMission14 && !whiteOnlyRoom){
       [leftRibbon, rightRibbon].forEach((el)=>{
         el.setAttribute('fill', '#000');
         el.setAttribute('stroke', '#fff');
@@ -3413,6 +3471,8 @@ function renderEqTriBackFill(mission){
     }
     if(specified.has(room)){
       use.setAttribute('fill', '#e0ffff');
+    }else if (isWhiteOnlyRoom(mission, room)){
+      use.setAttribute('fill', '#ffffff');
     }else{
       use.setAttribute('fill', defaultFill);
     }
@@ -3751,8 +3811,8 @@ function renderPlayedCards(){
     rect.setAttribute('ry', cardR);
     const isBlack = cardData.color === 'black';
     const isFaceUp = cardData.face !== 'back';
-    rect.setAttribute('fill', isFaceUp ? (isBlack ? '#0b1530' : '#fff') : (isBlack ? '#13234d' : '#f3f4f6'));
-    rect.setAttribute('stroke', isFaceUp ? (isBlack ? '#0b1530' : '#ddd') : (isBlack ? '#0b1530' : '#cfcfcf'));
+    rect.setAttribute('fill', isFaceUp ? (isBlack ? '#0b1530' : '#fff') : (isBlack ? '#0b1530' : '#f3f4f6'));
+    rect.setAttribute('stroke', isFaceUp ? (isBlack ? '#0b1530' : '#ddd') : (isBlack ? '#58606f' : '#cfcfcf'));
     rect.setAttribute('stroke-width', sw);
     cardG.appendChild(rect);
 
@@ -3833,9 +3893,9 @@ function buildFlyingCard(cardData, width, height){
   } else {
     card.textContent = '';
     card.style.background = isBlack
-      ? 'repeating-linear-gradient(135deg,#13234d 0px,#13234d 4px,#1f356e 4px,#1f356e 8px)'
+      ? getBlackBackGradient()
       : 'repeating-linear-gradient(135deg,#f9fafb 0px,#f9fafb 4px,#e5e7eb 4px,#e5e7eb 8px)';
-    card.style.border = isBlack ? '1px solid #0b1530' : '1px solid #cfcfcf';
+    card.style.border = isBlack ? '1px solid #58606f' : '1px solid #cfcfcf';
   }
   return card;
 }
