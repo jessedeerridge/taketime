@@ -1384,13 +1384,13 @@ function renderMainGearVisual(){
       ]
     : divisionCount === 3
       ? [
-          { x: 36, y: -20, rot: 60, scale: 0.92 },
-          { x: 0, y: 44, rot: 180, scale: 0.92 },
-          { x: -36, y: -20, rot: -60, scale: 0.92 }
+          { x: 46, y: -26, rot: 60, scale: 1 },
+          { x: 0, y: 52, rot: 180, scale: 1 },
+          { x: -46, y: -26, rot: -60, scale: 1 }
         ]
       : [
-          { x: 0, y: -48, rot: 0, scale: 0.95 },
-          { x: 0, y: 48, rot: 180, scale: 0.95 }
+          { x: 0, y: -56, rot: 0, scale: 1 },
+          { x: 0, y: 56, rot: 180, scale: 1 }
         ];
 
   diameterAngles.forEach((angle) => {
@@ -4110,8 +4110,8 @@ function renderRoomConditionHints(mission = currentStage){
   const { centerR, guideR, outerOffset } = getGuideMetrics();
   const maxCharsPerLine = 14;
   const maxLines = 4;
-  const boxW = 196;
-  const boxH = 72;
+  const boxW = 156;
+  const boxH = 58;
   const lineH = 12;
   const roomOrder = specifiedRooms.slice().sort((a, b) => a - b);
   const placedRects = [];
@@ -4153,8 +4153,8 @@ function renderRoomConditionHints(mission = currentStage){
     table.setAttribute('height', String(boxH));
     table.setAttribute('rx', '10');
     table.setAttribute('ry', '10');
-    table.setAttribute('fill', 'rgba(75, 85, 99, 0.48)');
-    table.setAttribute('stroke', 'rgba(255,255,255,0.4)');
+    table.setAttribute('fill', 'rgba(31, 41, 55, 0.72)');
+    table.setAttribute('stroke', 'rgba(255,255,255,0.55)');
     table.setAttribute('stroke-width', '1');
     g.appendChild(table);
 
