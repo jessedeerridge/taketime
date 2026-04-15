@@ -1384,13 +1384,13 @@ function renderMainGearVisual(){
       ]
     : divisionCount === 3
       ? [
-          { x: 46, y: -26, rot: 60, scale: 1 },
-          { x: 0, y: 52, rot: 180, scale: 1 },
-          { x: -46, y: -26, rot: -60, scale: 1 }
+          { x: 40, y: -22, rot: 60, scale: 1 },
+          { x: 0, y: 46, rot: 180, scale: 1 },
+          { x: -40, y: -22, rot: -60, scale: 1 }
         ]
       : [
-          { x: 0, y: -56, rot: 0, scale: 1 },
-          { x: 0, y: 56, rot: 180, scale: 1 }
+          { x: 0, y: -50, rot: 0, scale: 1 },
+          { x: 0, y: 50, rot: 180, scale: 1 }
         ];
 
   diameterAngles.forEach((angle) => {
@@ -4110,17 +4110,22 @@ function renderRoomConditionHints(mission = currentStage){
   const { centerR, guideR, outerOffset } = getGuideMetrics();
   const maxCharsPerLine = 14;
   const maxLines = 4;
-  const boxW = 156;
-  const boxH = 58;
+  const boxW = 140;
+  const boxH = 56;
   const lineH = 12;
   const roomOrder = specifiedRooms.slice().sort((a, b) => a - b);
-  const placedRects = [];
+  const xMin = -150 + boxW / 2 + 2;
+  const xMax = 150 - boxW / 2 - 2;
+  const yMin = -150 + boxH / 2 + 2;
+  const yMax = 150 - boxH / 2 - 2;
 
   specifiedRooms.forEach((room) => {
     const hintText = getStageRoomHintText(mission, room);
     if (!hintText) return;
     const midDeg = (room - 1) * 60 + 30;
-    const pOuter = polar(centerR + guideR * 0.5 + outerOffset, midDeg);
+    const roomOrderIndex = roomOrder.indexOf(room);
+    const radialOut = centerR + guideR + outerOffset + 18 + roomOrderIndex * 18;
+    const pOuter = polar(radialOut, midDeg);
     const x = pOuter.x;
     const y = pOuter.y;
 
@@ -4128,23 +4133,8 @@ function renderRoomConditionHints(mission = currentStage){
     for (let idx = 0; idx < hintText.length; idx += maxCharsPerLine){
       lines.push(hintText.slice(idx, idx + maxCharsPerLine));
     }
-    const roomOrderIndex = roomOrder.indexOf(room);
-    const bumpStep = Math.floor(roomOrderIndex / 2) * 14;
-    const sideBump = roomOrderIndex % 2 === 0 ? -14 : 14;
-    let boxX = x + sideBump;
-    let boxY = y - (14 + bumpStep);
-
-    let guard = 0;
-    while (guard < 12){
-      const overlaps = placedRects.some((r) =>
-        Math.abs(boxX - r.x) < (boxW + r.w) / 2 + 6
-        && Math.abs(boxY - r.y) < (boxH + r.h) / 2 + 6
-      );
-      if (!overlaps) break;
-      boxY += boxH + 8;
-      guard += 1;
-    }
-    placedRects.push({ x: boxX, y: boxY, w: boxW, h: boxH });
+    const boxX = Math.max(xMin, Math.min(xMax, x));
+    const boxY = Math.max(yMin, Math.min(yMax, y));
 
     const table = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     table.setAttribute('x', String(boxX - boxW / 2));
@@ -4154,8 +4144,7 @@ function renderRoomConditionHints(mission = currentStage){
     table.setAttribute('rx', '10');
     table.setAttribute('ry', '10');
     table.setAttribute('fill', 'rgba(31, 41, 55, 0.72)');
-    table.setAttribute('stroke', 'rgba(255,255,255,0.55)');
-    table.setAttribute('stroke-width', '1');
+    table.setAttribute('stroke', 'none');
     g.appendChild(table);
 
     const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
