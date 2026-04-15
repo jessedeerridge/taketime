@@ -4299,6 +4299,7 @@ function renderRoomConditionHints(mission = currentStage){
     5: 2
   };
   const radialByHeight = [18, 34, 50];
+  const sideRoomExtraOffset = 60;
 
   specifiedRooms.forEach((room) => {
     const hintText = getStageRoomHintText(mission, room);
@@ -4307,7 +4308,8 @@ function renderRoomConditionHints(mission = currentStage){
     const roomOrderIndex = roomOrder.indexOf(room);
     const level = roomHeightLevel[room] ?? 0;
     const baseRadial = radialByHeight[Math.max(0, Math.min(radialByHeight.length - 1, level))];
-    const radialOut = centerR + guideR + outerOffset + baseRadial + roomOrderIndex * 10;
+    const sideOffset = (room === 2 || room === 5) ? sideRoomExtraOffset : 0;
+    const radialOut = centerR + guideR + outerOffset + baseRadial + roomOrderIndex * 10 + sideOffset;
     const pOuter = polar(radialOut, midDeg);
     const x = pOuter.x;
     const y = pOuter.y;
