@@ -97,10 +97,10 @@
   }
   .stage-name-gear .eyeSlot.used .eyeStroke,
   .stage-name-gear .eyeSlot.used .eyePupil{
-    stroke:#111;
+    stroke:#6b7280;
   }
   .stage-name-gear .eyeSlot.used .eyeText{
-    fill:#111;
+    fill:#6b7280;
   }
   .stage-name-gear .mainDivider{
     stroke:#f8cb8d;
@@ -4263,6 +4263,9 @@ function getStageRoomHintText(stage, room){
   ){
     return '白カード、黒カードを必ず１枚ずつだけ置かなければならない。';
   }
+  if (Number.isFinite(placementRule.maxTotal) && placementRule.maxTotal > 0){
+    return `カードは最大${placementRule.maxTotal}枚まで置くことができる。`;
+  }
   return '';
 }
 
@@ -4280,20 +4283,22 @@ function renderRoomConditionHints(mission = currentStage){
   const maxCharsPerLine = 14;
   const maxLines = 4;
   const boxW = 140;
-  const boxH = 56;
+  const boxHeights = [42, 56, 70];
   const lineH = 12;
   const roomOrder = specifiedRooms.slice().sort((a, b) => a - b);
   const xMin = -150 + boxW / 2 + 2;
   const xMax = 150 - boxW / 2 - 2;
-  const yMin = -150 + boxH / 2 + 2;
-  const yMax = 150 - boxH / 2 - 2;
+  const yMinBase = -150 + boxHeights[2] / 2 + 2;
+  const yMaxBase = 150 - boxHeights[2] / 2 - 2;
 
   specifiedRooms.forEach((room) => {
     const hintText = getStageRoomHintText(mission, room);
     if (!hintText) return;
     const midDeg = (room - 1) * 60 + 30;
+    const midRad = (midDeg * Math.PI) / 180;
     const roomOrderIndex = roomOrder.indexOf(room);
-    const radialOut = centerR + guideR + outerOffset + 18 + roomOrderIndex * 18;
+    const sideExtraOffset = Math.abs(Math.cos(midRad)) > 0.8 ? 16 : 0;
+    const radialOut = centerR + guideR + outerOffset + 18 + roomOrderIndex * 18 + sideExtraOffset;
     const pOuter = polar(radialOut, midDeg);
     const x = pOuter.x;
     const y = pOuter.y;
@@ -4302,6 +4307,10 @@ function renderRoomConditionHints(mission = currentStage){
     for (let idx = 0; idx < hintText.length; idx += maxCharsPerLine){
       lines.push(hintText.slice(idx, idx + maxCharsPerLine));
     }
+    const lineCount = Math.max(1, Math.min(maxLines, lines.length));
+    const boxH = lineCount <= 2 ? boxHeights[0] : (lineCount === 3 ? boxHeights[1] : boxHeights[2]);
+    const yMin = Math.max(yMinBase, -150 + boxH / 2 + 2);
+    const yMax = Math.min(yMaxBase, 150 - boxH / 2 - 2);
     const boxX = Math.max(xMin, Math.min(xMax, x));
     const boxY = Math.max(yMin, Math.min(yMax, y));
 
@@ -4381,11 +4390,10 @@ function renderRoomConditionHints(mission = currentStage){
   if (spec.nextSibling !== clockMarks)          stageSvg.insertBefore(clockMarks,   spec.nextSibling);
   if (clockMarks.nextSibling !== roomGuideCircles) stageSvg.insertBefore(roomGuideCircles, clockMarks.nextSibling);
   if (roomGuideCircles.nextSibling !== roomTexts) stageSvg.insertBefore(roomTexts, roomGuideCircles.nextSibling);
-  if (roomTexts.nextSibling !== roomConditionHints) stageSvg.insertBefore(roomConditionHints, roomTexts.nextSibling);
-
-  if (roomConditionHints.nextSibling !== cardsG) stageSvg.insertBefore(cardsG, roomConditionHints.nextSibling);
+  if (roomTexts.nextSibling !== cardsG) stageSvg.insertBefore(cardsG, roomTexts.nextSibling);
   if (cardsG.nextSibling !== playedCardsG) stageSvg.insertBefore(playedCardsG, cardsG.nextSibling);
-  if (playedCardsG.nextSibling !== roomTotalsG) stageSvg.insertBefore(roomTotalsG, playedCardsG.nextSibling);
+  if (playedCardsG.nextSibling !== roomConditionHints) stageSvg.insertBefore(roomConditionHints, playedCardsG.nextSibling);
+  if (roomConditionHints.nextSibling !== roomTotalsG) stageSvg.insertBefore(roomTotalsG, roomConditionHints.nextSibling);
   if (stageSvg.lastElementChild !== roomTotalsG) stageSvg.appendChild(roomTotalsG);
 })();
 
