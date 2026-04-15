@@ -956,6 +956,7 @@ let lastShownPhaseEventTs = 0;
 let revealPhaseAnnouncedForStage = '';
 let lastSeenPhaseTicks = { discussion: 0, placement: 0, reveal: 0 };
 let revealFlipProcessingKey = '';
+let revealFlipRetryTimer = null;
 let revealResultAnnouncedKey = '';
 let roomTotalsRefreshTimer = null;
 let revealResultDelayTimer = null;
@@ -980,6 +981,14 @@ function scheduleRevealResultRetry(delayMs){
   revealResultDelayTimer = setTimeout(() => {
     revealResultDelayTimer = null;
     maybeAnnounceRevealResult();
+  }, Math.max(20, Number(delayMs) || 20));
+}
+
+function scheduleRevealFlipRetry(delayMs = 20){
+  if (revealFlipRetryTimer) clearTimeout(revealFlipRetryTimer);
+  revealFlipRetryTimer = setTimeout(() => {
+    revealFlipRetryTimer = null;
+    maybeRunRevealFlipSequence();
   }, Math.max(20, Number(delayMs) || 20));
 }
 
@@ -1323,6 +1332,10 @@ function subscribeStage(){
     }
     revealResultAnnouncedKey = '';
     revealFlipProcessingKey = '';
+    if (revealFlipRetryTimer){
+      clearTimeout(revealFlipRetryTimer);
+      revealFlipRetryTimer = null;
+    }
     if (roomTotalsRefreshTimer){
       clearTimeout(roomTotalsRefreshTimer);
       roomTotalsRefreshTimer = null;
@@ -1529,20 +1542,29 @@ async function maybeRunRevealFlipSequence(){
 
   revealFlipProcessingKey = phaseKey;
   try{
-    for (let room = 1; room <= 6; room++){
-      const roomCards = entries.filter((card) => Number(card.room) === room);
-      if (!roomCards.length) continue;
-      for (const card of roomCards){
-        if (card.face !== 'back') continue;
-        await update(ref(db, `rooms/${state.roomCode}/playedCards/${card.key}`), {
-          face: 'face',
-          revealedAt: Date.now()
-        });
+    for (let pass = 0; pass < 6; pass++){
+      const latestEntries = getPlayedEntriesSorted();
+      const latestBackCards = latestEntries.filter((card) => card.face === 'back');
+      if (!latestBackCards.length) break;
+
+      for (let room = 1; room <= 6; room++){
+        const roomBackCards = latestBackCards.filter((card) => Number(card.room) === room);
+        if (!roomBackCards.length) continue;
+        for (const card of roomBackCards){
+          await update(ref(db, `rooms/${state.roomCode}/playedCards/${card.key}`), {
+            face: 'face',
+            revealedAt: Date.now()
+          });
+        }
+        await sleep(REVEAL_ROOM_INTERVAL_MS);
       }
-      await sleep(REVEAL_ROOM_INTERVAL_MS);
     }
   } finally {
     revealFlipProcessingKey = '';
+    const remainingBackCards = getPlayedEntriesSorted().some((card) => card.face === 'back');
+    if (remainingBackCards && state.currentPhase === 'reveal'){
+      scheduleRevealFlipRetry(180);
+    }
   }
 }
 
@@ -3319,7 +3341,8 @@ function renderPlayedCards(){
 
   const layoutMap = getPlayedCardLayouts(playedList);
   playedList.forEach((cardData) => {
-    if (inFlightPlayedCardKeys.has(cardData.key)) return;
+    const isInFlight = inFlightPlayedCardKeys.has(cardData.key);
+    if (isInFlight && state.currentPhase !== 'reveal') return;
     const layout = layoutMap.get(cardData.key);
     if (!layout) return;
 
