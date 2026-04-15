@@ -3188,7 +3188,7 @@ function taperedQuadRibbonPath(p0, c, p1, w0, w1, steps = 12){
 
 const stageOutG = stageSvg.querySelector('#stageOutward');
 
-function appendGoldX(parentG, triClipId, midDeg, len, rBase, spread){
+function appendGoldX(parentG, triClipId, midDeg, len, rBase, spread, strokeColor = '#facc15'){
   const cs5  = getComputedStyle(stageSvg);
   const g = document.createElementNS('http://www.w3.org/2000/svg','g');
   g.setAttribute('clip-path', `url(#${triClipId})`);
@@ -3205,7 +3205,7 @@ function appendGoldX(parentG, triClipId, midDeg, len, rBase, spread){
     const p = document.createElementNS('http://www.w3.org/2000/svg','path');
     p.setAttribute('d', dStr);
     p.setAttribute('fill', 'none');
-    p.setAttribute('stroke', '#facc15');
+    p.setAttribute('stroke', strokeColor);
     const baseW = parseFloat(cs5.getPropertyValue('--goldXStrokeW')) || 0.40;
     p.setAttribute('stroke-width', baseW);
     p.setAttribute('stroke-linecap','round');
@@ -3322,7 +3322,8 @@ function renderOutwardMarks(mission){
       stageOutG.appendChild(img);
     }
 
-    appendGoldX(stageOutG, clipId, midDeg, len, rBase, spread);
+    const goldXStroke = (specifiedRoom || whiteOnlyRoom) ? '#ffffff' : '#facc15';
+    appendGoldX(stageOutG, clipId, midDeg, len, rBase, spread, goldXStroke);
 
     if (isMission14 && !whiteOnlyRoom){
       [leftRibbon, rightRibbon].forEach((el)=>{
