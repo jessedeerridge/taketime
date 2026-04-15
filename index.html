@@ -4287,6 +4287,7 @@ function renderRoomConditionHints(mission = currentStage){
   const lineH = 12;
   const roomOrder = specifiedRooms.slice().sort((a, b) => a - b);
   const levelOffsets = [12, 22, 32];
+  const levelYOffsets = [8, 0, -8];
   const xMin = -150 + boxW / 2 + 2;
   const xMax = 150 - boxW / 2 - 2;
   const yMin = -150 + boxH / 2 + 2;
@@ -4301,7 +4302,7 @@ function renderRoomConditionHints(mission = currentStage){
     const radialOut = centerR + guideR + outerOffset + levelOffsets[levelIndex];
     const pOuter = polar(radialOut, midDeg);
     const x = pOuter.x;
-    const y = pOuter.y;
+    const y = pOuter.y + levelYOffsets[levelIndex];
 
     const lines = [];
     for (let idx = 0; idx < hintText.length; idx += maxCharsPerLine){
