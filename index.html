@@ -36,9 +36,9 @@
   main.prejoin{ background-image:url('maemain.jpg'); }
   main.joined{ background-image:url('taketimeback.jpg'); }
   .stage-name-wrap{
-    position:fixed;
-    top:12px;
-    left:12px;
+    position:absolute;
+    top:0;
+    right:0;
     z-index:210;
     display:flex;
     flex-direction:row;
@@ -69,6 +69,7 @@
 
   .stage-name-gear{
     width:144px;
+    max-width:calc(100vw - 24px);
     height:auto;
     filter:drop-shadow(0 2px 4px rgba(0,0,0,.18));
   }
@@ -937,6 +938,7 @@
         <g id="sectorHits" transform="translate(150,150)"></g>
         <g id="roomGuideCircles" transform="translate(150,150)" style="pointer-events:none"></g>
         <g id="roomTexts" transform="translate(150,150)" style="pointer-events:none"></g>
+        <g id="roomConditionHints" transform="translate(150,150)" style="pointer-events:none"></g>
         <g id="roomCards" style="pointer-events:none"></g>
         <g id="playedCards" style="pointer-events:none"></g>
         <g id="roomTotals" style="pointer-events:none"></g>
@@ -1136,6 +1138,7 @@ let activeDrag = null;
 let dragHoverRoom = null;
 let cardChoiceResolver = null;
 const MY_TAG_ONLY_OFFSET_PX = 20;
+let isStageTagPressed = false;
 let hostHandLockedByStage = false;
 let lastShownPhaseEventTs = 0;
 let revealPhaseAnnouncedForStage = '';
@@ -1327,6 +1330,23 @@ btnHelpClose.addEventListener('click', closeHelp);
 helpBackdrop.addEventListener('click', (e) => {
   if (e.target === helpBackdrop) closeHelp();
 });
+
+function updateStageTagPressState(isPressed){
+  if (isStageTagPressed === isPressed) return;
+  isStageTagPressed = isPressed;
+  renderRoomConditionHints(currentStage);
+}
+
+stageNameTag.addEventListener('pointerdown', (e) => {
+  if (stageNameTag.classList.contains('hidden')) return;
+  e.preventDefault();
+  updateStageTagPressState(true);
+});
+['pointerup', 'pointercancel', 'pointerleave'].forEach((evtName) => {
+  stageNameTag.addEventListener(evtName, () => updateStageTagPressState(false));
+});
+window.addEventListener('pointerup', () => updateStageTagPressState(false));
+window.addEventListener('blur', () => updateStageTagPressState(false));
 
 function refreshRoomLabels(){
   if (!state.roomCode || !state.userName) return;
@@ -3928,6 +3948,87 @@ function renderRoomTexts(mission){
   });
 }
 
+function getStageRoomHintText(stage, room){
+  const placementRule = getRoomPlacementRule(stage, room);
+  const sumCondition = (STAGE_ROOM_SUCCESS_CONDITIONS[stage] || []).find((cond) => Number(cond.room) === Number(room));
+
+  if (stage === '1-2' && room === 4){
+    return '茶カードをちょうど3枚置く';
+  }
+  if (sumCondition){
+    return `合計${sumCondition.min}〜${sumCondition.max}`;
+  }
+  if (!placementRule){
+    return '';
+  }
+  if (placementRule.maxTotal === 1){
+    return 'カード1枚のみ';
+  }
+  if (placementRule.maxTotal === 2){
+    return 'カード2枚まで';
+  }
+  if (placementRule.maxTotal === 3){
+    return 'カード3枚まで';
+  }
+  return '';
+}
+
+function renderRoomConditionHints(mission = currentStage){
+  const g = stageSvg.querySelector('#roomConditionHints');
+  if (!g) return;
+  while (g.firstChild) g.removeChild(g.firstChild);
+  if (!isStageTagPressed) return;
+  if (!STAGE_CODES.includes(mission)) return;
+
+  const specifiedRooms = getSpecifiedRoomsForMission(mission);
+  if (!specifiedRooms.length) return;
+
+  const { centerR, guideR, outerOffset } = getGuideMetrics();
+  const boxW = 104;
+  const boxH = 44;
+
+  specifiedRooms.forEach((room) => {
+    const hintText = getStageRoomHintText(mission, room);
+    if (!hintText) return;
+    const midDeg = (room - 1) * 60 + 30;
+    const pOuter = polar(centerR + guideR * 0.5 + outerOffset, midDeg);
+    const x = pOuter.x;
+    const y = pOuter.y;
+
+    const table = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    table.setAttribute('x', String(x - boxW / 2));
+    table.setAttribute('y', String(y - boxH / 2));
+    table.setAttribute('width', String(boxW));
+    table.setAttribute('height', String(boxH));
+    table.setAttribute('rx', '10');
+    table.setAttribute('ry', '10');
+    table.setAttribute('fill', 'rgba(75, 85, 99, 0.48)');
+    table.setAttribute('stroke', 'rgba(255,255,255,0.4)');
+    table.setAttribute('stroke-width', '1');
+    g.appendChild(table);
+
+    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    const lines = hintText.length > 10
+      ? [hintText.slice(0, Math.ceil(hintText.length / 2)), hintText.slice(Math.ceil(hintText.length / 2))]
+      : [hintText];
+    text.setAttribute('x', String(x));
+    text.setAttribute('y', String(lines.length > 1 ? y - 6 : y));
+    text.setAttribute('fill', '#fff');
+    text.setAttribute('font-size', '10');
+    text.setAttribute('font-weight', '700');
+    text.setAttribute('text-anchor', 'middle');
+    text.setAttribute('dominant-baseline', 'middle');
+    lines.forEach((line, idx) => {
+      const tspan = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+      tspan.textContent = line;
+      tspan.setAttribute('x', String(x));
+      tspan.setAttribute('dy', idx === 0 ? '0' : '12');
+      text.appendChild(tspan);
+    });
+    g.appendChild(text);
+  });
+}
+
 (function ensureLayerOrder(){
   const back  = stageSvg.querySelector('#innerRingsBack');
   const marks = stageSvg.querySelector('#stageMarks');
@@ -3944,6 +4045,7 @@ function renderRoomTexts(mission){
   const tipG         = stageSvg.querySelector('#centerTopDiamondG');
   const roomGuideCircles = stageSvg.querySelector('#roomGuideCircles');
   const roomTexts    = stageSvg.querySelector('#roomTexts');
+  const roomConditionHints = stageSvg.querySelector('#roomConditionHints');
   const cardsG       = stageSvg.querySelector('#roomCards');
   const playedCardsG = stageSvg.querySelector('#playedCards');
   const roomTotalsG  = stageSvg.querySelector('#roomTotals');
@@ -3952,7 +4054,7 @@ function renderRoomTexts(mission){
   centerLineG?.setAttribute('transform', `translate(150,150) rotate(${rot})`);
   tipG?.setAttribute('transform',         `translate(150,150) rotate(${rot})`);
 
-  if (!back || !marks || !outG || !r2 || !orangeFill || !tiny20 || !orangeStroke || !infinityG || !spec || !clockMarks || !centerLineG || !tipG || !roomGuideCircles || !roomTexts || !cardsG || !playedCardsG || !roomTotalsG) return;
+  if (!back || !marks || !outG || !r2 || !orangeFill || !tiny20 || !orangeStroke || !infinityG || !spec || !clockMarks || !centerLineG || !tipG || !roomGuideCircles || !roomTexts || !roomConditionHints || !cardsG || !playedCardsG || !roomTotalsG) return;
 
   if (innerLightFill && innerLightFill.previousSibling !== outG) stageSvg.insertBefore(outG, innerLightFill);
   else if (!innerLightFill && back.previousSibling !== outG)     stageSvg.insertBefore(outG, back);
@@ -3968,7 +4070,9 @@ function renderRoomTexts(mission){
   if (spec.nextSibling !== clockMarks)          stageSvg.insertBefore(clockMarks,   spec.nextSibling);
   if (clockMarks.nextSibling !== roomGuideCircles) stageSvg.insertBefore(roomGuideCircles, clockMarks.nextSibling);
   if (roomGuideCircles.nextSibling !== roomTexts) stageSvg.insertBefore(roomTexts, roomGuideCircles.nextSibling);
+  if (roomTexts.nextSibling !== roomConditionHints) stageSvg.insertBefore(roomConditionHints, roomTexts.nextSibling);
 
+  if (roomConditionHints.nextSibling !== cardsG) stageSvg.insertBefore(cardsG, roomConditionHints.nextSibling);
   if (cardsG.nextSibling !== playedCardsG) stageSvg.insertBefore(playedCardsG, cardsG.nextSibling);
   if (playedCardsG.nextSibling !== roomTotalsG) stageSvg.insertBefore(roomTotalsG, playedCardsG.nextSibling);
   if (stageSvg.lastElementChild !== roomTotalsG) stageSvg.appendChild(roomTotalsG);
@@ -3984,6 +4088,7 @@ function redrawAll(m){
   const hideStageName = !renderStage || !state.joined;
   stageNameTag.classList.toggle('hidden', hideStageName);
   stageNameGear.classList.toggle('hidden', hideStageName);
+  if (hideStageName) isStageTagPressed = false;
 
   applyMissionSkin(renderStage);
   renderEqTriBackFill(renderStage);
@@ -4020,6 +4125,10 @@ function redrawAll(m){
     if (roomGuideCirclesG){
       while (roomGuideCirclesG.firstChild) roomGuideCirclesG.removeChild(roomGuideCirclesG.firstChild);
     }
+    const roomConditionHintsG = stageSvg.querySelector('#roomConditionHints');
+    if (roomConditionHintsG){
+      while (roomConditionHintsG.firstChild) roomConditionHintsG.removeChild(roomConditionHintsG.firstChild);
+    }
     return;
   }
 
@@ -4030,6 +4139,7 @@ function redrawAll(m){
   renderInfinity(renderStage);
   renderRoomGuideCircles(renderStage);
   renderRoomTexts(renderStage);
+  renderRoomConditionHints(renderStage);
   renderRoomCards(renderStage);
   renderPlayedCards();
   renderRoomTotals();
