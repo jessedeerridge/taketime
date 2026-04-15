@@ -97,10 +97,10 @@
   }
   .stage-name-gear .eyeSlot.used .eyeStroke,
   .stage-name-gear .eyeSlot.used .eyePupil{
-    stroke:#111;
+    stroke:#6b7280;
   }
   .stage-name-gear .eyeSlot.used .eyeText{
-    fill:#111;
+    fill:#6b7280;
   }
   .stage-name-gear .mainDivider{
     stroke:#f8cb8d;
@@ -4239,6 +4239,9 @@ function getStageRoomHintText(stage, room){
   if (!placementRule){
     return '';
   }
+  if (Number.isFinite(placementRule.maxTotal) && placementRule.maxTotal > 0){
+    return `このエリアに置けるカードは最大${placementRule.maxTotal}枚まで。`;
+  }
   if (
     placementRule.maxTotal === 1
     && Array.isArray(placementRule.allowedColors)
@@ -4276,34 +4279,53 @@ function renderRoomConditionHints(mission = currentStage){
   const specifiedRooms = getSpecifiedRoomsForMission(mission);
   if (!specifiedRooms.length) return;
 
-  const { centerR, guideR, outerOffset } = getGuideMetrics();
+  const { centerR, guideR } = getGuideMetrics();
   const maxCharsPerLine = 14;
   const maxLines = 4;
   const boxW = 140;
   const boxH = 56;
   const lineH = 12;
-  const roomOrder = specifiedRooms.slice().sort((a, b) => a - b);
   const xMin = -150 + boxW / 2 + 2;
   const xMax = 150 - boxW / 2 - 2;
   const yMin = -150 + boxH / 2 + 2;
   const yMax = 150 - boxH / 2 - 2;
+  const centerHintRadius = Math.max(28, Math.min(102, centerR + (guideR * 0.45)));
+  const minDistance = Math.max(boxW * 0.86, 122);
+  const angleStep = 9;
+  const placedHintCenters = [];
 
   specifiedRooms.forEach((room) => {
     const hintText = getStageRoomHintText(mission, room);
     if (!hintText) return;
     const midDeg = (room - 1) * 60 + 30;
-    const roomOrderIndex = roomOrder.indexOf(room);
-    const radialOut = centerR + guideR + outerOffset + 18 + roomOrderIndex * 18;
-    const pOuter = polar(radialOut, midDeg);
-    const x = pOuter.x;
-    const y = pOuter.y;
+    let bestPos = null;
+    for (let attempt = 0; attempt <= 20; attempt++){
+      const delta = attempt === 0 ? 0 : (Math.ceil(attempt / 2) * angleStep * (attempt % 2 === 0 ? 1 : -1));
+      const pOuter = polar(centerHintRadius, midDeg + delta);
+      const candidate = {
+        x: Math.max(xMin, Math.min(xMax, pOuter.x)),
+        y: Math.max(yMin, Math.min(yMax, pOuter.y))
+      };
+      const overlaps = placedHintCenters.some((prev) => {
+        const dx = prev.x - candidate.x;
+        const dy = prev.y - candidate.y;
+        return Math.hypot(dx, dy) < minDistance;
+      });
+      if (!overlaps){
+        bestPos = candidate;
+        break;
+      }
+      if (!bestPos) bestPos = candidate;
+    }
+    if (!bestPos) return;
+    placedHintCenters.push(bestPos);
 
     const lines = [];
     for (let idx = 0; idx < hintText.length; idx += maxCharsPerLine){
       lines.push(hintText.slice(idx, idx + maxCharsPerLine));
     }
-    const boxX = Math.max(xMin, Math.min(xMax, x));
-    const boxY = Math.max(yMin, Math.min(yMax, y));
+    const boxX = bestPos.x;
+    const boxY = bestPos.y;
 
     const table = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     table.setAttribute('x', String(boxX - boxW / 2));
