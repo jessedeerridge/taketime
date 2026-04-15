@@ -2491,7 +2491,7 @@ const STAGE_SPEC = {
   '1-1': { specifiedRooms: [1,6] },
   '1-2': { specifiedRooms: [3,4] },
   '1-3': { specifiedRooms: [2,3,6] },
-  '1-4': { specifiedRooms: [4] },
+  '1-4': { specifiedRooms: [1,4] },
   '2-3': { specifiedRooms: [2,3,6] },
 };
 function getSpecifiedRoomsForMission(mission){
@@ -3618,9 +3618,20 @@ function renderRoomTexts(mission){
   if (mission === '1-3') {
     textSpecs.push({ room: 6, label: '20-30', rotate: (midDeg)=>midDeg + 180 });
   }
+  if (mission === '1-4') {
+    textSpecs.push({
+      room: 1,
+      label: '6',
+      rotate: ()=>0,
+      color: '#111',
+      bgColor: getComputedStyle(stageSvg).getPropertyValue('--gold').trim() || '#d4af37',
+      bgOpacity: 1,
+      underline: true
+    });
+  }
   if (textSpecs.length === 0) return;
 
-  textSpecs.forEach(({room, label, rotate})=>{
+  textSpecs.forEach(({room, label, rotate, color: textColor, bgColor: circleColor, bgOpacity: circleOpacity, underline})=>{
     const midDeg = (room-1)*60 + 30;
     const p = polar(rText, midDeg);
 
@@ -3628,21 +3639,35 @@ function renderRoomTexts(mission){
     bgCircle.setAttribute('cx', p.x.toFixed(2));
     bgCircle.setAttribute('cy', p.y.toFixed(2));
     bgCircle.setAttribute('r',  rBg.toFixed(2));
-    bgCircle.setAttribute('fill', bgColor);
-    bgCircle.setAttribute('fill-opacity', String(bgOpacity));
+    bgCircle.setAttribute('fill', circleColor || bgColor);
+    bgCircle.setAttribute('fill-opacity', String(circleOpacity ?? bgOpacity));
     g.appendChild(bgCircle);
 
     const text = document.createElementNS('http://www.w3.org/2000/svg','text');
     text.textContent = label;
     text.setAttribute('x', p.x.toFixed(2));
     text.setAttribute('y', p.y.toFixed(2));
-    text.setAttribute('fill', color);
+    text.setAttribute('fill', textColor || color);
     text.setAttribute('font-size', fsize);
     text.setAttribute('font-weight', weight);
     text.setAttribute('text-anchor', 'middle');
     text.setAttribute('dominant-baseline', 'middle');
     text.setAttribute('transform', `rotate(${rotate(midDeg)}, ${p.x.toFixed(2)}, ${p.y.toFixed(2)})`);
     g.appendChild(text);
+
+    if (underline) {
+      const fs = parseFloat(fsize) || 12;
+      const underlineLine = document.createElementNS('http://www.w3.org/2000/svg','line');
+      underlineLine.setAttribute('x1', (p.x - fs * 0.22).toFixed(2));
+      underlineLine.setAttribute('x2', (p.x + fs * 0.22).toFixed(2));
+      underlineLine.setAttribute('y1', (p.y + fs * 0.36).toFixed(2));
+      underlineLine.setAttribute('y2', (p.y + fs * 0.36).toFixed(2));
+      underlineLine.setAttribute('stroke', textColor || color);
+      underlineLine.setAttribute('stroke-width', '1.4');
+      underlineLine.setAttribute('stroke-linecap', 'round');
+      underlineLine.setAttribute('transform', `rotate(${rotate(midDeg)}, ${p.x.toFixed(2)}, ${p.y.toFixed(2)})`);
+      g.appendChild(underlineLine);
+    }
   });
 }
 
