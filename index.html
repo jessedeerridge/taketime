@@ -2540,6 +2540,65 @@ btnKickNo.addEventListener('click', (e) => {
   pendingSeatPlayerIdToSteal = null;
 });
 
+function mergePlayerHands(baseHand, inheritedHand){
+  const baseCards = Array.isArray(baseHand?.cards) ? baseHand.cards : [];
+  const inheritedCards = Array.isArray(inheritedHand?.cards) ? inheritedHand.cards : [];
+  if (!baseCards.length) return { cards: inheritedCards.slice() };
+  if (!inheritedCards.length) return { cards: baseCards.slice() };
+
+  const seen = new Set();
+  const merged = [];
+  [...baseCards, ...inheritedCards].forEach((card) => {
+    if (!card) return;
+    const uidKey = card.uid ? `uid:${card.uid}` : '';
+    const fallbackKey = `${card.color || 'white'}-${Number(card.num || 0)}`;
+    const key = uidKey || fallbackKey;
+    if (seen.has(key)) return;
+    seen.add(key);
+    merged.push(card);
+  });
+  return { cards: merged };
+}
+
+async function inheritPlayerProgress(fromPlayerId, toPlayerId){
+  if (!state.roomCode) return;
+  if (!fromPlayerId || !toPlayerId) return;
+  if (fromPlayerId === toPlayerId) return;
+
+  const basePath = `rooms/${state.roomCode}`;
+  const [handsSnap, playedSnap] = await Promise.all([
+    get(ref(db, `${basePath}/hands`)),
+    get(ref(db, `${basePath}/playedCards`))
+  ]);
+  const hands = handsSnap.val() || {};
+  const playedCards = playedSnap.val() || {};
+  const updates = {};
+  let hasUpdate = false;
+
+  const fromHand = hands[fromPlayerId];
+  const toHand = hands[toPlayerId];
+  if (fromHand || toHand){
+    updates[`hands/${toPlayerId}`] = mergePlayerHands(toHand, fromHand);
+    if (fromHand){
+      updates[`hands/${fromPlayerId}`] = null;
+    }
+    hasUpdate = true;
+  }
+
+  Object.entries(playedCards).forEach(([key, card]) => {
+    if (!card || card.playerId !== fromPlayerId) return;
+    const nextCard = { ...card, playerId: toPlayerId };
+    if (typeof nextCard.id === 'string' && nextCard.id.startsWith(`${fromPlayerId}-`)){
+      nextCard.id = `${toPlayerId}-${nextCard.id.slice(fromPlayerId.length + 1)}`;
+    }
+    updates[`playedCards/${key}`] = nextCard;
+    hasUpdate = true;
+  });
+
+  if (!hasUpdate) return;
+  await update(ref(db, basePath), updates);
+}
+
 btnKickYes.addEventListener('click', async (e) => {
   e.stopPropagation();
   if (pendingSeatIndexToSteal == null || !state.roomCode) {
@@ -2554,6 +2613,10 @@ btnKickYes.addEventListener('click', async (e) => {
     playerId: state.userId,
     playerName: state.userName || '名無し'
   });
+
+  if (pendingSeatPlayerIdToSteal){
+    await inheritPlayerProgress(pendingSeatPlayerIdToSteal, state.userId);
+  }
 
   if (currentHostId && pendingSeatPlayerIdToSteal && currentHostId === pendingSeatPlayerIdToSteal) {
     await update(ref(db, `rooms/${state.roomCode}`), { hostId: state.userId });
