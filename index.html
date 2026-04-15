@@ -694,7 +694,6 @@
           <path d="M -11 -48.8 L -11 -66 Q -11 -72 -5 -72 L 5 -72 Q 11 -72 11 -66 L 11 -48.8" transform="rotate(315)" />
         </g>
         <circle r="39" fill="#ae6f73" />
-        <text id="subgearEyeLabel1" class="eyeText" x="0" y="-12"></text>
         <g id="subgearEye1" class="eyeSlot" transform="translate(0,11)">
           <path class="eyeStroke" d="M -24 0 Q 0 -22 24 0 Q 0 22 -24 0 Z" />
           <circle class="eyePupil" cx="0" cy="0" r="9" />
@@ -724,7 +723,6 @@
           <path d="M -11 -48.8 L -11 -66 Q -11 -72 -5 -72 L 5 -72 Q 11 -72 11 -66 L 11 -48.8" transform="rotate(315)" />
         </g>
         <circle r="39" fill="#ae6f73" />
-        <text id="subgearEyeLabel2" class="eyeText" x="0" y="-12"></text>
         <g id="subgearEye2" class="eyeSlot" transform="translate(0,11)">
           <path class="eyeStroke" d="M -24 0 Q 0 -22 24 0 Q 0 22 -24 0 Z" />
           <circle class="eyePupil" cx="0" cy="0" r="9" />
@@ -754,7 +752,6 @@
           <path d="M -11 -48.8 L -11 -66 Q -11 -72 -5 -72 L 5 -72 Q 11 -72 11 -66 L 11 -48.8" transform="rotate(315)" />
         </g>
         <circle r="39" fill="#ae6f73" />
-        <text id="subgearEyeLabel3" class="eyeText" x="0" y="-12"></text>
         <g id="subgearEye3" class="eyeSlot" transform="translate(0,11)">
           <path class="eyeStroke" d="M -24 0 Q 0 -22 24 0 Q 0 22 -24 0 Z" />
           <circle class="eyePupil" cx="0" cy="0" r="9" />
@@ -1101,7 +1098,6 @@ const mainGearDividers = document.getElementById('mainGearDividers');
 const mainGearEyes = document.getElementById('mainGearEyes');
 const subgearEls = [1, 2, 3].map((idx) => document.getElementById(`subgear${idx}`));
 const subgearEyeEls = [1, 2, 3].map((idx) => document.getElementById(`subgearEye${idx}`));
-const subgearEyeLabelEls = [1, 2, 3].map((idx) => document.getElementById(`subgearEyeLabel${idx}`));
 
 const helpBackdrop = document.getElementById('helpBackdrop');
 const btnHelpClose = document.getElementById('btnHelpClose');
@@ -1465,13 +1461,8 @@ function renderMainGearVisual(){
     eye.innerHTML = `
       <path class="eyeStroke" d="M -27 0 Q 0 -22 27 0 Q 0 22 -27 0 Z"></path>
       <circle class="eyePupil" cx="0" cy="0" r="10.5"></circle>
-      <text class="eyeText" x="0" y="-1">${idx + 1}</text>
     `;
     mainGearEyes.appendChild(eye);
-  });
-  subgearEyeLabelEls.forEach((labelEl, idx) => {
-    if (!labelEl) return;
-    labelEl.textContent = String(divisionCount + idx + 1);
   });
   syncGearEyeState();
 }
@@ -2194,6 +2185,7 @@ function renderHands(){
   renderMyHand();
   renderPlayedCards();
   renderRoomTotals();
+  syncGearEyeState();
   if (latestPlayers.length) renderPlayerCircle(latestPlayers);
 }
 
