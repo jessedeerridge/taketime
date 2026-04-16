@@ -4373,7 +4373,8 @@ function renderRoomConditionHints(mission = currentStage){
     if (!hintText) return;
     const midDeg = (room - 1) * 60 + 30;
     const roomOrderIndex = roomOrder.indexOf(room);
-    const radialOut = centerR + guideR + outerOffset + 18 + roomOrderIndex * 18;
+    const middleHintExtraOffset = roomOrderIndex === 1 ? 14 : 0;
+    const radialOut = centerR + guideR + outerOffset + 18 + roomOrderIndex * 18 + middleHintExtraOffset;
     const pOuter = polar(radialOut, midDeg);
     appendHintTable(hintText, pOuter.x, pOuter.y);
   });
