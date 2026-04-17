@@ -557,6 +557,10 @@
     --tipDiaW: 6;
     --tipDiaH: 8;
     --tipDiaOffset: 0;
+    --tipDiaRingR: 11;
+    --tipDiaRingW: 1.8;
+    --tipDiaRingStroke: #f8cb8d;
+    --tipDiaRingFill: rgba(250, 204, 21, 0.18);
     --centerTopRotate: 4;
 
     --cardW: 20;
@@ -1199,6 +1203,14 @@ let lastBoardRotationTs = 0;
 let lastBoardRotationPublishAt = 0;
 const ROTATION_SYNC_INTERVAL_MS = 16;
 let isCenterNeedleHidden = false;
+let centerNeedleRotationDeg = 0;
+let centerNeedleRotationVisualDeg = 0;
+let centerNeedleDrag = null;
+let hasCenterNeedleSnapshot = false;
+let lastCenterNeedleTs = 0;
+let lastCenterNeedlePublishAt = 0;
+const CENTER_NEEDLE_SYNC_INTERVAL_MS = 16;
+const CENTER_NEEDLE_SNAP_DEG = 12;
 
 function getBlackBackGradient(){
   return 'repeating-linear-gradient(135deg,var(--black-card) 0px,var(--black-card) 4px,var(--black-card-stripe) 4px,var(--black-card-stripe) 8px)';
@@ -2536,6 +2548,8 @@ btnJoin.addEventListener('click', async () => {
     state.joined = true;
     hasBoardRotationSnapshot = false;
     lastBoardRotationTs = 0;
+    hasCenterNeedleSnapshot = false;
+    lastCenterNeedleTs = 0;
 
     enterLobbyUI();
     updateHostUI();
@@ -2548,6 +2562,7 @@ btnJoin.addEventListener('click', async () => {
     subscribePhaseEvents();
     subscribeSubgearCount();
     subscribeBoardRotation();
+    subscribeCenterNeedleRotation();
 
     syncSeatUI();
   } catch (err) {
@@ -2827,12 +2842,48 @@ const stageSvg = document.getElementById('stageBoard');
 const centerTopLineG = stageSvg.querySelector('#centerTopLineG');
 const centerTopDiamondG = stageSvg.querySelector('#centerTopDiamondG');
 const orangeCenterFill = stageSvg.querySelector('#orangeCenterFill');
+const initialCenterNeedleRotate = parseFloat(getComputedStyle(stageSvg).getPropertyValue('--centerTopRotate')) || 0;
+centerNeedleRotationDeg = initialCenterNeedleRotate;
+centerNeedleRotationVisualDeg = initialCenterNeedleRotate;
 
 function applyCenterNeedleVisibility(){
   const shouldHide = isCenterNeedleHidden;
   if (centerTopLineG) centerTopLineG.style.display = shouldHide ? 'none' : '';
   if (centerTopDiamondG) centerTopDiamondG.style.display = shouldHide ? 'none' : '';
 }
+
+function applyCenterNeedleRotation(deg, { animate = false, useShortestPath = false } = {}){
+  const normalized = normalizeDeg(deg);
+  centerNeedleRotationVisualDeg = useShortestPath
+    ? toShortestVisualRotation(centerNeedleRotationVisualDeg, normalized)
+    : deg;
+  centerNeedleRotationDeg = normalizeDeg(centerNeedleRotationVisualDeg);
+  stageSvg.style.setProperty('--centerTopRotate', String(centerNeedleRotationDeg));
+  const transform = `translate(150,150) rotate(${centerNeedleRotationVisualDeg})`;
+  if (centerTopLineG){
+    centerTopLineG.style.transition = animate ? 'transform 220ms ease-out' : 'none';
+    centerTopLineG.setAttribute('transform', transform);
+  }
+  if (centerTopDiamondG){
+    centerTopDiamondG.style.transition = animate ? 'transform 220ms ease-out' : 'none';
+    centerTopDiamondG.setAttribute('transform', transform);
+  }
+}
+
+function publishCenterNeedleRotation(deg, { isFinal = false, force = false } = {}){
+  if (!state.roomCode || !state.userId) return;
+  const now = Date.now();
+  if (!force && !isFinal && (now - lastCenterNeedlePublishAt) < CENTER_NEEDLE_SYNC_INTERVAL_MS) return;
+  lastCenterNeedlePublishAt = now;
+  set(ref(db, `rooms/${state.roomCode}/centerNeedleRotation`), {
+    deg: normalizeDeg(deg),
+    ts: now,
+    actorId: state.userId,
+    isFinal: !!isFinal
+  }).catch((err) => console.error('中心針回転の同期に失敗しました', err));
+}
+
+applyCenterNeedleRotation(centerNeedleRotationDeg, { animate: false });
 
 if (orangeCenterFill){
   orangeCenterFill.style.cursor = 'pointer';
@@ -3141,6 +3192,37 @@ function subscribeBoardRotation(){
   });
 }
 
+function subscribeCenterNeedleRotation(){
+  const needleRef = ref(db, `rooms/${state.roomCode}/centerNeedleRotation`);
+  onValue(needleRef, (snap) => {
+    const data = snap.val();
+    if (!data || typeof data.deg !== 'number') return;
+
+    const ts = Number(data.ts || 0);
+    const actorId = String(data.actorId || '');
+    const normalizedDeg = normalizeDeg(data.deg);
+
+    if (!hasCenterNeedleSnapshot){
+      hasCenterNeedleSnapshot = true;
+      lastCenterNeedleTs = ts;
+      applyCenterNeedleRotation(normalizedDeg, { animate: false, useShortestPath: true });
+      return;
+    }
+    if (ts && ts <= lastCenterNeedleTs) return;
+    lastCenterNeedleTs = Math.max(lastCenterNeedleTs, ts);
+    if (actorId && actorId === state.userId) return;
+    if (centerNeedleDrag) return;
+    const shouldAnimate = !!data.isFinal;
+    applyCenterNeedleRotation(normalizedDeg, { animate: shouldAnimate, useShortestPath: true });
+    window.setTimeout(() => {
+      if (!centerNeedleDrag){
+        if (centerTopLineG) centerTopLineG.style.transition = 'none';
+        if (centerTopDiamondG) centerTopDiamondG.style.transition = 'none';
+      }
+    }, shouldAnimate ? 260 : 20);
+  });
+}
+
 function syncRoomHintTableOrientation(){
   const hintTables = stageSvg.querySelectorAll('#roomConditionHints .room-hint-table');
   hintTables.forEach((tableG) => {
@@ -3325,6 +3407,69 @@ function syncRoomHintTableOrientation(){
     window.addEventListener('touchend', onTouchEnd, { passive: false });
     window.addEventListener('touchcancel', onTouchEnd, { passive: false });
   }, { passive: false });
+})();
+
+(function setupCenterNeedleDrag(){
+  if (!centerTopDiamondG) return;
+  centerTopDiamondG.style.pointerEvents = 'auto';
+  centerTopDiamondG.style.touchAction = 'none';
+
+  const endNeedleDrag = ({ pointerId = null, shouldSnap = true } = {}) => {
+    if (!centerNeedleDrag) return;
+    if (pointerId !== null && centerNeedleDrag.pointerId !== pointerId) return;
+    if (
+      centerNeedleDrag.captureEl
+      && typeof centerNeedleDrag.captureEl.releasePointerCapture === 'function'
+      && pointerId !== null
+    ){
+      centerNeedleDrag.captureEl.releasePointerCapture(pointerId);
+    }
+    centerNeedleDrag = null;
+    if (shouldSnap){
+      const snapped = normalizeDeg(Math.round(centerNeedleRotationDeg / CENTER_NEEDLE_SNAP_DEG) * CENTER_NEEDLE_SNAP_DEG);
+      applyCenterNeedleRotation(snapped, { animate: true, useShortestPath: true });
+      publishCenterNeedleRotation(snapped, { isFinal: true, force: true });
+      window.setTimeout(() => {
+        if (!centerNeedleDrag){
+          if (centerTopLineG) centerTopLineG.style.transition = 'none';
+          if (centerTopDiamondG) centerTopDiamondG.style.transition = 'none';
+        }
+      }, 260);
+    }
+  };
+
+  const onPointerMove = (ev) => {
+    if (!centerNeedleDrag || ev.pointerId !== centerNeedleDrag.pointerId) return;
+    ev.preventDefault();
+    const nextAngle = pointerAngleDegFromBoardCenter(ev.clientX, ev.clientY);
+    applyCenterNeedleRotation(nextAngle);
+    publishCenterNeedleRotation(nextAngle);
+  };
+  const onPointerUp = (ev) => {
+    if (!centerNeedleDrag || ev.pointerId !== centerNeedleDrag.pointerId) return;
+    endNeedleDrag({ pointerId: ev.pointerId, shouldSnap: true });
+    window.removeEventListener('pointermove', onPointerMove);
+    window.removeEventListener('pointerup', onPointerUp);
+    window.removeEventListener('pointercancel', onPointerUp);
+  };
+
+  centerTopDiamondG.addEventListener('pointerdown', (ev) => {
+    const handle = ev.target.closest('.center-needle-handle');
+    if (!handle) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    lastCenterNeedlePublishAt = 0;
+    const captureEl = ev.currentTarget;
+    if (typeof captureEl.setPointerCapture === 'function') captureEl.setPointerCapture(ev.pointerId);
+    centerNeedleDrag = {
+      pointerId: ev.pointerId,
+      captureEl
+    };
+    publishCenterNeedleRotation(centerNeedleRotationDeg, { isFinal: false, force: true });
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
+  });
 })();
 
 /* ================== ステージ定義 ================== */
@@ -3997,9 +4142,24 @@ function renderCenterTopDiamond(){
   const fill   = cs12.getPropertyValue('--tipDiaFill').trim()   || '#facc15';
   const stroke = cs12.getPropertyValue('--tipDiaStroke').trim() || 'none';
   const sw     = Math.max(0, parseFloat(cs12.getPropertyValue('--tipDiaStrokeW')) || 0);
+  const ringR = Math.max(2, Math.abs(parseFloat(cs12.getPropertyValue('--tipDiaRingR')) || 11));
+  const ringW = Math.max(0.6, Math.abs(parseFloat(cs12.getPropertyValue('--tipDiaRingW')) || 1.8));
+  const ringStroke = cs12.getPropertyValue('--tipDiaRingStroke').trim() || '#f8cb8d';
+  const ringFill = cs12.getPropertyValue('--tipDiaRingFill').trim() || 'rgba(250, 204, 21, 0.18)';
 
   const cx = 0;
   const cy = -r1 - offset;
+
+  const ring = document.createElementNS('http://www.w3.org/2000/svg','circle');
+  ring.setAttribute('class', 'center-needle-handle');
+  ring.setAttribute('cx', String(cx));
+  ring.setAttribute('cy', String(cy));
+  ring.setAttribute('r', String(ringR));
+  ring.setAttribute('fill', ringFill);
+  ring.setAttribute('stroke', ringStroke);
+  ring.setAttribute('stroke-width', String(ringW));
+  ring.style.cursor = 'grab';
+  g.appendChild(ring);
 
   const pTop =   {x: cx,     y: cy - h};
   const pRight = {x: cx + w, y: cy    };
@@ -4012,6 +4172,8 @@ function renderCenterTopDiamond(){
   path.setAttribute('fill', fill);
   path.setAttribute('stroke', stroke);
   path.setAttribute('stroke-width', sw);
+  path.setAttribute('class', 'center-needle-handle');
+  path.style.cursor = 'grab';
   g.appendChild(path);
 }
 
@@ -4749,6 +4911,7 @@ function redrawAll(m){
   syncGearClickableState();
 
   applyMissionSkin(renderStage);
+  applyCenterNeedleRotation(centerNeedleRotationDeg, { animate: false, useShortestPath: true });
   renderEqTriBackFill(renderStage);
   updateOrangeGraphics();
   renderInnerTinyDiv();
