@@ -4428,7 +4428,7 @@ function renderRoomCards(mission = currentStage){
 
   if (mission === '2-1' && specifiedRooms.has(1)) {
     const fanN = 3;
-    const spread = 24;
+    const spread = 32;
     const stepT = 8;
     const stepR = -1;
     const indices = [...Array(fanN).keys()].map(i => i - (fanN - 1) / 2);
@@ -4452,7 +4452,7 @@ function renderRoomCards(mission = currentStage){
       'translate(150,150)',
       `rotate(${midDeg})`,
       `translate(${(roomTan[1]||0)}, 0)`,
-      `translate(0, ${-(rBase + (roomRad[1]||0) - cardH * 0.30)})`,
+      `translate(0, ${-(rBase + (roomRad[1]||0) - cardH * 0.12)})`,
       `rotate(${inwardBase + (roomAdjust[1]||0)})`,
       `translate(${localX}, ${localY})`
     ].join(' ');
@@ -4462,7 +4462,7 @@ function renderRoomCards(mission = currentStage){
     const markerCircle = document.createElementNS('http://www.w3.org/2000/svg','circle');
     markerCircle.setAttribute('cx', '0');
     markerCircle.setAttribute('cy', '0');
-    const markerRadius = Math.max(5.2, cardW * 0.28);
+    const markerRadius = Math.max(5.5, cardW * 0.31);
     markerCircle.setAttribute('r', String(markerRadius));
     markerCircle.setAttribute('fill', '#4a2c1f');
     markerCircle.setAttribute('stroke', '#d4af37');
