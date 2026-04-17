@@ -631,9 +631,20 @@
     width:min(92vw, calc(var(--size)*1px));
     height:auto;
     display:block;
+    transform-origin:50% 50%;
+    transition:transform 180ms ease-out;
+  }
+  #stageBoard.rotating{
+    transition:none;
   }
   #stageBoard .sharp{ stroke-linecap:butt; stroke-linejoin:miter; }
   #stageBoard #sectorHits .sector { fill: rgba(255,255,0,0); cursor: pointer; pointer-events: fill; }
+  #stageBoard .room-top-rect-handle{
+    cursor:grab;
+  }
+  #stageBoard.dragging .room-top-rect-handle{
+    cursor:grabbing;
+  }
   #missionText{display:none;}
 </style>
 </head>
@@ -953,7 +964,7 @@
 
         <g id="sectorHits" transform="translate(150,150)"></g>
         <g id="roomGuideCircles" transform="translate(150,150)" style="pointer-events:none"></g>
-        <g id="roomTopRects" transform="translate(150,150)" style="pointer-events:none"></g>
+        <g id="roomTopRects" transform="translate(150,150)"></g>
         <g id="roomTexts" transform="translate(150,150)" style="pointer-events:none"></g>
         <g id="roomConditionHints" transform="translate(150,150)" style="pointer-events:none"></g>
         <g id="roomCards" style="pointer-events:none"></g>
@@ -1174,6 +1185,71 @@ const inFlightPlayedCardKeys = new Set();
 const placingCardIds = new Set();
 let hasPlayedCardsSnapshot = false;
 let currentSubgearCount = 0;
+let stageRotationDeg = 0;
+let stageRotateDrag = null;
+const ROOM_ROTATE_SNAP_DEG = 60;
+
+function normalizeDeg(deg){
+  const mod = deg % 360;
+  return mod < 0 ? mod + 360 : mod;
+}
+
+function shortestAngleDelta(fromDeg, toDeg){
+  return ((toDeg - fromDeg + 540) % 360) - 180;
+}
+
+function getBoardPointerAngleDeg(clientX, clientY){
+  const rect = stageSvg.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  return Math.atan2(clientY - cy, clientX - cx) * 180 / Math.PI;
+}
+
+function setStageRotation(nextDeg, { animate = false } = {}){
+  stageRotationDeg = normalizeDeg(nextDeg);
+  stageSvg.classList.toggle('rotating', !animate);
+  stageSvg.style.transform = `rotate(${stageRotationDeg}deg)`;
+}
+
+function maybeStartRoomRotateDrag(ev){
+  const target = ev.target;
+  if (!target || !(target instanceof SVGElement)) return;
+  if (!target.classList.contains('room-top-rect-handle')) return;
+
+  ev.preventDefault();
+  ev.stopPropagation();
+  stageRotateDrag = {
+    pointerId: ev.pointerId,
+    startPointerDeg: getBoardPointerAngleDeg(ev.clientX, ev.clientY),
+    startRotationDeg: stageRotationDeg
+  };
+  stageSvg.classList.add('rotating');
+  stageSvg.classList.add('dragging');
+
+  const onMove = (mv) => {
+    if (!stageRotateDrag || mv.pointerId !== stageRotateDrag.pointerId) return;
+    const pointerDeg = getBoardPointerAngleDeg(mv.clientX, mv.clientY);
+    const delta = shortestAngleDelta(stageRotateDrag.startPointerDeg, pointerDeg);
+    setStageRotation(stageRotateDrag.startRotationDeg + delta, { animate: false });
+  };
+
+  const onUp = (up) => {
+    if (!stageRotateDrag || up.pointerId !== stageRotateDrag.pointerId) return;
+    const snappedDeg = Math.round(stageRotationDeg / ROOM_ROTATE_SNAP_DEG) * ROOM_ROTATE_SNAP_DEG;
+    setStageRotation(snappedDeg, { animate: true });
+    stageRotateDrag = null;
+    stageSvg.classList.remove('dragging');
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', onUp);
+    window.removeEventListener('pointercancel', onUp);
+  };
+
+  window.addEventListener('pointermove', onMove);
+  window.addEventListener('pointerup', onUp);
+  window.addEventListener('pointercancel', onUp);
+}
+
+stageSvg.addEventListener('pointerdown', maybeStartRoomRotateDrag);
 
 function getBlackBackGradient(){
   return 'repeating-linear-gradient(135deg,var(--black-card) 0px,var(--black-card) 4px,var(--black-card-stripe) 4px,var(--black-card-stripe) 8px)';
@@ -4180,6 +4256,7 @@ function renderRoomTopRects(mission = currentStage){
     const midDeg = (room - 1) * 60 + 30;
     const p = polar(centerR, midDeg);
     const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.classList.add('room-top-rect-handle');
     rect.setAttribute('x', (-rectW / 2).toFixed(2));
     rect.setAttribute('y', (-rectH / 2).toFixed(2));
     rect.setAttribute('width', rectW.toFixed(2));
@@ -4189,6 +4266,7 @@ function renderRoomTopRects(mission = currentStage){
     rect.setAttribute('fill', fill);
     rect.setAttribute('fill-opacity', String(opacity));
     rect.setAttribute('transform', `translate(${p.x.toFixed(2)}, ${p.y.toFixed(2)}) rotate(${midDeg})`);
+    rect.setAttribute('pointer-events', 'all');
     g.appendChild(rect);
   }
 }
