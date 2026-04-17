@@ -1198,10 +1198,7 @@ let hasBoardRotationSnapshot = false;
 let lastBoardRotationTs = 0;
 let lastBoardRotationPublishAt = 0;
 const ROTATION_SYNC_INTERVAL_MS = 16;
-const CENTER_NEEDLE_LONG_PRESS_MS = 2000;
 let isCenterNeedleHidden = false;
-let centerNeedleLongPressTimer = null;
-let centerNeedlePressPointerId = null;
 
 function getBlackBackGradient(){
   return 'repeating-linear-gradient(135deg,var(--black-card) 0px,var(--black-card) 4px,var(--black-card-stripe) 4px,var(--black-card-stripe) 8px)';
@@ -2837,34 +2834,13 @@ function applyCenterNeedleVisibility(){
   if (centerTopDiamondG) centerTopDiamondG.style.display = shouldHide ? 'none' : '';
 }
 
-function cancelCenterNeedleLongPress(pointerId = null){
-  if (pointerId !== null && centerNeedlePressPointerId !== pointerId) return;
-  if (centerNeedleLongPressTimer){
-    clearTimeout(centerNeedleLongPressTimer);
-    centerNeedleLongPressTimer = null;
-  }
-  centerNeedlePressPointerId = null;
-}
-
 if (orangeCenterFill){
   orangeCenterFill.style.cursor = 'pointer';
-  orangeCenterFill.addEventListener('pointerdown', (ev) => {
-    if (centerNeedleLongPressTimer) clearTimeout(centerNeedleLongPressTimer);
-    centerNeedlePressPointerId = ev.pointerId;
-    if (typeof orangeCenterFill.setPointerCapture === 'function'){
-      orangeCenterFill.setPointerCapture(ev.pointerId);
-    }
-    centerNeedleLongPressTimer = setTimeout(() => {
-      isCenterNeedleHidden = !isCenterNeedleHidden;
-      applyCenterNeedleVisibility();
-      centerNeedleLongPressTimer = null;
-      centerNeedlePressPointerId = null;
-    }, CENTER_NEEDLE_LONG_PRESS_MS);
+  orangeCenterFill.addEventListener('click', (ev) => {
+    ev.preventDefault();
+    isCenterNeedleHidden = !isCenterNeedleHidden;
+    applyCenterNeedleVisibility();
   });
-  ['pointerup', 'pointercancel', 'pointerleave'].forEach((evtName) => {
-    orangeCenterFill.addEventListener(evtName, (ev) => cancelCenterNeedleLongPress(ev.pointerId));
-  });
-  window.addEventListener('blur', () => cancelCenterNeedleLongPress());
 }
 
 stageNameGear.addEventListener('click', async () => {
