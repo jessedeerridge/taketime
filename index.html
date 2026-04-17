@@ -3312,7 +3312,7 @@ function syncRoomHintTableOrientation(){
     }
   };
 
-  const handleScale = 5;
+  const handleScale = 1.5;
   const handleRadius = 8 * handleScale;
   const handleHitRadius = 10 * handleScale;
   const handleCenterR = outerR - 6;
@@ -3468,6 +3468,8 @@ function syncRoomHintTableOrientation(){
     ev.stopPropagation();
     lastCenterNeedlePublishAt = 0;
     isCenterNeedleDragging = true;
+    stageSvg.classList.remove('rotating');
+    stageSvg.style.transition = 'none';
     if (rotationHandlesG) rotationHandlesG.style.pointerEvents = 'none';
     const captureEl = ev.currentTarget;
     if (typeof captureEl.setPointerCapture === 'function') captureEl.setPointerCapture(ev.pointerId);
