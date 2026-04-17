@@ -212,6 +212,7 @@
     position:absolute;transform:translate(-50%,-50%);
     padding:4px 8px;border-radius:999px;background:#f8f8f8;
     border:1px solid #ddd;font-size:12px;white-space:nowrap;
+    pointer-events:auto;
   }
   .player-tag.me{ background:#111;color:#fff;border-color:#111; }
 
@@ -1162,6 +1163,7 @@ const STAGE_CODES = Array.from({ length: 10 }, (_, rowIndex) =>
   Array.from({ length: 4 }, (_, colIndex) => `${rowIndex + 1}-${colIndex + 1}`)
 ).flat();
 const STAGE_KEY = 'stageCode';
+const USER_NAME_KEY = 'takeTimeUserName';
 const STAGE_ROOM_SUCCESS_CONDITIONS = {
   '1-2': [{ room: 3, min: 8, max: 12, label: '8-12エリア' }],
   '1-3': [{ room: 6, min: 20, max: 30, label: '20-30エリア' }]
@@ -2536,6 +2538,11 @@ const urlParams = new URLSearchParams(window.location.search);
 const roomFromUrl = urlParams.get('room');
 if(roomFromUrl) inputCode.value = roomFromUrl.toUpperCase();
 
+const cachedUserName = localStorage.getItem(USER_NAME_KEY);
+if (cachedUserName){
+  inputName.value = cachedUserName;
+}
+
 btnJoin.addEventListener('click', async () => {
   if (joinInProgress) return;
   joinInProgress = true;
@@ -2550,6 +2557,7 @@ btnJoin.addEventListener('click', async () => {
 
     state.userName = finalName;
     state.roomCode = finalRoomCode;
+    localStorage.setItem(USER_NAME_KEY, finalName);
 
     const roomRef = ref(db, `rooms/${state.roomCode}`);
     const roomSnap = await get(roomRef);
@@ -2640,8 +2648,6 @@ btnKickNo.addEventListener('click', (e) => {
 function mergePlayerHands(baseHand, inheritedHand){
   const baseCards = Array.isArray(baseHand?.cards) ? baseHand.cards : [];
   const inheritedCards = Array.isArray(inheritedHand?.cards) ? inheritedHand.cards : [];
-  if (!baseCards.length) return { cards: inheritedCards.slice() };
-  if (!inheritedCards.length) return { cards: baseCards.slice() };
 
   const seen = new Set();
   const merged = [];
@@ -2654,7 +2660,12 @@ function mergePlayerHands(baseHand, inheritedHand){
     seen.add(key);
     merged.push(card);
   });
-  return { cards: merged };
+
+  return {
+    ...(inheritedHand || {}),
+    ...(baseHand || {}),
+    cards: merged
+  };
 }
 
 async function inheritPlayerProgress(fromPlayerId, toPlayerId){
@@ -3534,6 +3545,10 @@ function getSpecifiedRoomsForMission(mission){
   return rec?.specifiedRooms || [];
 }
 
+function isNavyStage(mission){
+  return typeof mission === 'string' && /-4$/.test(mission);
+}
+
 const STAGE_CLOCK_LABELS = {
   '1-3': { 2: '2', 3: '1' },
 };
@@ -3545,7 +3560,7 @@ function renderStageMarks(mission){
   while(stageMarksG.firstChild) stageMarksG.removeChild(stageMarksG.firstChild);
 
   const specified = new Set(getSpecifiedRoomsForMission(mission));
-  const isMission14 = mission === '1-4';
+  const isNavy = isNavyStage(mission);
   const cs4 = getComputedStyle(stageSvg);
   const rBase  = innerR;
   const len    = parseFloat(cs4.getPropertyValue('--markLen')) || 12;
@@ -3592,7 +3607,7 @@ function renderStageMarks(mission){
     cp.appendChild(pathFill);
     defs.appendChild(cp);
 
-    if (isMission14){
+    if (isNavy){
       const triFill = document.createElementNS('http://www.w3.org/2000/svg','path');
       triFill.setAttribute('d', dFill);
       triFill.setAttribute('fill', cs4.getPropertyValue('--light').trim() || '#e6e3e3');
@@ -3800,8 +3815,8 @@ function renderOutwardMarks(mission){
   while(stageOutG.firstChild) stageOutG.removeChild(stageOutG.firstChild);
 
   const specified = new Set(getSpecifiedRoomsForMission(mission));
-  const isMission14 = mission === '1-4';
-  const stageOutwardFilledRooms = isMission14 ? new Set(specified) : new Set();
+  const isNavy = isNavyStage(mission);
+  const stageOutwardFilledRooms = isNavy ? new Set(specified) : new Set();
 
   const cs6 = getComputedStyle(stageSvg);
   const rBase    = innerR + (parseFloat(cs6.getPropertyValue('--outTriInset')) || 0);
@@ -3852,7 +3867,7 @@ function renderOutwardMarks(mission){
     defs.appendChild(cp);
 
     if (stageOutwardFilledRooms.has(room)){
-      if (isMission14){
+      if (isNavy){
         const specifiedTri = document.createElementNS('http://www.w3.org/2000/svg','path');
         specifiedTri.setAttribute('d', dTriArea);
         specifiedTri.setAttribute('fill', specifiedFill);
@@ -3884,7 +3899,7 @@ function renderOutwardMarks(mission){
     rightRibbon.setAttribute('fill-opacity', opacity);
     stageOutG.appendChild(rightRibbon);
 
-    if (isMission14){
+    if (isNavy){
       const imgSize = Math.ceil(2 * (rBase + len));
       const img = document.createElementNS('http://www.w3.org/2000/svg','image');
       img.setAttributeNS('http://www.w3.org/1999/xlink','href','star.jpg');
@@ -3902,7 +3917,7 @@ function renderOutwardMarks(mission){
       : (whiteOnlyRoom ? '#ffffff' : '#facc15');
     appendGoldX(stageOutG, clipId, midDeg, len, rBase, spread, goldXStroke);
 
-    if (isMission14 && !whiteOnlyRoom){
+    if (isNavy && !whiteOnlyRoom){
       [leftRibbon, rightRibbon].forEach((el)=>{
         el.setAttribute('fill', '#000');
         el.setAttribute('stroke', '#fff');
@@ -3914,7 +3929,7 @@ function renderOutwardMarks(mission){
 }
 
 function applyMissionSkin(mission){
-  const isMission14 = mission === '1-4';
+  const isNavy = isNavyStage(mission);
   const innerLightFill = stageSvg.querySelector('#innerLightFill');
   const ring30StarBg = stageSvg.querySelector('#ring30StarBg');
   const imgInner1 = stageSvg.querySelector('#imgInner1');
@@ -3925,14 +3940,14 @@ function applyMissionSkin(mission){
   if (outerStarBg) outerStarBg.style.display = 'none';
   if (bowlFill){
     const missionBrown = getComputedStyle(stageSvg).getPropertyValue('--orange').trim() || '#ab5d1a';
-    bowlFill.setAttribute('fill', isMission14 ? missionBrown : '#e0ffff');
+    bowlFill.setAttribute('fill', isNavy ? missionBrown : '#e0ffff');
   }
-  if (innerLightFill) innerLightFill.style.display = isMission14 ? '' : 'none';
-  if (ring30StarBg) ring30StarBg.style.display = isMission14 ? '' : 'none';
-  if (imgInner1) imgInner1.style.display = isMission14 ? 'none' : '';
+  if (innerLightFill) innerLightFill.style.display = isNavy ? '' : 'none';
+  if (ring30StarBg) ring30StarBg.style.display = isNavy ? '' : 'none';
+  if (imgInner1) imgInner1.style.display = isNavy ? 'none' : '';
   if (imgInner3) imgInner3.style.display = '';
 
-  if (isMission14){
+  if (isNavy){
     stageSvg.style.setProperty('--markStroke', '#000');
     stageSvg.style.setProperty('--centerLineColor', '#000');
     stageSvg.style.setProperty('--diamondFill', getComputedStyle(stageSvg).getPropertyValue('--light').trim() || '#e6e3e3');
@@ -4025,20 +4040,20 @@ function renderEqTriBackFill(mission){
   if(!triBack) return;
   const specified = new Set(getSpecifiedRoomsForMission(mission));
   const defaultFill = getComputedStyle(stageSvg).getPropertyValue('--triFill').trim() || '#ddd';
-  const isMission14 = mission === '1-4';
+  const isNavy = isNavyStage(mission);
   const missionBrown = getComputedStyle(stageSvg).getPropertyValue('--orange').trim() || '#ab5d1a';
-  const mission14SpecifiedRooms = isMission14 ? new Set(specified) : new Set();
+  const navySpecifiedRooms = isNavy ? new Set(specified) : new Set();
 
   const outerCircle = triBack.querySelector('#outerCircle');
   if (outerCircle){
-    outerCircle.setAttribute('fill', isMission14 ? 'url(#starPattern)' : 'var(--circleFill)');
+    outerCircle.setAttribute('fill', isNavy ? 'url(#starPattern)' : 'var(--circleFill)');
   }
 
   for(let room=1; room<=6; room++){
     const use = triBack.querySelector(`use[data-room="${room}"]`);
     if(!use) continue;
-    if (isMission14){
-      use.setAttribute('fill', mission14SpecifiedRooms.has(room) ? missionBrown : 'url(#starPattern)');
+    if (isNavy){
+      use.setAttribute('fill', navySpecifiedRooms.has(room) ? missionBrown : 'url(#starPattern)');
       continue;
     }
     if(specified.has(room)){
@@ -4066,7 +4081,7 @@ function renderSpecifiedBowls(mission){
 
   const fillColorDefault = cs9.getPropertyValue('--bowlFillColor').trim() || '#fff';
   const fillColorMission14 = cs9.getPropertyValue('--orange').trim() || '#ab5d1a';
-  const fillColor = mission === '1-4' ? fillColorMission14 : fillColorDefault;
+  const fillColor = isNavyStage(mission) ? fillColorMission14 : fillColorDefault;
   const fillOpacity = Math.max(0, Math.min(1, parseFloat(cs9.getPropertyValue('--bowlFillOpacity')) || 1));
 
   const defs = stageSvg.querySelector('defs');
