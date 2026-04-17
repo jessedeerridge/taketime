@@ -559,7 +559,7 @@
     --tipDiaOffset: 0;
     --tipDiaRingR: 11;
     --tipDiaRingW: 1.8;
-    --tipDiaRingStroke: #f8cb8d;
+    --tipDiaRingStroke: none;
     --tipDiaRingFill: none;
     --tipDiaHitR: 18;
     --centerTopRotate: 4;
@@ -4162,7 +4162,7 @@ function renderCenterTopDiamond(){
   const sw     = Math.max(0, parseFloat(cs12.getPropertyValue('--tipDiaStrokeW')) || 0);
   const ringR = Math.max(2, Math.abs(parseFloat(cs12.getPropertyValue('--tipDiaRingR')) || 11));
   const ringW = Math.max(0.6, Math.abs(parseFloat(cs12.getPropertyValue('--tipDiaRingW')) || 1.8));
-  const ringStroke = cs12.getPropertyValue('--tipDiaRingStroke').trim() || '#f8cb8d';
+  const ringStroke = cs12.getPropertyValue('--tipDiaRingStroke').trim() || 'none';
   const ringFill = cs12.getPropertyValue('--tipDiaRingFill').trim() || 'none';
   const hitR = Math.max(ringR, Math.abs(parseFloat(cs12.getPropertyValue('--tipDiaHitR')) || (ringR + 6)));
 
