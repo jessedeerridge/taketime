@@ -3039,6 +3039,7 @@ function applyBoardRotation(deg, { animate = false } = {}){
   stageSvg.style.transition = animate ? 'transform 220ms ease-out' : 'none';
   stageSvg.style.transformOrigin = '50% 50%';
   stageSvg.style.transform = `rotate(${boardRotationDeg}deg)`;
+  syncRoomHintTableOrientation();
 }
 
 function snapBoardRotationToNearestRoom(){
@@ -3047,6 +3048,15 @@ function snapBoardRotationToNearestRoom(){
   window.setTimeout(() => {
     if (!boardRotationDrag) stageSvg.style.transition = 'none';
   }, 260);
+}
+
+function syncRoomHintTableOrientation(){
+  const hintTables = stageSvg.querySelectorAll('#roomConditionHints .room-hint-table');
+  hintTables.forEach((tableG) => {
+    const cx = Number(tableG.dataset.cx || 0);
+    const cy = Number(tableG.dataset.cy || 0);
+    tableG.setAttribute('transform', `translate(${cx},${cy}) rotate(${-boardRotationDeg})`);
+  });
 }
 
 /* ================== 6等分セクタ（当たり判定） ================== */
@@ -3085,8 +3095,9 @@ function snapBoardRotationToNearestRoom(){
   const g = stageSvg.querySelector('#rotationHandles');
   if (!g) return;
 
-  const handleRadius = 8;
-  const handleHitRadius = 16;
+  const handleScale = 5;
+  const handleRadius = 8 * handleScale;
+  const handleHitRadius = 10 * handleScale;
   const handleCenterR = outerR - 6;
   for (let room = 1; room <= 6; room++){
     const midDeg = (room - 1) * 60 + 30;
@@ -4446,16 +4457,23 @@ function renderRoomConditionHints(mission = currentStage){
       lines.push(hintText.slice(idx, idx + maxCharsPerLine));
     }
 
+    const tableWrap = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    tableWrap.setAttribute('class', 'room-hint-table');
+    tableWrap.dataset.cx = String(clampedX);
+    tableWrap.dataset.cy = String(clampedY);
+    tableWrap.setAttribute('transform', `translate(${clampedX},${clampedY}) rotate(${-boardRotationDeg})`);
+    g.appendChild(tableWrap);
+
     const table = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    table.setAttribute('x', String(clampedX - boxW / 2));
-    table.setAttribute('y', String(clampedY - boxH / 2));
+    table.setAttribute('x', String(-boxW / 2));
+    table.setAttribute('y', String(-boxH / 2));
     table.setAttribute('width', String(boxW));
     table.setAttribute('height', String(boxH));
     table.setAttribute('rx', '10');
     table.setAttribute('ry', '10');
     table.setAttribute('fill', 'rgba(31, 41, 55, 0.72)');
     table.setAttribute('stroke', 'none');
-    g.appendChild(table);
+    tableWrap.appendChild(table);
 
     const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     const renderLines = lines.slice(0, maxLines);
@@ -4463,8 +4481,8 @@ function renderRoomConditionHints(mission = currentStage){
       const lastIdx = renderLines.length - 1;
       renderLines[lastIdx] = `${renderLines[lastIdx].slice(0, Math.max(0, maxCharsPerLine - 1))}…`;
     }
-    text.setAttribute('x', String(clampedX));
-    text.setAttribute('y', String(clampedY - ((renderLines.length - 1) * lineH) / 2));
+    text.setAttribute('x', '0');
+    text.setAttribute('y', String(-((renderLines.length - 1) * lineH) / 2));
     text.setAttribute('fill', '#fff');
     text.setAttribute('font-size', String(fontSize));
     text.setAttribute('font-weight', '700');
@@ -4473,11 +4491,11 @@ function renderRoomConditionHints(mission = currentStage){
     renderLines.forEach((line, idx) => {
       const tspan = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
       tspan.textContent = line;
-      tspan.setAttribute('x', String(clampedX));
+      tspan.setAttribute('x', '0');
       tspan.setAttribute('dy', idx === 0 ? '0' : String(lineH));
       text.appendChild(tspan);
     });
-    g.appendChild(text);
+    tableWrap.appendChild(text);
   }
 
   if (!hasInfinity){
