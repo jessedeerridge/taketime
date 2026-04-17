@@ -121,6 +121,16 @@
   .stage-name-gear.clickable{
     cursor:pointer;
   }
+  #stageBoard{
+    transform-origin:50% 50%;
+    touch-action:none;
+  }
+  #stageBoard.rotating{
+    cursor:grabbing;
+  }
+  #roomTopRects .rotation-handle{
+    cursor:grab;
+  }
 
   .seat-pop{
     position:fixed;left:50%;bottom:10px;transform:translateX(-50%);
@@ -953,7 +963,7 @@
 
         <g id="sectorHits" transform="translate(150,150)"></g>
         <g id="roomGuideCircles" transform="translate(150,150)" style="pointer-events:none"></g>
-        <g id="roomTopRects" transform="translate(150,150)" style="pointer-events:none"></g>
+        <g id="roomTopRects" transform="translate(150,150)" style="pointer-events:auto"></g>
         <g id="roomTexts" transform="translate(150,150)" style="pointer-events:none"></g>
         <g id="roomConditionHints" transform="translate(150,150)" style="pointer-events:none"></g>
         <g id="roomCards" style="pointer-events:none"></g>
@@ -1174,6 +1184,9 @@ const inFlightPlayedCardKeys = new Set();
 const placingCardIds = new Set();
 let hasPlayedCardsSnapshot = false;
 let currentSubgearCount = 0;
+let boardRotationDeg = 0;
+let boardRotationDrag = null;
+const BOARD_ROTATION_SNAP_DEG = 60;
 
 function getBlackBackGradient(){
   return 'repeating-linear-gradient(135deg,var(--black-card) 0px,var(--black-card) 4px,var(--black-card-stripe) 4px,var(--black-card-stripe) 8px)';
@@ -1181,6 +1194,68 @@ function getBlackBackGradient(){
 
 function sleep(ms){
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function normalizeDeg(deg){
+  let v = deg % 360;
+  if (v < 0) v += 360;
+  return v;
+}
+
+function angleFromStageCenter(clientX, clientY){
+  const rect = stageSvg.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  const rad = Math.atan2(clientY - cy, clientX - cx);
+  return normalizeDeg((rad * 180 / Math.PI) + 90);
+}
+
+function applyBoardRotation(deg){
+  boardRotationDeg = normalizeDeg(deg);
+  stageSvg.style.transform = `rotate(${boardRotationDeg.toFixed(2)}deg)`;
+}
+
+function setupBoardRotationHandle(){
+  const handleLayer = stageSvg.querySelector('#roomTopRects');
+  if (!handleLayer) return;
+
+  handleLayer.addEventListener('pointerdown', (ev) => {
+    const handle = ev.target.closest('.rotation-handle');
+    if (!handle) return;
+    if (!(ev.buttons & 1) && ev.pointerType !== 'touch') return;
+
+    ev.preventDefault();
+    ev.stopPropagation();
+
+    const pointerAngle = angleFromStageCenter(ev.clientX, ev.clientY);
+    boardRotationDrag = {
+      pointerId: ev.pointerId,
+      offsetDeg: boardRotationDeg - pointerAngle
+    };
+    stageSvg.classList.add('rotating');
+
+    const onMove = (moveEv) => {
+      if (!boardRotationDrag || moveEv.pointerId !== boardRotationDrag.pointerId) return;
+      moveEv.preventDefault();
+      const nextPointerAngle = angleFromStageCenter(moveEv.clientX, moveEv.clientY);
+      applyBoardRotation(nextPointerAngle + boardRotationDrag.offsetDeg);
+    };
+
+    const onUp = (upEv) => {
+      if (!boardRotationDrag || upEv.pointerId !== boardRotationDrag.pointerId) return;
+      const snapped = Math.round(boardRotationDeg / BOARD_ROTATION_SNAP_DEG) * BOARD_ROTATION_SNAP_DEG;
+      applyBoardRotation(snapped);
+      boardRotationDrag = null;
+      stageSvg.classList.remove('rotating');
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp, true);
+      window.removeEventListener('pointercancel', onUp, true);
+    };
+
+    window.addEventListener('pointermove', onMove, { passive: false });
+    window.addEventListener('pointerup', onUp, true);
+    window.addEventListener('pointercancel', onUp, true);
+  });
 }
 
 function scheduleRoomTotalsRefresh(delayMs){
@@ -4188,6 +4263,7 @@ function renderRoomTopRects(mission = currentStage){
     rect.setAttribute('ry', rectRx.toFixed(2));
     rect.setAttribute('fill', fill);
     rect.setAttribute('fill-opacity', String(opacity));
+    rect.setAttribute('class', 'rotation-handle');
     rect.setAttribute('transform', `translate(${p.x.toFixed(2)}, ${p.y.toFixed(2)}) rotate(${midDeg})`);
     g.appendChild(rect);
   }
@@ -4546,6 +4622,8 @@ function redrawAll(m){
 window.addEventListener('mission:change', (e)=>{
   redrawAll(e.detail?.value || currentStage);
 });
+setupBoardRotationHandle();
+applyBoardRotation(0);
 redrawAll(currentStage);
 renderStageOptions();
 </script>
