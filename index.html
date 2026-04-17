@@ -123,8 +123,8 @@
   }
   .stage-top-hint{
     position:fixed;
-    top:12px;
-    right:12px;
+    top:64px;
+    right:20px;
     z-index:240;
     max-width:min(300px, calc(100vw - 24px));
     background:rgba(17,17,17,.88);
@@ -4972,20 +4972,24 @@ function getStageRoomHintText(stage, room){
   const sumCondition = (STAGE_ROOM_SUCCESS_CONDITIONS[stage] || []).find((cond) => Number(cond.room) === Number(room));
   const clockLabels = getClockLabelsForMission(stage);
   const clockLabel = clockLabels?.[room];
-  const stageTextSpec = stage === '1-4' && room === 1 ? '6' : '';
+  const closecardTarget = (
+    (stage === '1-4' && room === 1) ? '6'
+      : (stage === '3-1' && room === 6) ? '20'
+        : ''
+  );
 
   if (clockLabel){
     return `${clockLabel}枚目のカードは必ずここに置かなければならない。それ以降に他のカードを置いてもよい。`;
   }
-  if (stageTextSpec){
-    return `もっとも${stageTextSpec}に近いエリアがこのエリアでなければならない。`;
+  if (closecardTarget){
+    return `もっとも${closecardTarget}に近いエリアがこのエリアでなければならない。`;
   }
 
   if ((stage === '1-2' && room === 4) || (stage === '1-1' && room === 6)){
     return 'カードを必ず3枚だけ置かなければならない。';
   }
   if (stage === '3-1' && room === 4){
-    return 'プラマイカード（中央＋・左右半透明）が置かれるエリア。';
+    return 'このエリアに最も大きい数値のカードが置かれていなければならない。（※マイナスならその逆）';
   }
   if (sumCondition){
     return `このエリアの合計値が必ず${sumCondition.min}~${sumCondition.max}の数値にならなければならない。`;
