@@ -627,6 +627,15 @@
   }
   #stageBoard .sharp{ stroke-linecap:butt; stroke-linejoin:miter; }
   #stageBoard #sectorHits .sector { fill: rgba(255,255,0,0); cursor: pointer; pointer-events: fill; }
+  #stageBoard.rotating{
+    cursor:grabbing;
+  }
+  #stageBoard .rotation-handle{
+    fill:#000;
+    cursor:grab;
+    pointer-events:all;
+    touch-action:none;
+  }
   #missionText{display:none;}
 </style>
 </head>
@@ -951,6 +960,7 @@
         <g id="roomCards" style="pointer-events:none"></g>
         <g id="playedCards" style="pointer-events:none"></g>
         <g id="roomTotals" style="pointer-events:none"></g>
+        <g id="rotationHandles" transform="translate(150,150)"></g>
         </svg>
       </div>
     </div>
@@ -1166,6 +1176,8 @@ const inFlightPlayedCardKeys = new Set();
 const placingCardIds = new Set();
 let hasPlayedCardsSnapshot = false;
 let currentSubgearCount = 0;
+let boardRotationDeg = 0;
+let boardRotationDrag = null;
 
 function getBlackBackGradient(){
   return 'repeating-linear-gradient(135deg,var(--black-card) 0px,var(--black-card) 4px,var(--black-card-stripe) 4px,var(--black-card-stripe) 8px)';
@@ -2025,13 +2037,18 @@ function canPlaceCardInRoom(cardData, room, stage = currentStage){
 }
 
 function findDropRoom(clientX, clientY, cardData = activeDrag?.cardData){
-  const { centerR, scaledGuideR } = getGuideMetrics();
+  const { centerR, guideR } = getGuideMetrics();
+  const { x: centerX, y: centerY, rect } = getBoardCenterClient();
+  const scale = rect.width / 300;
+  const distance = Math.hypot(clientX - centerX, clientY - centerY);
+  const radialGap = Math.abs(distance - (centerR * scale));
+  if (radialGap > (guideR * scale)) return null;
+
+  const pointerDeg = pointerAngleDegFromBoardCenter(clientX, clientY);
   for(let room = 1; room <= 6; room++){
-    const midDeg = (room - 1) * 60 + 30;
-    const pInner = polar(centerR, midDeg);
-    const pInnerClient = svgToClientPoint(150 + pInner.x, 150 + pInner.y);
-    const dist = Math.hypot(clientX - pInnerClient.x, clientY - pInnerClient.y);
-    if (dist <= scaledGuideR){
+    const midDeg = normalizeDeg((room - 1) * 60 + 30 + boardRotationDeg);
+    const delta = Math.abs(shortestDegDelta(pointerDeg, midDeg));
+    if (delta <= 30){
       if (!cardData || canPlaceCardInRoom(cardData, room)) return room;
       return null;
     }
@@ -2990,6 +3007,41 @@ function clickAngleDeg(svgPoint, center){
   return ang;
 }
 
+function normalizeDeg(deg){
+  return ((deg % 360) + 360) % 360;
+}
+
+function shortestDegDelta(fromDeg, toDeg){
+  return ((toDeg - fromDeg + 540) % 360) - 180;
+}
+
+function getBoardCenterClient(){
+  const rect = stageSvg.getBoundingClientRect();
+  return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2, rect };
+}
+
+function pointerAngleDegFromBoardCenter(clientX, clientY){
+  const { x, y } = getBoardCenterClient();
+  const dx = clientX - x;
+  const dy = clientY - y;
+  return normalizeDeg(Math.atan2(dy, dx) * 180 / Math.PI + 90);
+}
+
+function applyBoardRotation(deg, { animate = false } = {}){
+  boardRotationDeg = normalizeDeg(deg);
+  stageSvg.style.transition = animate ? 'transform 220ms ease-out' : 'none';
+  stageSvg.style.transformOrigin = '50% 50%';
+  stageSvg.style.transform = `rotate(${boardRotationDeg}deg)`;
+}
+
+function snapBoardRotationToNearestRoom(){
+  const snapped = Math.round(boardRotationDeg / 60) * 60;
+  applyBoardRotation(snapped, { animate: true });
+  window.setTimeout(() => {
+    if (!boardRotationDrag) stageSvg.style.transition = 'none';
+  }, 260);
+}
+
 /* ================== 6等分セクタ（当たり判定） ================== */
 (function setupSectors(){
   const g = stageSvg.querySelector('#sectorHits');
@@ -3020,6 +3072,61 @@ function clickAngleDeg(svgPoint, center){
   });
 
   window.flashRoom = ()=>{};
+})();
+
+(function setupRotationHandles(){
+  const g = stageSvg.querySelector('#rotationHandles');
+  if (!g) return;
+
+  const handleRadius = 8;
+  const handleCenterR = outerR - 6;
+  for (let room = 1; room <= 6; room++){
+    const midDeg = (room - 1) * 60 + 30;
+    const p = polar(handleCenterR, midDeg);
+    const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    c.setAttribute('class', 'rotation-handle');
+    c.setAttribute('cx', String(p.x));
+    c.setAttribute('cy', String(p.y));
+    c.setAttribute('r', String(handleRadius));
+    c.dataset.room = String(room);
+    g.appendChild(c);
+  }
+
+  const onPointerMove = (ev) => {
+    if (!boardRotationDrag || ev.pointerId !== boardRotationDrag.pointerId) return;
+    const nextAngle = pointerAngleDegFromBoardCenter(ev.clientX, ev.clientY);
+    const delta = shortestDegDelta(boardRotationDrag.startPointerDeg, nextAngle);
+    applyBoardRotation(boardRotationDrag.startRotationDeg + delta);
+  };
+  const onPointerUp = (ev) => {
+    if (!boardRotationDrag || ev.pointerId !== boardRotationDrag.pointerId) return;
+    stageSvg.classList.remove('rotating');
+    boardRotationDrag.handle?.releasePointerCapture?.(ev.pointerId);
+    boardRotationDrag = null;
+    window.removeEventListener('pointermove', onPointerMove);
+    window.removeEventListener('pointerup', onPointerUp);
+    window.removeEventListener('pointercancel', onPointerUp);
+    snapBoardRotationToNearestRoom();
+  };
+
+  g.addEventListener('pointerdown', (ev) => {
+    const handle = ev.target.closest('.rotation-handle');
+    if (!handle) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    handle.setPointerCapture(ev.pointerId);
+    stageSvg.classList.add('rotating');
+    boardRotationDrag = {
+      pointerId: ev.pointerId,
+      handle,
+      startRotationDeg: boardRotationDeg,
+      startPointerDeg: pointerAngleDegFromBoardCenter(ev.clientX, ev.clientY)
+    };
+    stageSvg.style.transition = 'none';
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
+  });
 })();
 
 /* ================== ステージ定義 ================== */
