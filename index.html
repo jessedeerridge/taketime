@@ -634,6 +634,13 @@
   }
   #stageBoard .sharp{ stroke-linecap:butt; stroke-linejoin:miter; }
   #stageBoard #sectorHits .sector { fill: rgba(255,255,0,0); cursor: pointer; pointer-events: fill; }
+  #stageBoard .room-top-rect-handle{
+    cursor: grab;
+    touch-action: none;
+  }
+  #stageBoard .room-top-rect-handle.dragging{
+    cursor: grabbing;
+  }
   #missionText{display:none;}
 </style>
 </head>
@@ -953,7 +960,7 @@
 
         <g id="sectorHits" transform="translate(150,150)"></g>
         <g id="roomGuideCircles" transform="translate(150,150)" style="pointer-events:none"></g>
-        <g id="roomTopRects" transform="translate(150,150)" style="pointer-events:none"></g>
+        <g id="roomTopRects" transform="translate(150,150)"></g>
         <g id="roomTexts" transform="translate(150,150)" style="pointer-events:none"></g>
         <g id="roomConditionHints" transform="translate(150,150)" style="pointer-events:none"></g>
         <g id="roomCards" style="pointer-events:none"></g>
@@ -1157,6 +1164,8 @@ const placedCardIds = new Set();
 const pendingPlacedCardIds = new Set();
 let activeDrag = null;
 let dragHoverRoom = null;
+let boardRotationDeg = 0;
+let roomTopRectDragState = null;
 let cardChoiceResolver = null;
 const MY_TAG_ONLY_OFFSET_PX = 20;
 let isStageTagPressed = false;
@@ -1181,6 +1190,65 @@ function getBlackBackGradient(){
 
 function sleep(ms){
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function normalizeDeg360(deg){
+  return ((deg % 360) + 360) % 360;
+}
+
+function normalizeDeg180(deg){
+  const normalized = normalizeDeg360(deg);
+  return normalized > 180 ? normalized - 360 : normalized;
+}
+
+function getStagePointerAngleDeg(evt){
+  const rect = stageSvg.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  return Math.atan2(evt.clientY - cy, evt.clientX - cx) * 180 / Math.PI;
+}
+
+function applyStageBoardRotation({ animate = false } = {}){
+  stageSvg.style.transition = animate ? 'transform 220ms cubic-bezier(.22,.61,.36,1)' : 'none';
+  stageSvg.style.transformOrigin = '50% 50%';
+  stageSvg.style.transform = `rotate(${boardRotationDeg}deg)`;
+}
+
+function startRoomTopRectDrag(evt){
+  const target = evt.target;
+  if (!(target instanceof SVGElement)) return;
+  if (!target.classList.contains('room-top-rect-handle')) return;
+  if (evt.button != null && evt.button !== 0) return;
+  const startAngle = getStagePointerAngleDeg(evt);
+  roomTopRectDragState = {
+    pointerId: evt.pointerId,
+    startAngle,
+    startRotation: boardRotationDeg
+  };
+  target.classList.add('dragging');
+  stageSvg.setPointerCapture(evt.pointerId);
+  evt.preventDefault();
+  evt.stopPropagation();
+}
+
+function moveRoomTopRectDrag(evt){
+  if (!roomTopRectDragState) return;
+  if (evt.pointerId !== roomTopRectDragState.pointerId) return;
+  const currentAngle = getStagePointerAngleDeg(evt);
+  const delta = normalizeDeg180(currentAngle - roomTopRectDragState.startAngle);
+  boardRotationDeg = roomTopRectDragState.startRotation + delta;
+  applyStageBoardRotation({ animate: false });
+  evt.preventDefault();
+}
+
+function endRoomTopRectDrag(evt){
+  if (!roomTopRectDragState) return;
+  if (evt.pointerId !== roomTopRectDragState.pointerId) return;
+  const dragged = stageSvg.querySelector('.room-top-rect-handle.dragging');
+  if (dragged) dragged.classList.remove('dragging');
+  boardRotationDeg = Math.round(boardRotationDeg / 60) * 60;
+  applyStageBoardRotation({ animate: true });
+  roomTopRectDragState = null;
 }
 
 function scheduleRoomTotalsRefresh(delayMs){
@@ -2791,6 +2859,10 @@ window.addEventListener('resize', () => {
 
 /* ===== ステージSVGロジック：元コードをそのまま移植 ===== */
 const stageSvg = document.getElementById('stageBoard');
+stageSvg.addEventListener('pointerdown', startRoomTopRectDrag);
+stageSvg.addEventListener('pointermove', moveRoomTopRectDrag);
+stageSvg.addEventListener('pointerup', endRoomTopRectDrag);
+stageSvg.addEventListener('pointercancel', endRoomTopRectDrag);
 
 stageNameGear.addEventListener('click', async () => {
   if (!currentStage) return;
@@ -4188,6 +4260,9 @@ function renderRoomTopRects(mission = currentStage){
     rect.setAttribute('ry', rectRx.toFixed(2));
     rect.setAttribute('fill', fill);
     rect.setAttribute('fill-opacity', String(opacity));
+    rect.setAttribute('class', 'room-top-rect-handle');
+    rect.setAttribute('data-room', String(room));
+    rect.setAttribute('pointer-events', 'all');
     rect.setAttribute('transform', `translate(${p.x.toFixed(2)}, ${p.y.toFixed(2)}) rotate(${midDeg})`);
     g.appendChild(rect);
   }
