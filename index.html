@@ -1059,7 +1059,7 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import {
-  getDatabase, ref, set, get, update, onDisconnect, onValue, remove, runTransaction
+  getDatabase, ref, set, get, update, onDisconnect, onValue, remove, runTransaction, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
 
 const firebaseConfig = {
@@ -1195,9 +1195,14 @@ let boardRotationDeg = 0;
 let boardRotationVisualDeg = 0;
 let boardRotationDrag = null;
 let hasBoardRotationSnapshot = false;
-let lastBoardRotationTs = 0;
 let lastBoardRotationPublishAt = 0;
-const ROTATION_SYNC_INTERVAL_MS = 16;
+let lastPublishedBoardRotationDeg = 0;
+let boardRotationSeq = 0;
+let boardServerOffsetMs = 0;
+const lastBoardRotationSeqByActor = new Map();
+const ROTATION_SYNC_INTERVAL_MS = 33;
+const MIN_ROTATION_PUBLISH_DELTA_DEG = 0.75;
+subscribeServerClockOffset();
 
 function getBlackBackGradient(){
   return 'repeating-linear-gradient(135deg,var(--black-card) 0px,var(--black-card) 4px,var(--black-card-stripe) 4px,var(--black-card-stripe) 8px)';
@@ -2534,7 +2539,10 @@ btnJoin.addEventListener('click', async () => {
 
     state.joined = true;
     hasBoardRotationSnapshot = false;
-    lastBoardRotationTs = 0;
+    lastBoardRotationPublishAt = 0;
+    lastPublishedBoardRotationDeg = boardRotationDeg;
+    boardRotationSeq = 0;
+    lastBoardRotationSeqByActor.clear();
 
     enterLobbyUI();
     updateHostUI();
@@ -3056,13 +3064,15 @@ function toShortestVisualRotation(currentVisualDeg, nextNormalizedDeg){
   return currentVisualDeg + delta;
 }
 
-function applyBoardRotation(deg, { animate = false, useShortestPath = false } = {}){
+function applyBoardRotation(deg, { animate = false, useShortestPath = false, transition = '' } = {}){
   const normalized = normalizeDeg(deg);
   boardRotationVisualDeg = useShortestPath
     ? toShortestVisualRotation(boardRotationVisualDeg, normalized)
     : deg;
   boardRotationDeg = normalizeDeg(boardRotationVisualDeg);
-  stageSvg.style.transition = animate ? 'transform 220ms ease-out' : 'none';
+  stageSvg.style.transition = animate
+    ? (transition || 'transform 220ms ease-out')
+    : 'none';
   stageSvg.style.transformOrigin = '50% 50%';
   stageSvg.style.transform = `rotate(${boardRotationVisualDeg}deg)`;
   syncRoomHintTableOrientation();
@@ -3077,16 +3087,33 @@ function snapBoardRotationToNearestRoom(){
   return snapped;
 }
 
+function estimatedServerNow(){
+  return Date.now() + boardServerOffsetMs;
+}
+
 function publishBoardRotation(deg, { isFinal = false, force = false } = {}){
   if (!state.roomCode || !state.userId) return;
   const now = Date.now();
-  if (!force && !isFinal && (now - lastBoardRotationPublishAt) < ROTATION_SYNC_INTERVAL_MS){
+  const normalizedDeg = normalizeDeg(deg);
+  const deltaFromLastPublish = Math.abs(shortestDegDelta(lastPublishedBoardRotationDeg, normalizedDeg));
+  if (
+    !force &&
+    !isFinal &&
+    (
+      (now - lastBoardRotationPublishAt) < ROTATION_SYNC_INTERVAL_MS ||
+      deltaFromLastPublish < MIN_ROTATION_PUBLISH_DELTA_DEG
+    )
+  ){
     return;
   }
   lastBoardRotationPublishAt = now;
+  lastPublishedBoardRotationDeg = normalizedDeg;
+  boardRotationSeq += 1;
   const payload = {
-    deg: normalizeDeg(deg),
-    ts: now,
+    deg: normalizedDeg,
+    seq: boardRotationSeq,
+    clientSentAt: now,
+    serverTs: serverTimestamp(),
     actorId: state.userId,
     isFinal: !!isFinal
   };
@@ -3100,25 +3127,45 @@ function subscribeBoardRotation(){
     const data = snap.val();
     if (!data || typeof data.deg !== 'number') return;
 
-    const ts = Number(data.ts || 0);
     const actorId = String(data.actorId || '');
+    const seq = Number(data.seq || 0);
     const normalizedDeg = normalizeDeg(data.deg);
-
+    const isSelf = actorId && actorId === state.userId;
+    if (actorId){
+      const prevSeq = Number(lastBoardRotationSeqByActor.get(actorId) || 0);
+      if (seq > 0 && seq <= prevSeq) return;
+      if (seq > 0) lastBoardRotationSeqByActor.set(actorId, seq);
+    }
     if (!hasBoardRotationSnapshot){
       hasBoardRotationSnapshot = true;
-      lastBoardRotationTs = ts;
       applyBoardRotation(normalizedDeg, { animate: false, useShortestPath: true });
       return;
     }
-    if (ts && ts <= lastBoardRotationTs) return;
-    lastBoardRotationTs = Math.max(lastBoardRotationTs, ts);
-    if (actorId && actorId === state.userId) return;
+    if (isSelf) return;
     if (boardRotationDrag) return;
-    const shouldAnimate = !!data.isFinal;
-    applyBoardRotation(normalizedDeg, { animate: shouldAnimate, useShortestPath: true });
+    const serverTs = Number(data.serverTs || 0);
+    const renderLagMs = serverTs ? Math.max(0, estimatedServerNow() - serverTs) : 0;
+    const angularDelta = Math.abs(shortestDegDelta(boardRotationDeg, normalizedDeg));
+    const shouldAnimate = angularDelta > 0.01;
+    const durationMs = data.isFinal
+      ? Math.max(60, 180 - Math.min(120, Math.round(renderLagMs)))
+      : Math.max(40, 90 - Math.min(50, Math.round(renderLagMs / 2)));
+    applyBoardRotation(normalizedDeg, {
+      animate: shouldAnimate,
+      useShortestPath: true,
+      transition: `transform ${durationMs}ms linear`
+    });
     window.setTimeout(() => {
       if (!boardRotationDrag) stageSvg.style.transition = 'none';
-    }, shouldAnimate ? 260 : 20);
+    }, shouldAnimate ? durationMs + 20 : 20);
+  });
+}
+
+function subscribeServerClockOffset(){
+  const offsetRef = ref(db, '.info/serverTimeOffset');
+  onValue(offsetRef, (snap) => {
+    const val = Number(snap.val());
+    boardServerOffsetMs = Number.isFinite(val) ? val : 0;
   });
 }
 
