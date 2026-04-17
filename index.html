@@ -645,7 +645,8 @@
     cursor:grabbing;
   }
   #stageBoard .room-rotate-handle-hit{
-    fill:transparent;
+    fill:#fff;
+    fill-opacity:0.001;
     pointer-events:all;
   }
   #missionText{display:none;}
@@ -3075,6 +3076,22 @@ function pointerAngleFromStageCenter(clientX, clientY){
 })();
 
 /* ================== 盤面回転（赤ハンドルをドラッグ） ================== */
+function beginBoardRotateDrag(pointerId, clientX, clientY, handle){
+  const handleEl = handle || null;
+  if (handleEl){
+    handleEl.classList.add('is-dragging');
+    if (Number.isFinite(pointerId) && handleEl.setPointerCapture){
+      try { handleEl.setPointerCapture(pointerId); } catch(_){}
+    }
+  }
+  boardRotateDragState = {
+    pointerId: Number.isFinite(pointerId) ? pointerId : null,
+    startPointerAngle: pointerAngleFromStageCenter(clientX, clientY),
+    startRotationDeg: boardRotationDeg,
+    handleEl
+  };
+}
+
 (function setupBoardRotateDrag(){
   const onMove = (ev) => {
     if (!boardRotateDragState || ev.pointerId !== boardRotateDragState.pointerId) return;
@@ -3098,26 +3115,70 @@ function pointerAngleFromStageCenter(clientX, clientY){
     window.removeEventListener('pointercancel', finishDrag);
   };
 
-  stageSvg.addEventListener('pointerdown', (ev) => {
-    const hit = ev.target.closest('.room-rotate-handle-hit');
-    if (!hit) return;
-    ev.preventDefault();
-    ev.stopPropagation();
-    const handle = hit.closest('.room-rotate-handle') || hit;
-    handle.classList.add('is-dragging');
-    if (handle.setPointerCapture){
-      try { handle.setPointerCapture(ev.pointerId); } catch(_){}
-    }
-    boardRotateDragState = {
-      pointerId: ev.pointerId,
-      startPointerAngle: pointerAngleFromStageCenter(ev.clientX, ev.clientY),
-      startRotationDeg: boardRotationDeg,
-      handleEl: handle
-    };
-    window.addEventListener('pointermove', onMove, { passive: false });
-    window.addEventListener('pointerup', finishDrag);
-    window.addEventListener('pointercancel', finishDrag);
-  });
+  window.bindBoardRotateHandle = (hitEl) => {
+    if (!hitEl || hitEl.dataset.rotateDragBound === '1') return;
+    hitEl.dataset.rotateDragBound = '1';
+
+    hitEl.addEventListener('pointerdown', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const handle = hitEl.closest('.room-rotate-handle') || hitEl;
+      beginBoardRotateDrag(ev.pointerId, ev.clientX, ev.clientY, handle);
+      window.addEventListener('pointermove', onMove, { passive: false });
+      window.addEventListener('pointerup', finishDrag);
+      window.addEventListener('pointercancel', finishDrag);
+    });
+
+    hitEl.addEventListener('mousedown', (ev) => {
+      if (typeof PointerEvent !== 'undefined') return;
+      ev.preventDefault();
+      const handle = hitEl.closest('.room-rotate-handle') || hitEl;
+      beginBoardRotateDrag(null, ev.clientX, ev.clientY, handle);
+      const onMouseMove = (mv) => {
+        if (!boardRotateDragState) return;
+        const currentAngle = pointerAngleFromStageCenter(mv.clientX, mv.clientY);
+        const delta = shortestDeltaDeg(boardRotateDragState.startPointerAngle, currentAngle);
+        setBoardRotationDeg(boardRotateDragState.startRotationDeg + delta, { snap: false });
+      };
+      const onMouseUp = () => {
+        setBoardRotationDeg(boardRotationDeg, { snap: true });
+        boardRotateDragState?.handleEl?.classList.remove('is-dragging');
+        boardRotateDragState = null;
+        window.removeEventListener('mousemove', onMouseMove);
+        window.removeEventListener('mouseup', onMouseUp);
+      };
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mouseup', onMouseUp);
+    });
+
+    hitEl.addEventListener('touchstart', (ev) => {
+      if (typeof PointerEvent !== 'undefined') return;
+      const t = ev.changedTouches?.[0];
+      if (!t) return;
+      ev.preventDefault();
+      const handle = hitEl.closest('.room-rotate-handle') || hitEl;
+      beginBoardRotateDrag(null, t.clientX, t.clientY, handle);
+      const onTouchMove = (mv) => {
+        const tt = mv.changedTouches?.[0];
+        if (!tt || !boardRotateDragState) return;
+        mv.preventDefault();
+        const currentAngle = pointerAngleFromStageCenter(tt.clientX, tt.clientY);
+        const delta = shortestDeltaDeg(boardRotateDragState.startPointerAngle, currentAngle);
+        setBoardRotationDeg(boardRotateDragState.startRotationDeg + delta, { snap: false });
+      };
+      const onTouchEnd = () => {
+        setBoardRotationDeg(boardRotationDeg, { snap: true });
+        boardRotateDragState?.handleEl?.classList.remove('is-dragging');
+        boardRotateDragState = null;
+        window.removeEventListener('touchmove', onTouchMove);
+        window.removeEventListener('touchend', onTouchEnd);
+        window.removeEventListener('touchcancel', onTouchEnd);
+      };
+      window.addEventListener('touchmove', onTouchMove, { passive: false });
+      window.addEventListener('touchend', onTouchEnd);
+      window.addEventListener('touchcancel', onTouchEnd);
+    }, { passive: false });
+  };
 })();
 
 /* ================== ステージ定義 ================== */
@@ -4282,7 +4343,11 @@ function renderRoomTopRects(mission = currentStage){
     hit.setAttribute('rx', '10');
     hit.setAttribute('ry', '10');
     hit.setAttribute('class', 'room-rotate-handle-hit');
+    hit.style.cursor = 'grab';
     handle.appendChild(hit);
+    if (typeof window.bindBoardRotateHandle === 'function'){
+      window.bindBoardRotateHandle(hit);
+    }
 
     const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     rect.setAttribute('x', (-rectW / 2).toFixed(2));
