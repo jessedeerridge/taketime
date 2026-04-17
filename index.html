@@ -953,7 +953,7 @@
 
         <g id="sectorHits" transform="translate(150,150)"></g>
         <g id="roomGuideCircles" transform="translate(150,150)" style="pointer-events:none"></g>
-        <g id="roomTopRects" transform="translate(150,150)" style="pointer-events:none"></g>
+        <g id="roomTopRects" transform="translate(150,150)"></g>
         <g id="roomTexts" transform="translate(150,150)" style="pointer-events:none"></g>
         <g id="roomConditionHints" transform="translate(150,150)" style="pointer-events:none"></g>
         <g id="roomCards" style="pointer-events:none"></g>
@@ -1174,9 +1174,30 @@ const inFlightPlayedCardKeys = new Set();
 const placingCardIds = new Set();
 let hasPlayedCardsSnapshot = false;
 let currentSubgearCount = 0;
+let roomRotationDeg = 0;
+let roomRotateDragState = null;
+const ROOM_ROTATE_SNAP_DEG = 30;
 
 function getBlackBackGradient(){
   return 'repeating-linear-gradient(135deg,var(--black-card) 0px,var(--black-card) 4px,var(--black-card-stripe) 4px,var(--black-card-stripe) 8px)';
+}
+
+function normalizeDeg(deg){
+  let v = Number(deg) || 0;
+  while (v < 0) v += 360;
+  while (v >= 360) v -= 360;
+  return v;
+}
+
+function shortestDegDelta(fromDeg, toDeg){
+  let delta = normalizeDeg(toDeg) - normalizeDeg(fromDeg);
+  if (delta > 180) delta -= 360;
+  if (delta < -180) delta += 360;
+  return delta;
+}
+
+function getRoomMidDeg(room){
+  return ((room - 1) * 60 + 30) + roomRotationDeg;
 }
 
 function sleep(ms){
@@ -2035,7 +2056,7 @@ function canPlaceCardInRoom(cardData, room, stage = currentStage){
 function findDropRoom(clientX, clientY, cardData = activeDrag?.cardData){
   const { centerR, scaledGuideR } = getGuideMetrics();
   for(let room = 1; room <= 6; room++){
-    const midDeg = (room - 1) * 60 + 30;
+    const midDeg = getRoomMidDeg(room);
     const pInner = polar(centerR, midDeg);
     const pInnerClient = svgToClientPoint(150 + pInner.x, 150 + pInner.y);
     const dist = Math.hypot(clientX - pInnerClient.x, clientY - pInnerClient.y);
@@ -2791,6 +2812,7 @@ window.addEventListener('resize', () => {
 
 /* ===== ステージSVGロジック：元コードをそのまま移植 ===== */
 const stageSvg = document.getElementById('stageBoard');
+stageSvg.addEventListener('pointerdown', handleRoomRotatePointerDown);
 
 stageNameGear.addEventListener('click', async () => {
   if (!currentStage) return;
@@ -3086,7 +3108,7 @@ function renderStageMarks(mission){
   for(let room=1; room<=6; room++){
     if(specified.has(room)) continue;
 
-    const midDeg = (room-1)*60 + 30;
+    const midDeg = getRoomMidDeg(room);
     const a0 = midDeg - spread/2;
     const a1 = midDeg + spread/2;
 
@@ -3194,7 +3216,7 @@ function renderClockMarks(mission){
     const room = Number(roomStr);
     if(!(room >= 1 && room <= 6)) return;
 
-    const midDeg = (room - 1) * 60 + 30;
+    const midDeg = getRoomMidDeg(room);
     const pos = polar((innerR + outerR) / 2 + 4 + deltaR, midDeg);
 
     const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -3333,7 +3355,7 @@ function renderOutwardMarks(mission){
   const defs = stageSvg.querySelector('defs');
 
   for(let room=1; room<=6; room++){
-    const midDeg = (room-1)*60 + 30;
+    const midDeg = getRoomMidDeg(room);
     const aL = midDeg - spread/2;
     const aR = midDeg + spread/2;
 
@@ -3767,7 +3789,7 @@ function renderRoomCards(mission = currentStage){
   }
 
   function appendCardAt(room, extraTan=0, extraRad=0, extraRot=0, paint=null, flipDirection=false){
-    const midDeg = (room-1)*60 + 30;
+    const midDeg = getRoomMidDeg(room);
     const rotBase = inwardBase + (roomAdjust[room]||0);
     const cardRot = flipDirection ? (rotBase + 180 - extraRot * 1) : (rotBase + extraRot);
     const tr = [
@@ -3807,7 +3829,7 @@ function renderRoomCards(mission = currentStage){
     height = cardH + 16,
     radius = cardR + 4
   } = {}){
-    const midDeg = (room-1)*60 + 30;
+    const midDeg = getRoomMidDeg(room);
     const tr = [
       'translate(150,150)',
       `rotate(${midDeg})`,
@@ -3942,7 +3964,7 @@ function getPlayedCardLayouts(playedList = getPlayedEntriesSorted()){
     const cards = playedList.filter((card) => Number(card.room) === room);
     if (!cards.length) continue;
 
-    const midDeg = (room - 1) * 60 + 30;
+    const midDeg = getRoomMidDeg(room);
     const pOuter = polar(centerR + guideR * 0.5 + outerOffset, midDeg);
     const angleToCenter = Math.atan2(-pOuter.y, -pOuter.x) * 180 / Math.PI;
     const rot = angleToCenter + 90;
@@ -4090,7 +4112,7 @@ function renderRoomTotals(){
     }
 
     const sum = cards.reduce((acc, card) => acc + Number(card.num || 0), 0);
-    const midDeg = (room - 1) * 60 + 30;
+    const midDeg = getRoomMidDeg(room);
     const pOuter = polar(centerR + guideR * 0.5 + outerOffset, midDeg);
     const x = 150 + pOuter.x;
     const y = 150 + pOuter.y;
@@ -4136,7 +4158,7 @@ function renderRoomGuideCircles(mission = currentStage){
   const isDragging = !!activeDrag;
 
   for(let room=1; room<=6; room++){
-    const midDeg = (room-1)*60 + 30;
+    const midDeg = getRoomMidDeg(room);
     const pInner = polar(centerR, midDeg);
     const canDrop = !!activeDrag && canPlaceCardInRoom(activeDrag.cardData, room, mission);
     const isHoverInner = canDrop && dragHoverRoom === room;
@@ -4177,7 +4199,7 @@ function renderRoomTopRects(mission = currentStage){
   const centerR = parseFloat(csRect.getPropertyValue('--roomTopRectCenterR')) || centerRDefault;
 
   for (let room = 1; room <= 6; room++){
-    const midDeg = (room - 1) * 60 + 30;
+    const midDeg = getRoomMidDeg(room);
     const p = polar(centerR, midDeg);
     const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     rect.setAttribute('x', (-rectW / 2).toFixed(2));
@@ -4189,8 +4211,59 @@ function renderRoomTopRects(mission = currentStage){
     rect.setAttribute('fill', fill);
     rect.setAttribute('fill-opacity', String(opacity));
     rect.setAttribute('transform', `translate(${p.x.toFixed(2)}, ${p.y.toFixed(2)}) rotate(${midDeg})`);
+    rect.setAttribute('data-rotate-handle', '1');
+    rect.style.cursor = roomRotateDragState ? 'grabbing' : 'grab';
+    rect.style.touchAction = 'none';
     g.appendChild(rect);
   }
+}
+
+function getPointerClockDeg(clientX, clientY){
+  const pt = stageSvg.createSVGPoint();
+  pt.x = clientX;
+  pt.y = clientY;
+  const ctm = stageSvg.getScreenCTM();
+  if (!ctm) return 0;
+  const svgPt = pt.matrixTransform(ctm.inverse());
+  const dx = svgPt.x - 150;
+  const dy = svgPt.y - 150;
+  return normalizeDeg((Math.atan2(dy, dx) * 180 / Math.PI) + 90);
+}
+
+function handleRoomRotatePointerMove(ev){
+  if (!roomRotateDragState || ev.pointerId !== roomRotateDragState.pointerId) return;
+  ev.preventDefault();
+  const nowDeg = getPointerClockDeg(ev.clientX, ev.clientY);
+  const delta = shortestDegDelta(roomRotateDragState.startPointerDeg, nowDeg);
+  roomRotationDeg = normalizeDeg(roomRotateDragState.startRotationDeg + delta);
+  redrawAll(currentStage);
+}
+
+function endRoomRotateDrag(ev){
+  if (!roomRotateDragState || (ev && ev.pointerId !== roomRotateDragState.pointerId)) return;
+  roomRotationDeg = normalizeDeg(Math.round(roomRotationDeg / ROOM_ROTATE_SNAP_DEG) * ROOM_ROTATE_SNAP_DEG);
+  roomRotateDragState = null;
+  window.removeEventListener('pointermove', handleRoomRotatePointerMove);
+  window.removeEventListener('pointerup', endRoomRotateDrag);
+  window.removeEventListener('pointercancel', endRoomRotateDrag);
+  redrawAll(currentStage);
+}
+
+function handleRoomRotatePointerDown(ev){
+  const handleRect = ev.target?.closest?.('#roomTopRects rect[data-rotate-handle="1"]');
+  if (!handleRect || ev.button !== 0) return;
+  ev.preventDefault();
+  roomRotateDragState = {
+    pointerId: ev.pointerId,
+    startPointerDeg: getPointerClockDeg(ev.clientX, ev.clientY),
+    startRotationDeg: roomRotationDeg
+  };
+  if (typeof handleRect.setPointerCapture === 'function'){
+    handleRect.setPointerCapture(ev.pointerId);
+  }
+  window.addEventListener('pointermove', handleRoomRotatePointerMove);
+  window.addEventListener('pointerup', endRoomRotateDrag);
+  window.addEventListener('pointercancel', endRoomRotateDrag);
 }
 
 function renderRoomTexts(mission){
@@ -4232,7 +4305,7 @@ function renderRoomTexts(mission){
   if (textSpecs.length === 0) return;
 
   textSpecs.forEach(({room, label, rotate, color: textColor, bgColor: circleColor, bgOpacity: circleOpacity, underline})=>{
-    const midDeg = (room-1)*60 + 30;
+    const midDeg = getRoomMidDeg(room);
     const p = polar(rText, midDeg);
 
     const bgCircle = document.createElementNS('http://www.w3.org/2000/svg','circle');
@@ -4411,7 +4484,7 @@ function renderRoomConditionHints(mission = currentStage){
   specifiedRooms.forEach((room) => {
     const hintText = getStageRoomHintText(mission, room);
     if (!hintText) return;
-    const midDeg = (room - 1) * 60 + 30;
+    const midDeg = getRoomMidDeg(room);
     const roomOrderIndex = roomOrder.indexOf(room);
     const radialOut = centerR + guideR + outerOffset + 18 + roomOrderIndex * 18;
     const pOuter = polar(radialOut, midDeg);
@@ -4473,6 +4546,10 @@ function redrawAll(m){
   if (typeof m === 'string') currentStage = m;
   const hasStage = STAGE_CODES.includes(currentStage);
   const renderStage = hasStage ? currentStage : '';
+  const sectorHits = stageSvg.querySelector('#sectorHits');
+  if (sectorHits){
+    sectorHits.setAttribute('transform', `translate(150,150) rotate(${roomRotationDeg})`);
+  }
 
   missionTextEl.textContent = renderStage;
   stageNameText.textContent = renderStage;
