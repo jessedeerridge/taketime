@@ -627,6 +627,25 @@
   }
   #stageBoard .sharp{ stroke-linecap:butt; stroke-linejoin:miter; }
   #stageBoard #sectorHits .sector { fill: rgba(255,255,0,0); cursor: pointer; pointer-events: fill; }
+  #stageBoard{
+    transform-origin:50% 50%;
+    transition:transform .26s cubic-bezier(.22,.61,.36,1);
+    touch-action:none;
+  }
+  #stageBoard.drag-rotating{
+    transition:none;
+  }
+  #stageBoard .room-guide-rotatable{
+    cursor:grab;
+    transition:transform .2s ease, filter .2s ease;
+  }
+  #stageBoard .room-guide-rotatable:hover{
+    filter:brightness(1.06);
+  }
+  #stageBoard.drag-rotating .room-guide-rotatable{
+    cursor:grabbing;
+    transform:scale(1.04);
+  }
   #missionText{display:none;}
 </style>
 </head>
@@ -945,7 +964,7 @@
               fill="#111"></text>
 
         <g id="sectorHits" transform="translate(150,150)"></g>
-        <g id="roomGuideCircles" transform="translate(150,150)" style="pointer-events:none"></g>
+        <g id="roomGuideCircles" transform="translate(150,150)" style="pointer-events:visiblePainted"></g>
         <g id="roomTexts" transform="translate(150,150)" style="pointer-events:none"></g>
         <g id="roomConditionHints" transform="translate(150,150)" style="pointer-events:none"></g>
         <g id="roomCards" style="pointer-events:none"></g>
@@ -1166,6 +1185,12 @@ const inFlightPlayedCardKeys = new Set();
 const placingCardIds = new Set();
 let hasPlayedCardsSnapshot = false;
 let currentSubgearCount = 0;
+const ROTATION_SNAP_STEP_DEG = 60;
+let boardRotationDeg = 0;
+let isBoardRotationDragging = false;
+let boardRotationDragState = null;
+let lastRotationPublishAt = 0;
+let pendingRotationPublishTimer = null;
 
 function getBlackBackGradient(){
   return 'repeating-linear-gradient(135deg,var(--black-card) 0px,var(--black-card) 4px,var(--black-card-stripe) 4px,var(--black-card-stripe) 8px)';
@@ -1208,6 +1233,16 @@ function deriveCurrentPhase(phaseState){
   if (latest === revealTick) return 'reveal';
   if (latest === placementTick) return 'placement';
   return 'discussion';
+}
+
+function normalizeDeg(deg){
+  const normalized = Number(deg) || 0;
+  return ((normalized % 360) + 360) % 360;
+}
+
+function snapRotationDeg(deg){
+  const step = ROTATION_SNAP_STEP_DEG;
+  return normalizeDeg(Math.round(normalizeDeg(deg) / step) * step);
 }
 
 function getActiveTurnPlayerIds(){
@@ -1516,6 +1551,103 @@ async function setSubgearCount(nextCount){
   await set(ref(db, `rooms/${state.roomCode}/subgearCount`), normalized);
 }
 
+function setBoardRotationVisual(nextDeg, { dragging = false } = {}){
+  boardRotationDeg = normalizeDeg(nextDeg);
+  isBoardRotationDragging = !!dragging;
+  stageSvg.style.transform = `rotate(${boardRotationDeg}deg)`;
+  stageSvg.classList.toggle('drag-rotating', isBoardRotationDragging);
+}
+
+async function publishBoardRotation(nextDeg, { dragging = false, force = false } = {}){
+  if (!state.roomCode) return;
+  const now = Date.now();
+  const elapsed = now - lastRotationPublishAt;
+  if (!force && elapsed < 45){
+    if (pendingRotationPublishTimer) clearTimeout(pendingRotationPublishTimer);
+    pendingRotationPublishTimer = setTimeout(() => {
+      pendingRotationPublishTimer = null;
+      publishBoardRotation(nextDeg, { dragging, force: true });
+    }, 45 - elapsed);
+    return;
+  }
+  lastRotationPublishAt = now;
+  await set(ref(db, `rooms/${state.roomCode}/boardRotation`), {
+    deg: normalizeDeg(nextDeg),
+    dragging: !!dragging,
+    updatedAt: now,
+    by: state.userId || ''
+  });
+}
+
+function canStartBoardRotate(){
+  if (!state.roomCode || !currentStage) return false;
+  if (state.currentPhase !== 'discussion') return false;
+  if (!!activeDrag) return false;
+  return true;
+}
+
+function getSvgCenterClientPoint(){
+  const rect = stageSvg.getBoundingClientRect();
+  return {
+    x: rect.left + rect.width / 2,
+    y: rect.top + rect.height / 2
+  };
+}
+
+function getClientAngleFromCenter(clientX, clientY){
+  const center = getSvgCenterClientPoint();
+  return Math.atan2(clientY - center.y, clientX - center.x) * 180 / Math.PI;
+}
+
+function bindBoardRotationDrag(){
+  stageSvg.addEventListener('pointerdown', async (ev) => {
+    const circleTarget = ev.target.closest('#roomGuideCircles .room-guide-rotatable');
+    if (!circleTarget) return;
+    if (!canStartBoardRotate()) return;
+    ev.preventDefault();
+
+    boardRotationDragState = {
+      pointerId: ev.pointerId,
+      startPointerAngle: getClientAngleFromCenter(ev.clientX, ev.clientY),
+      startRotationDeg: boardRotationDeg
+    };
+    stageSvg.setPointerCapture(ev.pointerId);
+    setBoardRotationVisual(boardRotationDeg, { dragging: true });
+    await publishBoardRotation(boardRotationDeg, { dragging: true, force: true });
+  });
+
+  stageSvg.addEventListener('pointermove', (ev) => {
+    if (!boardRotationDragState || ev.pointerId !== boardRotationDragState.pointerId) return;
+    ev.preventDefault();
+    const pointerAngle = getClientAngleFromCenter(ev.clientX, ev.clientY);
+    const delta = pointerAngle - boardRotationDragState.startPointerAngle;
+    const liveDeg = boardRotationDragState.startRotationDeg + delta;
+    setBoardRotationVisual(liveDeg, { dragging: true });
+    publishBoardRotation(liveDeg, { dragging: true }).catch((err) => console.error(err));
+  });
+
+  const finishDrag = (ev, cancelled = false) => {
+    if (!boardRotationDragState || ev.pointerId !== boardRotationDragState.pointerId) return;
+    const pointerAngle = getClientAngleFromCenter(ev.clientX, ev.clientY);
+    const delta = pointerAngle - boardRotationDragState.startPointerAngle;
+    const liveDeg = boardRotationDragState.startRotationDeg + delta;
+    const settledDeg = cancelled ? boardRotationDragState.startRotationDeg : snapRotationDeg(liveDeg);
+    boardRotationDragState = null;
+    setBoardRotationVisual(settledDeg, { dragging: false });
+    publishBoardRotation(settledDeg, { dragging: false, force: true }).catch((err) => console.error(err));
+  };
+
+  stageSvg.addEventListener('pointerup', (ev) => finishDrag(ev, false));
+  stageSvg.addEventListener('pointercancel', (ev) => finishDrag(ev, true));
+  window.addEventListener('blur', () => {
+    if (!boardRotationDragState) return;
+    const settledDeg = snapRotationDeg(boardRotationDeg);
+    boardRotationDragState = null;
+    setBoardRotationVisual(settledDeg, { dragging: false });
+    publishBoardRotation(settledDeg, { dragging: false, force: true }).catch((err) => console.error(err));
+  });
+}
+
 function showPhaseFlow(text){
   if (!phaseFlowPop) return;
   phaseFlowPop.textContent = text;
@@ -1646,6 +1778,7 @@ function subscribePhaseEvents(){
     maybeAnnounceRevealResult();
     renderHands();
     syncGearClickableState();
+    renderRoomGuideCircles(currentStage);
   });
 }
 
@@ -1654,6 +1787,19 @@ function subscribeSubgearCount(){
   onValue(subgearCountRef, snap => {
     currentSubgearCount = Math.max(0, Math.min(3, Number(snap.val()) || 0));
     applySubgearCountToDom();
+  });
+}
+
+function subscribeBoardRotation(){
+  const rotationRef = ref(db, `rooms/${state.roomCode}/boardRotation`);
+  onValue(rotationRef, snap => {
+    const data = snap.val() || {};
+    const deg = normalizeDeg(data.deg || 0);
+    const dragging = !!data.dragging;
+    const remoteId = data.by || '';
+    const isSelfDraggingNow = !!boardRotationDragState && remoteId === state.userId;
+    if (isSelfDraggingNow) return;
+    setBoardRotationVisual(deg, { dragging });
   });
 }
 
@@ -2507,6 +2653,7 @@ btnJoin.addEventListener('click', async () => {
     subscribeStage();
     subscribePhaseEvents();
     subscribeSubgearCount();
+    subscribeBoardRotation();
 
     syncSeatUI();
   } catch (err) {
@@ -2783,6 +2930,7 @@ window.addEventListener('resize', () => {
 
 /* ===== ステージSVGロジック：元コードをそのまま移植 ===== */
 const stageSvg = document.getElementById('stageBoard');
+setBoardRotationVisual(0, { dragging: false });
 
 stageNameGear.addEventListener('click', async () => {
   if (!currentStage) return;
@@ -2791,6 +2939,7 @@ stageNameGear.addEventListener('click', async () => {
   const nextCount = (currentSubgearCount + 1) % 4;
   await setSubgearCount(nextCount);
 });
+bindBoardRotationDrag();
 
 /* ================== 基本三角（角丸・内向き配置） ================== */
 const SCALE  = 0.92;
@@ -4126,6 +4275,7 @@ function renderRoomGuideCircles(mission = currentStage){
   const dragHoverOpacity = Math.max(0, Math.min(1, parseFloat(csGuide.getPropertyValue('--roomGuideDragHoverOpacity')) || 0.34));
   const normalOpacity = Math.max(0, Math.min(1, parseFloat(csGuide.getPropertyValue('--roomGuideNormalOpacity')) || 1));
   const isDragging = !!activeDrag;
+  const canRotateInPhase = state.currentPhase === 'discussion';
 
   for(let room=1; room<=6; room++){
     const midDeg = (room-1)*60 + 30;
@@ -4133,9 +4283,11 @@ function renderRoomGuideCircles(mission = currentStage){
     const canDrop = !!activeDrag && canPlaceCardInRoom(activeDrag.cardData, room, mission);
     const isHoverInner = canDrop && dragHoverRoom === room;
     const circle = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    circle.setAttribute('class', canRotateInPhase ? 'room-guide-rotatable' : '');
     circle.setAttribute('cx', pInner.x.toFixed(2));
     circle.setAttribute('cy', pInner.y.toFixed(2));
     circle.setAttribute('r', guideR.toFixed(2));
+    circle.style.pointerEvents = canRotateInPhase ? 'all' : 'none';
     circle.setAttribute('stroke', 'none');
     if (isDragging){
       if (canDrop){
