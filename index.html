@@ -639,7 +639,8 @@
     cursor:grabbing;
   }
   #stageBoard .rotation-handle{
-    fill:#000;
+    fill:none;
+    stroke:none;
     cursor:grab;
     pointer-events:all;
     touch-action:none;
@@ -1195,6 +1196,8 @@ let boardRotationVisualDeg = 0;
 let boardRotationDrag = null;
 let hasBoardRotationSnapshot = false;
 let lastBoardRotationTs = 0;
+let lastBoardRotationPublishAt = 0;
+const ROTATION_SYNC_INTERVAL_MS = 16;
 
 function getBlackBackGradient(){
   return 'repeating-linear-gradient(135deg,var(--black-card) 0px,var(--black-card) 4px,var(--black-card-stripe) 4px,var(--black-card-stripe) 8px)';
@@ -3074,12 +3077,18 @@ function snapBoardRotationToNearestRoom(){
   return snapped;
 }
 
-function publishBoardRotation(deg){
+function publishBoardRotation(deg, { isFinal = false, force = false } = {}){
   if (!state.roomCode || !state.userId) return;
+  const now = Date.now();
+  if (!force && !isFinal && (now - lastBoardRotationPublishAt) < ROTATION_SYNC_INTERVAL_MS){
+    return;
+  }
+  lastBoardRotationPublishAt = now;
   const payload = {
     deg: normalizeDeg(deg),
-    ts: Date.now(),
-    actorId: state.userId
+    ts: now,
+    actorId: state.userId,
+    isFinal: !!isFinal
   };
   set(ref(db, `rooms/${state.roomCode}/boardRotation`), payload)
     .catch((err) => console.error('盤面回転の同期に失敗しました', err));
@@ -3105,10 +3114,11 @@ function subscribeBoardRotation(){
     lastBoardRotationTs = Math.max(lastBoardRotationTs, ts);
     if (actorId && actorId === state.userId) return;
     if (boardRotationDrag) return;
-    applyBoardRotation(normalizedDeg, { animate: true, useShortestPath: true });
+    const shouldAnimate = !!data.isFinal;
+    applyBoardRotation(normalizedDeg, { animate: shouldAnimate, useShortestPath: true });
     window.setTimeout(() => {
       if (!boardRotationDrag) stageSvg.style.transition = 'none';
-    }, 260);
+    }, shouldAnimate ? 260 : 20);
   });
 }
 
@@ -3161,6 +3171,7 @@ function syncRoomHintTableOrientation(){
 
   const startBoardRotationDrag = ({ pointerId, handle, captureEl, clientX, clientY }) => {
     stageSvg.classList.add('rotating');
+    lastBoardRotationPublishAt = 0;
     boardRotationDrag = {
       pointerId,
       handle,
@@ -3169,6 +3180,7 @@ function syncRoomHintTableOrientation(){
       lastPointerDeg: pointerAngleDegFromBoardCenter(clientX, clientY)
     };
     stageSvg.style.transition = 'none';
+    publishBoardRotation(boardRotationDeg, { isFinal: false, force: true });
   };
 
   const updateBoardRotationDrag = (clientX, clientY) => {
@@ -3178,6 +3190,7 @@ function syncRoomHintTableOrientation(){
     boardRotationDrag.currentRotationDeg = normalizeDeg(boardRotationDrag.currentRotationDeg + delta);
     boardRotationDrag.lastPointerDeg = nextAngle;
     applyBoardRotation(boardRotationDrag.currentRotationDeg);
+    publishBoardRotation(boardRotationDrag.currentRotationDeg);
   };
 
   const endBoardRotationDrag = ({ pointerId = null, shouldSnap = true } = {}) => {
@@ -3190,7 +3203,7 @@ function syncRoomHintTableOrientation(){
     boardRotationDrag = null;
     if (shouldSnap){
       const snapped = snapBoardRotationToNearestRoom();
-      publishBoardRotation(snapped);
+      publishBoardRotation(snapped, { isFinal: true, force: true });
     }
   };
 
