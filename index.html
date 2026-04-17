@@ -632,6 +632,7 @@
     stroke: rgba(91, 60, 33, 0.92);
     stroke-width: 1.2;
     cursor: grab;
+    pointer-events: all;
   }
   #stageBoard #roomRotateHandles .rotate-handle.active{ fill: rgba(251, 191, 36, 0.88); }
   #stageBoard #roomRotateHandles .rotate-handle.disabled{
@@ -4376,9 +4377,9 @@ function renderRoomRotateHandles(mission = currentStage){
   const csGuide = getComputedStyle(stageSvg);
   const centerR = parseFloat(csGuide.getPropertyValue('--roomGuideCenterR')) || ((innerR + outerR) / 2);
   const guideR = parseFloat(csGuide.getPropertyValue('--roomGuideR')) || Math.max(8, (outerR - innerR) / 2 - 2);
-  const handleW = Math.max(24, guideR * 1.05);
-  const handleH = Math.max(9, guideR * 0.48);
-  const handleR = centerR + guideR * 0.36;
+  const handleW = Math.max(30, guideR * 1.25);
+  const handleH = Math.max(12, guideR * 0.62);
+  const handleR = Math.max(innerR + 8, centerR - guideR * 0.38);
   const canRotate = state.currentPhase === 'discussion';
   const isDragging = !!rotationDragState;
 
@@ -4386,7 +4387,7 @@ function renderRoomRotateHandles(mission = currentStage){
     const midDeg = (room - 1) * 60 + 30;
     const p = polar(handleR, midDeg);
     const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    group.setAttribute('transform', `translate(${p.x.toFixed(2)},${p.y.toFixed(2)}) rotate(${midDeg + 90})`);
+    group.setAttribute('transform', `translate(${p.x.toFixed(2)},${p.y.toFixed(2)})`);
 
     const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     rect.setAttribute('class', `rotate-handle${canRotate ? '' : ' disabled'}${isDragging ? ' active' : ''}`);
@@ -4399,6 +4400,18 @@ function renderRoomRotateHandles(mission = currentStage){
     rect.dataset.room = String(room);
     rect.style.pointerEvents = canRotate ? 'all' : 'none';
     group.appendChild(rect);
+
+    const hitRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    hitRect.setAttribute('x', String((-handleW / 2).toFixed(2)));
+    hitRect.setAttribute('y', String((-handleH / 2).toFixed(2)));
+    hitRect.setAttribute('width', String(handleW.toFixed(2)));
+    hitRect.setAttribute('height', String(handleH.toFixed(2)));
+    hitRect.setAttribute('fill', 'rgba(0,0,0,0)');
+    hitRect.setAttribute('class', `rotate-handle${canRotate ? '' : ' disabled'}${isDragging ? ' active' : ''}`);
+    hitRect.style.opacity = '0';
+    hitRect.style.pointerEvents = canRotate ? 'all' : 'none';
+    hitRect.dataset.room = String(room);
+    group.appendChild(hitRect);
 
     const mark = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     mark.setAttribute('class', 'rotate-mark');
