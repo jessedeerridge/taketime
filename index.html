@@ -560,7 +560,7 @@
     --tipDiaRingR: 11;
     --tipDiaRingW: 1.8;
     --tipDiaRingStroke: #f8cb8d;
-    --tipDiaRingFill: rgba(250, 204, 21, 0.18);
+    --tipDiaRingFill: none;
     --centerTopRotate: 4;
 
     --cardW: 20;
@@ -3450,8 +3450,11 @@ function syncRoomHintTableOrientation(){
     if (!centerNeedleDrag || ev.pointerId !== centerNeedleDrag.pointerId) return;
     ev.preventDefault();
     const nextAngle = pointerAngleDegFromBoardCenter(ev.clientX, ev.clientY);
-    applyCenterNeedleRotation(nextAngle);
-    publishCenterNeedleRotation(nextAngle);
+    const delta = shortestDegDelta(centerNeedleDrag.lastPointerDeg, nextAngle);
+    centerNeedleDrag.currentRotationDeg = normalizeDeg(centerNeedleDrag.currentRotationDeg + delta);
+    centerNeedleDrag.lastPointerDeg = nextAngle;
+    applyCenterNeedleRotation(centerNeedleDrag.currentRotationDeg);
+    publishCenterNeedleRotation(centerNeedleDrag.currentRotationDeg);
   };
   const onPointerUp = (ev) => {
     if (!centerNeedleDrag || ev.pointerId !== centerNeedleDrag.pointerId) return;
@@ -3475,7 +3478,9 @@ function syncRoomHintTableOrientation(){
     if (typeof captureEl.setPointerCapture === 'function') captureEl.setPointerCapture(ev.pointerId);
     centerNeedleDrag = {
       pointerId: ev.pointerId,
-      captureEl
+      captureEl,
+      currentRotationDeg: centerNeedleRotationDeg,
+      lastPointerDeg: pointerAngleDegFromBoardCenter(ev.clientX, ev.clientY)
     };
     publishCenterNeedleRotation(centerNeedleRotationDeg, { isFinal: false, force: true });
     window.addEventListener('pointermove', onPointerMove);
@@ -4157,7 +4162,7 @@ function renderCenterTopDiamond(){
   const ringR = Math.max(2, Math.abs(parseFloat(cs12.getPropertyValue('--tipDiaRingR')) || 11));
   const ringW = Math.max(0.6, Math.abs(parseFloat(cs12.getPropertyValue('--tipDiaRingW')) || 1.8));
   const ringStroke = cs12.getPropertyValue('--tipDiaRingStroke').trim() || '#f8cb8d';
-  const ringFill = cs12.getPropertyValue('--tipDiaRingFill').trim() || 'rgba(250, 204, 21, 0.18)';
+  const ringFill = cs12.getPropertyValue('--tipDiaRingFill').trim() || 'none';
 
   const cx = 0;
   const cy = -r1 - offset;
