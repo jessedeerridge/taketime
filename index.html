@@ -3603,11 +3603,19 @@ const STAGE_CLOCK_ROOMS = {
   '3-2': [1],
   '3-3': [2]
 };
+const STAGE_BROWNCARDS = {
+  '3-4': { 3: 2 }
+};
 function getClockLabelsForMission(mission){
   return STAGE_CLOCK_LABELS[mission] || null;
 }
 function getClockRoomsForMission(mission){
   return STAGE_CLOCK_ROOMS[mission] || [];
+}
+function getBrowncardsCountForMission(mission, room){
+  const rec = STAGE_BROWNCARDS[mission];
+  if (!rec) return 0;
+  return Number(rec[room]) || 0;
 }
 
 function renderStageMarks(mission){
@@ -4520,7 +4528,7 @@ function renderRoomCards(mission = currentStage){
     const tickOuter = rClock * 0.98;
     const tickInner = rClock * 0.84;
     const fill = csClock.getPropertyValue('--clockMarkFill').trim() || '#ffd8a8';
-    const strokeColor = csClock.getPropertyValue('--clockMarkStroke').trim() || '#5c3a21';
+    const strokeColor = '#d9b38c';
     const strokeW = Math.max(0.6, (parseFloat(csClock.getPropertyValue('--clockMarkStrokeW')) || 2.8) * markScale * Math.max(0.4, sizeScale));
     const textColor = csClock.getPropertyValue('--clockMarkTextColor').trim() || '#2b2b2b';
 
@@ -5190,9 +5198,11 @@ function getStageRoomHintText(stage, room){
   const clockLabel = clockLabels?.[room];
   const clockRooms = getClockRoomsForMission(stage);
   const isClockRoom = clockRooms.includes(room);
+  const browncardsCount = getBrowncardsCountForMission(stage, room);
   const closecardTarget = (
     (stage === '1-4' && room === 1) ? '6'
       : (stage === '3-1' && room === 6) ? '20'
+        : (stage === '3-4' && room === 4) ? '6'
         : ''
   );
 
@@ -5210,6 +5220,9 @@ function getStageRoomHintText(stage, room){
   }
   if (closecardTarget){
     return `もっとも${closecardTarget}に近いエリアがこのエリアでなければならない。`;
+  }
+  if (browncardsCount > 0){
+    return `browncards：茶カードを必ず${browncardsCount}枚だけ置かなければならない。`;
   }
 
   if ((stage === '1-2' && room === 4) || (stage === '1-1' && room === 6)){
@@ -5231,16 +5244,10 @@ function getStageRoomHintText(stage, room){
     return 'このエリアに最も大きい数値のカードが置かれていなければならない。';
   }
   if (stage === '3-4' && room === 1){
-    return 'このエリアに最も大きい数値のカードが置かれていなければならない（中央カードのみ黒塗り表示）。';
-  }
-  if (stage === '3-4' && room === 3){
-    return '茶カード2枚を示すエリア。';
-  }
-  if (stage === '3-4' && room === 4){
-    return '金塗り丸の「6」を示すエリア。';
+    return '最も大きい数値の黒カードがこのエリアに置かれていなければならない（中央カードのみ黒塗り表示）。';
   }
   if (stage === '3-4' && room === 5){
-    return 'このエリアに最も小さい数値のカードが置かれていなければならない（中央カードのみ白塗り表示）。';
+    return '最も小さい数値の白カードがこのエリアに置かれていなければならない（中央カードのみ白塗り表示）。';
   }
   if (sumCondition){
     return `このエリアの合計値が必ず${sumCondition.min}~${sumCondition.max}の数値にならなければならない。`;
