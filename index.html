@@ -1081,8 +1081,13 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db  = getDatabase(app);
 
-const savedUserId = sessionStorage.getItem('bbUserId') || crypto.randomUUID();
-sessionStorage.setItem('bbUserId', savedUserId);
+const USER_ID_KEY = 'bbUserId';
+const USER_NAME_KEY = 'bbUserName';
+const savedUserId = localStorage.getItem(USER_ID_KEY)
+  || sessionStorage.getItem(USER_ID_KEY)
+  || crypto.randomUUID();
+localStorage.setItem(USER_ID_KEY, savedUserId);
+sessionStorage.setItem(USER_ID_KEY, savedUserId);
 
 const state = {
   userId: savedUserId,
@@ -1354,6 +1359,10 @@ function normalizeRoomCode(raw){
   const trimmed = (raw || '').trim().toUpperCase();
   if (trimmed) return trimmed;
   return generateRoomCode(5);
+}
+
+function isNavyStage(mission){
+  return typeof mission === 'string' && /^\d+-4$/.test(mission);
 }
 
 function setJoinButtonBusy(isBusy){
@@ -2535,6 +2544,13 @@ function renderPlayerCircle(players){
 const urlParams = new URLSearchParams(window.location.search);
 const roomFromUrl = urlParams.get('room');
 if(roomFromUrl) inputCode.value = roomFromUrl.toUpperCase();
+const cachedUserName = localStorage.getItem(USER_NAME_KEY);
+if (cachedUserName) inputName.value = cachedUserName;
+inputName.addEventListener('input', () => {
+  const typed = (inputName.value || '').trim().slice(0, 4);
+  if (typed) localStorage.setItem(USER_NAME_KEY, typed);
+  else localStorage.removeItem(USER_NAME_KEY);
+});
 
 btnJoin.addEventListener('click', async () => {
   if (joinInProgress) return;
@@ -2547,6 +2563,7 @@ btnJoin.addEventListener('click', async () => {
 
     inputName.value = finalName;
     inputCode.value = finalRoomCode;
+    localStorage.setItem(USER_NAME_KEY, finalName);
 
     state.userName = finalName;
     state.roomCode = finalRoomCode;
@@ -2637,63 +2654,45 @@ btnKickNo.addEventListener('click', (e) => {
   pendingSeatPlayerIdToSteal = null;
 });
 
-function mergePlayerHands(baseHand, inheritedHand){
-  const baseCards = Array.isArray(baseHand?.cards) ? baseHand.cards : [];
-  const inheritedCards = Array.isArray(inheritedHand?.cards) ? inheritedHand.cards : [];
-  if (!baseCards.length) return { cards: inheritedCards.slice() };
-  if (!inheritedCards.length) return { cards: baseCards.slice() };
-
-  const seen = new Set();
-  const merged = [];
-  [...baseCards, ...inheritedCards].forEach((card) => {
-    if (!card) return;
-    const uidKey = card.uid ? `uid:${card.uid}` : '';
-    const fallbackKey = `${card.color || 'white'}-${Number(card.num || 0)}`;
-    const key = uidKey || fallbackKey;
-    if (seen.has(key)) return;
-    seen.add(key);
-    merged.push(card);
-  });
-  return { cards: merged };
-}
-
-async function inheritPlayerProgress(fromPlayerId, toPlayerId){
-  if (!state.roomCode) return;
-  if (!fromPlayerId || !toPlayerId) return;
-  if (fromPlayerId === toPlayerId) return;
-
+async function buildSeatTakeoverUpdates(fromPlayerId, toPlayerId, seatIndex){
   const basePath = `rooms/${state.roomCode}`;
-  const [handsSnap, playedSnap] = await Promise.all([
+  const [roomSnap, handsSnap, playedSnap] = await Promise.all([
+    get(ref(db, basePath)),
     get(ref(db, `${basePath}/hands`)),
     get(ref(db, `${basePath}/playedCards`))
   ]);
+  const roomData = roomSnap.val() || {};
   const hands = handsSnap.val() || {};
   const playedCards = playedSnap.val() || {};
-  const updates = {};
-  let hasUpdate = false;
-
-  const fromHand = hands[fromPlayerId];
-  const toHand = hands[toPlayerId];
-  if (fromHand || toHand){
-    updates[`hands/${toPlayerId}`] = mergePlayerHands(toHand, fromHand);
-    if (fromHand){
-      updates[`hands/${fromPlayerId}`] = null;
+  const updates = {
+    [`tables/${seatIndex}`]: {
+      playerId: toPlayerId,
+      playerName: state.userName || '名無し'
     }
-    hasUpdate = true;
+  };
+
+  if (fromPlayerId && fromPlayerId !== toPlayerId){
+    const fromHandCards = Array.isArray(hands[fromPlayerId]?.cards) ? hands[fromPlayerId].cards : [];
+    const toHandCards = Array.isArray(hands[toPlayerId]?.cards) ? hands[toPlayerId].cards : [];
+    const takeoverCards = fromHandCards.length ? fromHandCards.slice() : toHandCards.slice();
+    updates[`hands/${toPlayerId}`] = { cards: takeoverCards };
+    updates[`hands/${fromPlayerId}`] = null;
+
+    Object.entries(playedCards).forEach(([key, card]) => {
+      if (!card || card.playerId !== fromPlayerId) return;
+      const nextCard = { ...card, playerId: toPlayerId };
+      if (typeof nextCard.id === 'string' && nextCard.id.startsWith(`${fromPlayerId}-`)){
+        nextCard.id = `${toPlayerId}-${nextCard.id.slice(fromPlayerId.length + 1)}`;
+      }
+      updates[`playedCards/${key}`] = nextCard;
+    });
+
+    if (roomData.hostId && roomData.hostId === fromPlayerId){
+      updates.hostId = toPlayerId;
+    }
   }
 
-  Object.entries(playedCards).forEach(([key, card]) => {
-    if (!card || card.playerId !== fromPlayerId) return;
-    const nextCard = { ...card, playerId: toPlayerId };
-    if (typeof nextCard.id === 'string' && nextCard.id.startsWith(`${fromPlayerId}-`)){
-      nextCard.id = `${toPlayerId}-${nextCard.id.slice(fromPlayerId.length + 1)}`;
-    }
-    updates[`playedCards/${key}`] = nextCard;
-    hasUpdate = true;
-  });
-
-  if (!hasUpdate) return;
-  await update(ref(db, basePath), updates);
+  return updates;
 }
 
 btnKickYes.addEventListener('click', async (e) => {
@@ -2704,20 +2703,8 @@ btnKickYes.addEventListener('click', async (e) => {
   }
 
   const seatIndex = pendingSeatIndexToSteal;
-  const currentHostId = state.room.hostId || null;
-
-  await set(ref(db, `rooms/${state.roomCode}/tables/${seatIndex}`), {
-    playerId: state.userId,
-    playerName: state.userName || '名無し'
-  });
-
-  if (pendingSeatPlayerIdToSteal){
-    await inheritPlayerProgress(pendingSeatPlayerIdToSteal, state.userId);
-  }
-
-  if (currentHostId && pendingSeatPlayerIdToSteal && currentHostId === pendingSeatPlayerIdToSteal) {
-    await update(ref(db, `rooms/${state.roomCode}`), { hostId: state.userId });
-  }
+  const updates = await buildSeatTakeoverUpdates(pendingSeatPlayerIdToSteal, state.userId, seatIndex);
+  await update(ref(db, `rooms/${state.roomCode}`), updates);
 
   state.seatedTable = seatIndex;
 
@@ -3545,7 +3532,7 @@ function renderStageMarks(mission){
   while(stageMarksG.firstChild) stageMarksG.removeChild(stageMarksG.firstChild);
 
   const specified = new Set(getSpecifiedRoomsForMission(mission));
-  const isMission14 = mission === '1-4';
+  const isMission14 = isNavyStage(mission);
   const cs4 = getComputedStyle(stageSvg);
   const rBase  = innerR;
   const len    = parseFloat(cs4.getPropertyValue('--markLen')) || 12;
@@ -3800,7 +3787,7 @@ function renderOutwardMarks(mission){
   while(stageOutG.firstChild) stageOutG.removeChild(stageOutG.firstChild);
 
   const specified = new Set(getSpecifiedRoomsForMission(mission));
-  const isMission14 = mission === '1-4';
+  const isMission14 = isNavyStage(mission);
   const stageOutwardFilledRooms = isMission14 ? new Set(specified) : new Set();
 
   const cs6 = getComputedStyle(stageSvg);
@@ -3914,7 +3901,7 @@ function renderOutwardMarks(mission){
 }
 
 function applyMissionSkin(mission){
-  const isMission14 = mission === '1-4';
+  const isMission14 = isNavyStage(mission);
   const innerLightFill = stageSvg.querySelector('#innerLightFill');
   const ring30StarBg = stageSvg.querySelector('#ring30StarBg');
   const imgInner1 = stageSvg.querySelector('#imgInner1');
@@ -4025,7 +4012,7 @@ function renderEqTriBackFill(mission){
   if(!triBack) return;
   const specified = new Set(getSpecifiedRoomsForMission(mission));
   const defaultFill = getComputedStyle(stageSvg).getPropertyValue('--triFill').trim() || '#ddd';
-  const isMission14 = mission === '1-4';
+  const isMission14 = isNavyStage(mission);
   const missionBrown = getComputedStyle(stageSvg).getPropertyValue('--orange').trim() || '#ab5d1a';
   const mission14SpecifiedRooms = isMission14 ? new Set(specified) : new Set();
 
@@ -4066,7 +4053,7 @@ function renderSpecifiedBowls(mission){
 
   const fillColorDefault = cs9.getPropertyValue('--bowlFillColor').trim() || '#fff';
   const fillColorMission14 = cs9.getPropertyValue('--orange').trim() || '#ab5d1a';
-  const fillColor = mission === '1-4' ? fillColorMission14 : fillColorDefault;
+  const fillColor = isNavyStage(mission) ? fillColorMission14 : fillColorDefault;
   const fillOpacity = Math.max(0, Math.min(1, parseFloat(cs9.getPropertyValue('--bowlFillOpacity')) || 1));
 
   const defs = stageSvg.querySelector('defs');
