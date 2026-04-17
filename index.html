@@ -648,6 +648,11 @@
     dominant-baseline: middle;
     pointer-events: none;
   }
+  #stageBoard #roomRotateHandles .rotate-hit{
+    fill: transparent;
+    pointer-events: all;
+    cursor: grab;
+  }
   #missionText{display:none;}
 </style>
 </head>
@@ -1539,6 +1544,11 @@ function applySubgearCountToDom(){
 function syncGearClickableState(){
   const canEdit = !!currentStage && state.currentPhase === 'discussion';
   stageNameGear.classList.toggle('clickable', canEdit);
+}
+
+function isDiscussionPhaseActive(){
+  if (state.currentPhase === 'discussion') return true;
+  return deriveCurrentPhase(state.phaseState) === 'discussion';
 }
 
 function syncHostStageReadyButton(){
@@ -3210,9 +3220,9 @@ function clickAngleDeg(svgPoint, center){
   };
 
   handlesG.addEventListener('pointerdown', (ev) => {
-    const target = ev.target?.closest?.('.rotate-handle');
+    const target = ev.target?.closest?.('.rotate-handle, .rotate-hit');
     if (!target) return;
-    if (deriveCurrentPhase(state.phaseState) !== 'discussion') return;
+    if (!isDiscussionPhaseActive()) return;
     if (rotationDragState) return;
     ev.preventDefault();
     const pointerAngle = getSvgPointerAngle(ev.clientX, ev.clientY);
@@ -4377,17 +4387,18 @@ function renderRoomRotateHandles(mission = currentStage){
   const csGuide = getComputedStyle(stageSvg);
   const centerR = parseFloat(csGuide.getPropertyValue('--roomGuideCenterR')) || ((innerR + outerR) / 2);
   const guideR = parseFloat(csGuide.getPropertyValue('--roomGuideR')) || Math.max(8, (outerR - innerR) / 2 - 2);
-  const handleW = Math.max(30, guideR * 1.25);
-  const handleH = Math.max(12, guideR * 0.62);
-  const handleR = Math.max(innerR + 8, centerR - guideR * 0.38);
-  const canRotate = state.currentPhase === 'discussion';
+  const handleW = Math.max(42, guideR * 1.72);
+  const handleH = Math.max(16, guideR * 0.82);
+  const handleR = Math.max(innerR + 10, centerR - guideR * 0.24);
+  const canRotate = isDiscussionPhaseActive();
   const isDragging = !!rotationDragState;
+  g.style.pointerEvents = canRotate ? 'all' : 'none';
 
   for (let room = 1; room <= 6; room++){
     const midDeg = (room - 1) * 60 + 30;
     const p = polar(handleR, midDeg);
     const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    group.setAttribute('transform', `translate(${p.x.toFixed(2)},${p.y.toFixed(2)})`);
+    group.setAttribute('transform', `translate(${p.x.toFixed(2)},${p.y.toFixed(2)}) rotate(${midDeg + 90})`);
 
     const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     rect.setAttribute('class', `rotate-handle${canRotate ? '' : ' disabled'}${isDragging ? ' active' : ''}`);
@@ -4398,7 +4409,7 @@ function renderRoomRotateHandles(mission = currentStage){
     rect.setAttribute('rx', String((handleH * 0.36).toFixed(2)));
     rect.setAttribute('ry', String((handleH * 0.36).toFixed(2)));
     rect.dataset.room = String(room);
-    rect.style.pointerEvents = canRotate ? 'all' : 'none';
+    rect.setAttribute('pointer-events', canRotate ? 'all' : 'none');
     group.appendChild(rect);
 
     const hitRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -4406,10 +4417,8 @@ function renderRoomRotateHandles(mission = currentStage){
     hitRect.setAttribute('y', String((-handleH / 2).toFixed(2)));
     hitRect.setAttribute('width', String(handleW.toFixed(2)));
     hitRect.setAttribute('height', String(handleH.toFixed(2)));
-    hitRect.setAttribute('fill', 'rgba(0,0,0,0)');
-    hitRect.setAttribute('class', `rotate-handle${canRotate ? '' : ' disabled'}${isDragging ? ' active' : ''}`);
-    hitRect.style.opacity = '0';
-    hitRect.style.pointerEvents = canRotate ? 'all' : 'none';
+    hitRect.setAttribute('class', `rotate-hit${isDragging ? ' active' : ''}`);
+    hitRect.setAttribute('pointer-events', canRotate ? 'all' : 'none');
     hitRect.dataset.room = String(room);
     group.appendChild(hitRect);
 
