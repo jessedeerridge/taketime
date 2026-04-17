@@ -637,6 +637,9 @@
   #stageBoard{
     transform-origin:center center;
   }
+  #stageBoardWrap{
+    transform-origin:center center;
+  }
   #stageBoard .room-rotate-handle{
     cursor:grab;
     touch-action:none;
@@ -817,7 +820,7 @@
     <div class="table-center">
       <div id="playerCircle" class="player-circle"></div>
 
-      <div class="stage-board-wrap">
+      <div id="stageBoardWrap" class="stage-board-wrap">
         <svg id="stageBoard" viewBox="0 0 300 300" role="img" aria-label="正円と6つの正三角形（角を丸め・内側配置／外形のみ黒線＋内側リング＋6等分＋R2-R3を30等分＋inner1/3に画像＋指定なし三角＋中心ダイヤ＋中心線＋外向き曲線三角テーパー＋金線X：底辺innerR接触＋指定部屋に新半円ノッチ［白塗り］＋カード最前面回転＋room6扇状＋1-2でroom4扇状/room3テキスト）">
         <defs>
           <path id="eqTriPath" d=""/>
@@ -2809,6 +2812,7 @@ window.addEventListener('resize', () => {
 
 /* ===== ステージSVGロジック：元コードをそのまま移植 ===== */
 const stageSvg = document.getElementById('stageBoard');
+const stageBoardWrap = document.getElementById('stageBoardWrap');
 setBoardRotationDeg(0, { snap: true });
 
 stageNameGear.addEventListener('click', async () => {
@@ -3034,10 +3038,14 @@ function snapRotationDeg(deg){
 function setBoardRotationDeg(nextDeg, { snap = false } = {}){
   const rawDeg = snap ? snapRotationDeg(nextDeg) : (Number(nextDeg) || 0);
   boardRotationDeg = normalizeDeg(rawDeg);
-  stageSvg.style.transform = `rotate(${boardRotationDeg.toFixed(2)}deg)`;
+  if (stageBoardWrap){
+    stageBoardWrap.style.transform = `rotate(${boardRotationDeg.toFixed(2)}deg)`;
+  } else {
+    stageSvg.style.transform = `rotate(${boardRotationDeg.toFixed(2)}deg)`;
+  }
 }
 function pointerAngleFromStageCenter(clientX, clientY){
-  const rect = stageSvg.getBoundingClientRect();
+  const rect = (stageBoardWrap || stageSvg).getBoundingClientRect();
   const cx = rect.left + rect.width / 2;
   const cy = rect.top + rect.height / 2;
   return normalizeDeg((Math.atan2(clientY - cy, clientX - cx) * 180 / Math.PI) + 90);
