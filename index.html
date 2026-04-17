@@ -4521,7 +4521,9 @@ function renderRoomCards(mission = currentStage){
     sizeScale = 1,
     text = '',
     centerFill = '#111111',
-    fill11to12 = false
+    fill11to12 = false,
+    centerScale = 1,
+    showCenter = true
   } = {}){
     const midDeg = (room-1)*60 + 30;
     const rotBase = inwardBase + (roomAdjust[room]||0);
@@ -4591,14 +4593,16 @@ function renderRoomCards(mission = currentStage){
       tokenG.appendChild(line);
     }
 
-    const center = document.createElementNS('http://www.w3.org/2000/svg','circle');
-    center.setAttribute('cx', '0');
-    center.setAttribute('cy', '0');
-    center.setAttribute('r', String(Math.max(2.4, rClock * 0.24)));
-    center.setAttribute('fill', centerFill);
-    center.setAttribute('stroke', '#000');
-    center.setAttribute('stroke-width', '0.6');
-    tokenG.appendChild(center);
+    if (showCenter){
+      const center = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      center.setAttribute('cx', '0');
+      center.setAttribute('cy', '0');
+      center.setAttribute('r', String(Math.max(2.4, rClock * 0.24 * Math.max(0.4, centerScale))));
+      center.setAttribute('fill', centerFill);
+      center.setAttribute('stroke', '#000');
+      center.setAttribute('stroke-width', '0.6');
+      tokenG.appendChild(center);
+    }
 
     if (text){
       const t = document.createElementNS('http://www.w3.org/2000/svg','text');
@@ -4799,7 +4803,7 @@ function renderRoomCards(mission = currentStage){
     appendPlusMinusCards(4);
   }
   if (mission === '3-2') {
-    appendClockRoom(1, { centerFill: '#111111', fill11to12: true });
+    appendClockRoom(1, { centerFill: '#111111', fill11to12: true, centerScale: 1.45 });
     appendPlusMinusCards(3, { sign: '-' });
     appendPlusMinusCards(6, { sign: '-' });
   }
@@ -4807,8 +4811,8 @@ function renderRoomCards(mission = currentStage){
     appendPlusMinusCards(1, { sign: '-' });
     const doubleclock = getDoubleclockSpec('3-3');
     const clockGap = Math.max(10, Number(doubleclock?.gap) || 12);
-    appendClockRoom(2, { extraTan: -clockGap, text: String(doubleclock?.left || '1'), sizeScale: 0.9 });
-    appendClockRoom(2, { extraTan: clockGap, text: String(doubleclock?.right || '2'), sizeScale: 0.9 });
+    appendClockRoom(2, { extraTan: -clockGap, text: String(doubleclock?.left || '1'), sizeScale: 0.9, showCenter: false });
+    appendClockRoom(2, { extraTan: clockGap, text: String(doubleclock?.right || '2'), sizeScale: 0.9, showCenter: false });
     appendPlusMinusCards(5, { sign: '+' });
   }
   if (mission === '3-4') {
