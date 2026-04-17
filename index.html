@@ -1206,6 +1206,7 @@ let isCenterNeedleHidden = false;
 let centerNeedleRotationDeg = 0;
 let centerNeedleRotationVisualDeg = 0;
 let centerNeedleDrag = null;
+let isCenterNeedleDragging = false;
 let hasCenterNeedleSnapshot = false;
 let lastCenterNeedleTs = 0;
 let lastCenterNeedlePublishAt = 0;
@@ -2842,6 +2843,7 @@ const stageSvg = document.getElementById('stageBoard');
 const centerTopLineG = stageSvg.querySelector('#centerTopLineG');
 const centerTopDiamondG = stageSvg.querySelector('#centerTopDiamondG');
 const orangeCenterFill = stageSvg.querySelector('#orangeCenterFill');
+const rotationHandlesG = stageSvg.querySelector('#rotationHandles');
 const initialCenterNeedleRotate = parseFloat(getComputedStyle(stageSvg).getPropertyValue('--centerTopRotate')) || 0;
 centerNeedleRotationDeg = initialCenterNeedleRotate;
 centerNeedleRotationVisualDeg = initialCenterNeedleRotate;
@@ -3271,6 +3273,7 @@ function syncRoomHintTableOrientation(){
   let touchRotationId = null;
 
   const startBoardRotationDrag = ({ pointerId, handle, captureEl, clientX, clientY }) => {
+    if (isCenterNeedleDragging) return;
     stageSvg.classList.add('rotating');
     lastBoardRotationPublishAt = 0;
     boardRotationDrag = {
@@ -3285,6 +3288,7 @@ function syncRoomHintTableOrientation(){
   };
 
   const updateBoardRotationDrag = (clientX, clientY) => {
+    if (isCenterNeedleDragging) return;
     if (!boardRotationDrag) return;
     const nextAngle = pointerAngleDegFromBoardCenter(clientX, clientY);
     const delta = shortestDegDelta(boardRotationDrag.lastPointerDeg, nextAngle);
@@ -3346,6 +3350,7 @@ function syncRoomHintTableOrientation(){
   };
 
   g.addEventListener('pointerdown', (ev) => {
+    if (isCenterNeedleDragging) return;
     if (boardRotationDrag) return;
     if (ev.pointerType === 'touch' && ev.isPrimary === false) return;
     const handle = ev.target.closest('.rotation-handle, .rotation-handle-hit');
@@ -3387,6 +3392,7 @@ function syncRoomHintTableOrientation(){
   };
 
   g.addEventListener('touchstart', (ev) => {
+    if (isCenterNeedleDragging) return;
     if (boardRotationDrag) return;
     const touch = ev.changedTouches[0];
     if (!touch) return;
@@ -3425,6 +3431,8 @@ function syncRoomHintTableOrientation(){
       centerNeedleDrag.captureEl.releasePointerCapture(pointerId);
     }
     centerNeedleDrag = null;
+    isCenterNeedleDragging = false;
+    if (rotationHandlesG) rotationHandlesG.style.pointerEvents = '';
     if (shouldSnap){
       const snapped = normalizeDeg(Math.round(centerNeedleRotationDeg / CENTER_NEEDLE_SNAP_DEG) * CENTER_NEEDLE_SNAP_DEG);
       applyCenterNeedleRotation(snapped, { animate: true, useShortestPath: true });
@@ -3459,6 +3467,8 @@ function syncRoomHintTableOrientation(){
     ev.preventDefault();
     ev.stopPropagation();
     lastCenterNeedlePublishAt = 0;
+    isCenterNeedleDragging = true;
+    if (rotationHandlesG) rotationHandlesG.style.pointerEvents = 'none';
     const captureEl = ev.currentTarget;
     if (typeof captureEl.setPointerCapture === 'function') captureEl.setPointerCapture(ev.pointerId);
     centerNeedleDrag = {
