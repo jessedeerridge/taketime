@@ -3115,24 +3115,24 @@ function beginBoardRotateDrag(pointerId, clientX, clientY, handle){
     window.removeEventListener('pointercancel', finishDrag);
   };
 
-  window.bindBoardRotateHandle = (hitEl) => {
-    if (!hitEl || hitEl.dataset.rotateDragBound === '1') return;
-    hitEl.dataset.rotateDragBound = '1';
+  window.bindBoardRotateHandle = (handleEl) => {
+    if (!handleEl || handleEl.dataset.rotateDragBound === '1') return;
+    handleEl.dataset.rotateDragBound = '1';
 
-    hitEl.addEventListener('pointerdown', (ev) => {
+    handleEl.addEventListener('pointerdown', (ev) => {
       ev.preventDefault();
       ev.stopPropagation();
-      const handle = hitEl.closest('.room-rotate-handle') || hitEl;
+      const handle = handleEl.closest('.room-rotate-handle') || handleEl;
       beginBoardRotateDrag(ev.pointerId, ev.clientX, ev.clientY, handle);
       window.addEventListener('pointermove', onMove, { passive: false });
       window.addEventListener('pointerup', finishDrag);
       window.addEventListener('pointercancel', finishDrag);
     });
 
-    hitEl.addEventListener('mousedown', (ev) => {
-      if (typeof PointerEvent !== 'undefined') return;
+    handleEl.addEventListener('mousedown', (ev) => {
+      if (boardRotateDragState) return;
       ev.preventDefault();
-      const handle = hitEl.closest('.room-rotate-handle') || hitEl;
+      const handle = handleEl.closest('.room-rotate-handle') || handleEl;
       beginBoardRotateDrag(null, ev.clientX, ev.clientY, handle);
       const onMouseMove = (mv) => {
         if (!boardRotateDragState) return;
@@ -3151,12 +3151,12 @@ function beginBoardRotateDrag(pointerId, clientX, clientY, handle){
       window.addEventListener('mouseup', onMouseUp);
     });
 
-    hitEl.addEventListener('touchstart', (ev) => {
-      if (typeof PointerEvent !== 'undefined') return;
+    handleEl.addEventListener('touchstart', (ev) => {
+      if (boardRotateDragState) return;
       const t = ev.changedTouches?.[0];
       if (!t) return;
       ev.preventDefault();
-      const handle = hitEl.closest('.room-rotate-handle') || hitEl;
+      const handle = handleEl.closest('.room-rotate-handle') || handleEl;
       beginBoardRotateDrag(null, t.clientX, t.clientY, handle);
       const onTouchMove = (mv) => {
         const tt = mv.changedTouches?.[0];
@@ -3178,6 +3178,13 @@ function beginBoardRotateDrag(pointerId, clientX, clientY, handle){
       window.addEventListener('touchend', onTouchEnd);
       window.addEventListener('touchcancel', onTouchEnd);
     }, { passive: false });
+
+    handleEl.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (boardRotateDragState) return;
+      setBoardRotationDeg(boardRotationDeg + BOARD_ROTATE_SNAP_STEP_DEG, { snap: true });
+    });
   };
 })();
 
@@ -4345,9 +4352,6 @@ function renderRoomTopRects(mission = currentStage){
     hit.setAttribute('class', 'room-rotate-handle-hit');
     hit.style.cursor = 'grab';
     handle.appendChild(hit);
-    if (typeof window.bindBoardRotateHandle === 'function'){
-      window.bindBoardRotateHandle(hit);
-    }
 
     const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     rect.setAttribute('x', (-rectW / 2).toFixed(2));
@@ -4358,8 +4362,11 @@ function renderRoomTopRects(mission = currentStage){
     rect.setAttribute('ry', rectRx.toFixed(2));
     rect.setAttribute('fill', fill);
     rect.setAttribute('fill-opacity', String(opacity));
-    rect.setAttribute('pointer-events', 'none');
+    rect.style.cursor = 'grab';
     handle.appendChild(rect);
+    if (typeof window.bindBoardRotateHandle === 'function'){
+      window.bindBoardRotateHandle(handle);
+    }
     g.appendChild(handle);
   }
 }
