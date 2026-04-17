@@ -627,6 +627,8 @@
   }
   #stageBoard .sharp{ stroke-linecap:butt; stroke-linejoin:miter; }
   #stageBoard #sectorHits .sector { fill: rgba(255,255,0,0); cursor: pointer; pointer-events: fill; }
+  #stageBoard #sectorHits .sector.rotatable-room{ cursor:grab; }
+  #stageBoard.drag-rotating #sectorHits .sector.rotatable-room{ cursor:grabbing; }
   #stageBoard{
     transform-origin:50% 50%;
     transition:transform .26s cubic-bezier(.22,.61,.36,1);
@@ -634,17 +636,6 @@
   }
   #stageBoard.drag-rotating{
     transition:none;
-  }
-  #stageBoard .room-guide-rotatable{
-    cursor:grab;
-    transition:transform .2s ease, filter .2s ease;
-  }
-  #stageBoard .room-guide-rotatable:hover{
-    filter:brightness(1.06);
-  }
-  #stageBoard.drag-rotating .room-guide-rotatable{
-    cursor:grabbing;
-    transform:scale(1.04);
   }
   #missionText{display:none;}
 </style>
@@ -964,7 +955,7 @@
               fill="#111"></text>
 
         <g id="sectorHits" transform="translate(150,150)"></g>
-        <g id="roomGuideCircles" transform="translate(150,150)" style="pointer-events:visiblePainted"></g>
+        <g id="roomGuideCircles" transform="translate(150,150)" style="pointer-events:none"></g>
         <g id="roomTexts" transform="translate(150,150)" style="pointer-events:none"></g>
         <g id="roomConditionHints" transform="translate(150,150)" style="pointer-events:none"></g>
         <g id="roomCards" style="pointer-events:none"></g>
@@ -1601,8 +1592,8 @@ function getClientAngleFromCenter(clientX, clientY){
 
 function bindBoardRotationDrag(){
   stageSvg.addEventListener('pointerdown', async (ev) => {
-    const circleTarget = ev.target.closest('#roomGuideCircles .room-guide-rotatable');
-    if (!circleTarget) return;
+    const roomTarget = ev.target.closest('#sectorHits .sector');
+    if (!roomTarget) return;
     if (!canStartBoardRotate()) return;
     ev.preventDefault();
 
@@ -1645,6 +1636,13 @@ function bindBoardRotationDrag(){
     boardRotationDragState = null;
     setBoardRotationVisual(settledDeg, { dragging: false });
     publishBoardRotation(settledDeg, { dragging: false, force: true }).catch((err) => console.error(err));
+  });
+}
+
+function syncSectorRotateState(){
+  const canRotate = state.currentPhase === 'discussion' && !!currentStage;
+  stageSvg.querySelectorAll('#sectorHits .sector').forEach((el) => {
+    el.classList.toggle('rotatable-room', canRotate);
   });
 }
 
@@ -1779,6 +1777,7 @@ function subscribePhaseEvents(){
     renderHands();
     syncGearClickableState();
     renderRoomGuideCircles(currentStage);
+    syncSectorRotateState();
   });
 }
 
@@ -3142,7 +3141,7 @@ function clickAngleDeg(svgPoint, center){
 /* ================== 6等分セクタ（当たり判定） ================== */
 (function setupSectors(){
   const g = stageSvg.querySelector('#sectorHits');
-  const rIn  = innerR;
+  const rIn  = 0;
   const rOut = outerR;
 
   for(let i=0;i<6;i++){
@@ -3169,6 +3168,7 @@ function clickAngleDeg(svgPoint, center){
   });
 
   window.flashRoom = ()=>{};
+  syncSectorRotateState();
 })();
 
 /* ================== ステージ定義 ================== */
@@ -4275,7 +4275,6 @@ function renderRoomGuideCircles(mission = currentStage){
   const dragHoverOpacity = Math.max(0, Math.min(1, parseFloat(csGuide.getPropertyValue('--roomGuideDragHoverOpacity')) || 0.34));
   const normalOpacity = Math.max(0, Math.min(1, parseFloat(csGuide.getPropertyValue('--roomGuideNormalOpacity')) || 1));
   const isDragging = !!activeDrag;
-  const canRotateInPhase = state.currentPhase === 'discussion';
 
   for(let room=1; room<=6; room++){
     const midDeg = (room-1)*60 + 30;
@@ -4283,11 +4282,9 @@ function renderRoomGuideCircles(mission = currentStage){
     const canDrop = !!activeDrag && canPlaceCardInRoom(activeDrag.cardData, room, mission);
     const isHoverInner = canDrop && dragHoverRoom === room;
     const circle = document.createElementNS('http://www.w3.org/2000/svg','circle');
-    circle.setAttribute('class', canRotateInPhase ? 'room-guide-rotatable' : '');
     circle.setAttribute('cx', pInner.x.toFixed(2));
     circle.setAttribute('cy', pInner.y.toFixed(2));
     circle.setAttribute('r', guideR.toFixed(2));
-    circle.style.pointerEvents = canRotateInPhase ? 'all' : 'none';
     circle.setAttribute('stroke', 'none');
     if (isDragging){
       if (canDrop){
@@ -4633,6 +4630,7 @@ function redrawAll(m){
     if (roomConditionHintsG){
       while (roomConditionHintsG.firstChild) roomConditionHintsG.removeChild(roomConditionHintsG.firstChild);
     }
+    syncSectorRotateState();
     return;
   }
 
@@ -4647,6 +4645,7 @@ function redrawAll(m){
   renderRoomCards(renderStage);
   renderPlayedCards();
   renderRoomTotals();
+  syncSectorRotateState();
 }
 window.addEventListener('mission:change', (e)=>{
   redrawAll(e.detail?.value || currentStage);
