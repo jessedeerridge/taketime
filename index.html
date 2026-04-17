@@ -2033,7 +2033,16 @@ function getRoomPlacementRule(stage, room){
     if (room === 4) return { maxTotal: 2, allowedColors: ['white', 'black'], perColorMax: { white: 1, black: 1 } };
   }
   if (stage === '2-1'){
+    if (room === 1 || room === 2 || room === 3) return { disallowedNums: ['1', '2', '3'] };
+  }
+  if (stage === '2-2'){
+    if (room === 3 || room === 4) return { disallowedNums: ['7', '8', '9'] };
+  }
+  if (stage === '2-3'){
     if (room === 1) return { disallowedNums: ['1', '2', '3'] };
+    if (room === 3) return { disallowedNums: ['4', '5', '6'] };
+    if (room === 4) return { disallowedNums: ['7', '8', '9'] };
+    if (room === 6) return { disallowedNums: ['10', '11', '12'] };
   }
   return null;
 }
@@ -4828,6 +4837,27 @@ function renderRoomTexts(mission){
       underline: true
     });
   }
+  if (mission === '2-1') {
+    textSpecs.push(
+      { room: 1, label: '1,2,3✕', rotate: (midDeg)=>midDeg },
+      { room: 2, label: '1,2,3✕', rotate: (midDeg)=>midDeg },
+      { room: 3, label: '1,2,3✕', rotate: (midDeg)=>midDeg }
+    );
+  }
+  if (mission === '2-2') {
+    textSpecs.push(
+      { room: 3, label: '7,8,9✕', rotate: (midDeg)=>midDeg },
+      { room: 4, label: '7,8,9✕', rotate: (midDeg)=>midDeg }
+    );
+  }
+  if (mission === '2-3') {
+    textSpecs.push(
+      { room: 1, label: '1,2,3✕', rotate: (midDeg)=>midDeg },
+      { room: 3, label: '4,5,6✕', rotate: (midDeg)=>midDeg },
+      { room: 4, label: '7,8,9✕', rotate: (midDeg)=>midDeg },
+      { room: 6, label: '10,11,12✕', rotate: (midDeg)=>midDeg + 180 }
+    );
+  }
   if (textSpecs.length === 0) return;
 
   textSpecs.forEach(({room, label, rotate, color: textColor, bgColor: circleColor, bgOpacity: circleOpacity, underline})=>{
@@ -4887,14 +4917,14 @@ function getStageRoomHintText(stage, room){
   if ((stage === '1-2' && room === 4) || (stage === '1-1' && room === 6)){
     return 'カードを必ず3枚だけ置かなければならない。';
   }
-  if (stage === '2-1' && room === 1){
-    return '１、２、３のカードはこのエリアに置けない。';
-  }
   if (sumCondition){
     return `このエリアの合計値が必ず${sumCondition.min}~${sumCondition.max}の数値にならなければならない。`;
   }
   if (!placementRule){
     return '';
+  }
+  if (Array.isArray(placementRule.disallowedNums) && placementRule.disallowedNums.length){
+    return `${placementRule.disallowedNums.join('、')}のカードはこのエリアに置けない。`;
   }
   if (
     placementRule.maxTotal === 1
