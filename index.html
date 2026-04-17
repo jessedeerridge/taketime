@@ -3612,7 +3612,7 @@ const STAGE_PROHIBIT_ROOMS = {
   '2-3': [1, 3, 4, 6]
 };
 const STAGE_DOUBLECLOCK = {
-  '3-3': { room: 2, left: '1', right: '2', gap: 12 }
+  '3-3': { room: 2, left: '2', right: '1', gap: 12 }
 };
 function getClockLabelsForMission(mission){
   return STAGE_CLOCK_LABELS[mission] || null;
@@ -4562,20 +4562,6 @@ function renderRoomCards(mission = currentStage){
     circle.setAttribute('stroke-width', strokeW.toFixed(2));
     tokenG.appendChild(circle);
 
-    if (fill11to12){
-      const wedge = document.createElementNS('http://www.w3.org/2000/svg','path');
-      const a0 = -90 * Math.PI / 180;
-      const a1 = -60 * Math.PI / 180;
-      const x0 = tickOuter * Math.cos(a0);
-      const y0 = tickOuter * Math.sin(a0);
-      const x1 = tickOuter * Math.cos(a1);
-      const y1 = tickOuter * Math.sin(a1);
-      wedge.setAttribute('d', `M0,0 L${x0.toFixed(2)},${y0.toFixed(2)} A${tickOuter.toFixed(2)},${tickOuter.toFixed(2)} 0 0 1 ${x1.toFixed(2)},${y1.toFixed(2)} Z`);
-      wedge.setAttribute('fill', '#d9b38c');
-      wedge.setAttribute('opacity', '0.9');
-      tokenG.appendChild(wedge);
-    }
-
     for (let i = 0; i < 12; i++){
       const a = (i * 30 - 90) * Math.PI / 180;
       const x1 = (tickInner * Math.cos(a)).toFixed(2);
@@ -4593,15 +4579,30 @@ function renderRoomCards(mission = currentStage){
       tokenG.appendChild(line);
     }
 
+    const centerRadius = Math.max(2.4, rClock * 0.24 * Math.max(0.4, centerScale));
     if (showCenter){
       const center = document.createElementNS('http://www.w3.org/2000/svg','circle');
       center.setAttribute('cx', '0');
       center.setAttribute('cy', '0');
-      center.setAttribute('r', String(Math.max(2.4, rClock * 0.24 * Math.max(0.4, centerScale))));
+      center.setAttribute('r', String(centerRadius));
       center.setAttribute('fill', centerFill);
       center.setAttribute('stroke', '#000');
       center.setAttribute('stroke-width', '0.6');
       tokenG.appendChild(center);
+
+      if (fill11to12){
+        const wedge = document.createElementNS('http://www.w3.org/2000/svg','path');
+        const a0 = -90 * Math.PI / 180;
+        const a1 = -60 * Math.PI / 180;
+        const x0 = centerRadius * Math.cos(a0);
+        const y0 = centerRadius * Math.sin(a0);
+        const x1 = centerRadius * Math.cos(a1);
+        const y1 = centerRadius * Math.sin(a1);
+        wedge.setAttribute('d', `M0,0 L${x0.toFixed(2)},${y0.toFixed(2)} A${centerRadius.toFixed(2)},${centerRadius.toFixed(2)} 0 0 1 ${x1.toFixed(2)},${y1.toFixed(2)} Z`);
+        wedge.setAttribute('fill', '#d9b38c');
+        wedge.setAttribute('opacity', '0.95');
+        tokenG.appendChild(wedge);
+      }
     }
 
     if (text){
@@ -4803,7 +4804,7 @@ function renderRoomCards(mission = currentStage){
     appendPlusMinusCards(4);
   }
   if (mission === '3-2') {
-    appendClockRoom(1, { centerFill: '#111111', fill11to12: true, centerScale: 1.45 });
+    appendClockRoom(1, { centerFill: '#111111', fill11to12: true, centerScale: 2.5 });
     appendPlusMinusCards(3, { sign: '-' });
     appendPlusMinusCards(6, { sign: '-' });
   }
