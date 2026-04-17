@@ -634,6 +634,24 @@
   }
   #stageBoard .sharp{ stroke-linecap:butt; stroke-linejoin:miter; }
   #stageBoard #sectorHits .sector { fill: rgba(255,255,0,0); cursor: pointer; pointer-events: fill; }
+  #stageBoard{
+    transform-origin:center center;
+  }
+  #stageBoardWrap{
+    transform-origin:center center;
+  }
+  #stageBoard .room-rotate-handle{
+    cursor:grab;
+    touch-action:none;
+  }
+  #stageBoard .room-rotate-handle.is-dragging{
+    cursor:grabbing;
+  }
+  #stageBoard .room-rotate-handle-hit{
+    fill:#fff;
+    fill-opacity:0.001;
+    pointer-events:all;
+  }
   #missionText{display:none;}
 </style>
 </head>
@@ -802,7 +820,7 @@
     <div class="table-center">
       <div id="playerCircle" class="player-circle"></div>
 
-      <div class="stage-board-wrap">
+      <div id="stageBoardWrap" class="stage-board-wrap">
         <svg id="stageBoard" viewBox="0 0 300 300" role="img" aria-label="正円と6つの正三角形（角を丸め・内側配置／外形のみ黒線＋内側リング＋6等分＋R2-R3を30等分＋inner1/3に画像＋指定なし三角＋中心ダイヤ＋中心線＋外向き曲線三角テーパー＋金線X：底辺innerR接触＋指定部屋に新半円ノッチ［白塗り］＋カード最前面回転＋room6扇状＋1-2でroom4扇状/room3テキスト）">
         <defs>
           <path id="eqTriPath" d=""/>
@@ -953,7 +971,7 @@
 
         <g id="sectorHits" transform="translate(150,150)"></g>
         <g id="roomGuideCircles" transform="translate(150,150)" style="pointer-events:none"></g>
-        <g id="roomTopRects" transform="translate(150,150)" style="pointer-events:none"></g>
+        <g id="roomTopRects" transform="translate(150,150)"></g>
         <g id="roomTexts" transform="translate(150,150)" style="pointer-events:none"></g>
         <g id="roomConditionHints" transform="translate(150,150)" style="pointer-events:none"></g>
         <g id="roomCards" style="pointer-events:none"></g>
@@ -1174,6 +1192,9 @@ const inFlightPlayedCardKeys = new Set();
 const placingCardIds = new Set();
 let hasPlayedCardsSnapshot = false;
 let currentSubgearCount = 0;
+let boardRotationDeg = 0;
+let boardRotateDragState = null;
+const BOARD_ROTATE_SNAP_STEP_DEG = 60;
 
 function getBlackBackGradient(){
   return 'repeating-linear-gradient(135deg,var(--black-card) 0px,var(--black-card) 4px,var(--black-card-stripe) 4px,var(--black-card-stripe) 8px)';
@@ -2791,6 +2812,8 @@ window.addEventListener('resize', () => {
 
 /* ===== ステージSVGロジック：元コードをそのまま移植 ===== */
 const stageSvg = document.getElementById('stageBoard');
+const stageBoardWrap = document.getElementById('stageBoardWrap');
+setBoardRotationDeg(0, { snap: true });
 
 stageNameGear.addEventListener('click', async () => {
   if (!currentStage) return;
@@ -2997,6 +3020,36 @@ function clickAngleDeg(svgPoint, center){
   ang = (ang + 90 + 360) % 360;
   return ang;
 }
+function normalizeDeg(deg){
+  let n = Number(deg) || 0;
+  n %= 360;
+  if (n < 0) n += 360;
+  return n;
+}
+function shortestDeltaDeg(fromDeg, toDeg){
+  let d = normalizeDeg(toDeg) - normalizeDeg(fromDeg);
+  if (d > 180) d -= 360;
+  if (d < -180) d += 360;
+  return d;
+}
+function snapRotationDeg(deg){
+  return Math.round((Number(deg) || 0) / BOARD_ROTATE_SNAP_STEP_DEG) * BOARD_ROTATE_SNAP_STEP_DEG;
+}
+function setBoardRotationDeg(nextDeg, { snap = false } = {}){
+  const rawDeg = snap ? snapRotationDeg(nextDeg) : (Number(nextDeg) || 0);
+  boardRotationDeg = normalizeDeg(rawDeg);
+  if (stageBoardWrap){
+    stageBoardWrap.style.transform = `rotate(${boardRotationDeg.toFixed(2)}deg)`;
+  } else {
+    stageSvg.style.transform = `rotate(${boardRotationDeg.toFixed(2)}deg)`;
+  }
+}
+function pointerAngleFromStageCenter(clientX, clientY){
+  const rect = (stageBoardWrap || stageSvg).getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  return normalizeDeg((Math.atan2(clientY - cy, clientX - cx) * 180 / Math.PI) + 90);
+}
 
 /* ================== 6等分セクタ（当たり判定） ================== */
 (function setupSectors(){
@@ -3028,6 +3081,119 @@ function clickAngleDeg(svgPoint, center){
   });
 
   window.flashRoom = ()=>{};
+})();
+
+/* ================== 盤面回転（赤ハンドルをドラッグ） ================== */
+function beginBoardRotateDrag(pointerId, clientX, clientY, handle){
+  const handleEl = handle || null;
+  if (handleEl){
+    handleEl.classList.add('is-dragging');
+    if (Number.isFinite(pointerId) && handleEl.setPointerCapture){
+      try { handleEl.setPointerCapture(pointerId); } catch(_){}
+    }
+  }
+  boardRotateDragState = {
+    pointerId: Number.isFinite(pointerId) ? pointerId : null,
+    startPointerAngle: pointerAngleFromStageCenter(clientX, clientY),
+    startRotationDeg: boardRotationDeg,
+    handleEl
+  };
+}
+
+(function setupBoardRotateDrag(){
+  const onMove = (ev) => {
+    if (!boardRotateDragState || ev.pointerId !== boardRotateDragState.pointerId) return;
+    ev.preventDefault();
+    const currentAngle = pointerAngleFromStageCenter(ev.clientX, ev.clientY);
+    const delta = shortestDeltaDeg(boardRotateDragState.startPointerAngle, currentAngle);
+    setBoardRotationDeg(boardRotateDragState.startRotationDeg + delta, { snap: false });
+  };
+
+  const finishDrag = (ev) => {
+    if (!boardRotateDragState || (ev && ev.pointerId !== boardRotateDragState.pointerId)) return;
+    const handle = boardRotateDragState.handleEl;
+    if (handle?.releasePointerCapture){
+      try { handle.releasePointerCapture(boardRotateDragState.pointerId); } catch(_){}
+    }
+    handle?.classList.remove('is-dragging');
+    boardRotateDragState = null;
+    setBoardRotationDeg(boardRotationDeg, { snap: true });
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', finishDrag);
+    window.removeEventListener('pointercancel', finishDrag);
+  };
+
+  window.bindBoardRotateHandle = (handleEl) => {
+    if (!handleEl || handleEl.dataset.rotateDragBound === '1') return;
+    handleEl.dataset.rotateDragBound = '1';
+
+    handleEl.addEventListener('pointerdown', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const handle = handleEl.closest('.room-rotate-handle') || handleEl;
+      beginBoardRotateDrag(ev.pointerId, ev.clientX, ev.clientY, handle);
+      window.addEventListener('pointermove', onMove, { passive: false });
+      window.addEventListener('pointerup', finishDrag);
+      window.addEventListener('pointercancel', finishDrag);
+    });
+
+    handleEl.addEventListener('mousedown', (ev) => {
+      if (boardRotateDragState) return;
+      ev.preventDefault();
+      const handle = handleEl.closest('.room-rotate-handle') || handleEl;
+      beginBoardRotateDrag(null, ev.clientX, ev.clientY, handle);
+      const onMouseMove = (mv) => {
+        if (!boardRotateDragState) return;
+        const currentAngle = pointerAngleFromStageCenter(mv.clientX, mv.clientY);
+        const delta = shortestDeltaDeg(boardRotateDragState.startPointerAngle, currentAngle);
+        setBoardRotationDeg(boardRotateDragState.startRotationDeg + delta, { snap: false });
+      };
+      const onMouseUp = () => {
+        setBoardRotationDeg(boardRotationDeg, { snap: true });
+        boardRotateDragState?.handleEl?.classList.remove('is-dragging');
+        boardRotateDragState = null;
+        window.removeEventListener('mousemove', onMouseMove);
+        window.removeEventListener('mouseup', onMouseUp);
+      };
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mouseup', onMouseUp);
+    });
+
+    handleEl.addEventListener('touchstart', (ev) => {
+      if (boardRotateDragState) return;
+      const t = ev.changedTouches?.[0];
+      if (!t) return;
+      ev.preventDefault();
+      const handle = handleEl.closest('.room-rotate-handle') || handleEl;
+      beginBoardRotateDrag(null, t.clientX, t.clientY, handle);
+      const onTouchMove = (mv) => {
+        const tt = mv.changedTouches?.[0];
+        if (!tt || !boardRotateDragState) return;
+        mv.preventDefault();
+        const currentAngle = pointerAngleFromStageCenter(tt.clientX, tt.clientY);
+        const delta = shortestDeltaDeg(boardRotateDragState.startPointerAngle, currentAngle);
+        setBoardRotationDeg(boardRotateDragState.startRotationDeg + delta, { snap: false });
+      };
+      const onTouchEnd = () => {
+        setBoardRotationDeg(boardRotationDeg, { snap: true });
+        boardRotateDragState?.handleEl?.classList.remove('is-dragging');
+        boardRotateDragState = null;
+        window.removeEventListener('touchmove', onTouchMove);
+        window.removeEventListener('touchend', onTouchEnd);
+        window.removeEventListener('touchcancel', onTouchEnd);
+      };
+      window.addEventListener('touchmove', onTouchMove, { passive: false });
+      window.addEventListener('touchend', onTouchEnd);
+      window.addEventListener('touchcancel', onTouchEnd);
+    }, { passive: false });
+
+    handleEl.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (boardRotateDragState) return;
+      setBoardRotationDeg(boardRotationDeg + BOARD_ROTATE_SNAP_STEP_DEG, { snap: true });
+    });
+  };
 })();
 
 /* ================== ステージ定義 ================== */
@@ -4179,6 +4345,22 @@ function renderRoomTopRects(mission = currentStage){
   for (let room = 1; room <= 6; room++){
     const midDeg = (room - 1) * 60 + 30;
     const p = polar(centerR, midDeg);
+    const handle = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    handle.setAttribute('class', 'room-rotate-handle');
+    handle.setAttribute('transform', `translate(${p.x.toFixed(2)}, ${p.y.toFixed(2)}) rotate(${midDeg})`);
+    handle.dataset.room = String(room);
+
+    const hit = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    hit.setAttribute('x', (-Math.max(22, rectW * 0.75)).toFixed(2));
+    hit.setAttribute('y', (-Math.max(22, rectH * 1.6)).toFixed(2));
+    hit.setAttribute('width', (Math.max(44, rectW * 1.5)).toFixed(2));
+    hit.setAttribute('height', (Math.max(44, rectH * 3.2)).toFixed(2));
+    hit.setAttribute('rx', '10');
+    hit.setAttribute('ry', '10');
+    hit.setAttribute('class', 'room-rotate-handle-hit');
+    hit.style.cursor = 'grab';
+    handle.appendChild(hit);
+
     const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     rect.setAttribute('x', (-rectW / 2).toFixed(2));
     rect.setAttribute('y', (-rectH / 2).toFixed(2));
@@ -4188,8 +4370,12 @@ function renderRoomTopRects(mission = currentStage){
     rect.setAttribute('ry', rectRx.toFixed(2));
     rect.setAttribute('fill', fill);
     rect.setAttribute('fill-opacity', String(opacity));
-    rect.setAttribute('transform', `translate(${p.x.toFixed(2)}, ${p.y.toFixed(2)}) rotate(${midDeg})`);
-    g.appendChild(rect);
+    rect.style.cursor = 'grab';
+    handle.appendChild(rect);
+    if (typeof window.bindBoardRotateHandle === 'function'){
+      window.bindBoardRotateHandle(handle);
+    }
+    g.appendChild(handle);
   }
 }
 
