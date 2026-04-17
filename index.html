@@ -600,13 +600,6 @@
     --roomTextBgOpacity: 0.3;
     --roomTextBgR: 12;
 
-    --roomTopRectColor: #ef4444;
-    --roomTopRectOpacity: 0.32;
-    --roomTopRectW: 42;
-    --roomTopRectH: 14;
-    --roomTopRectRadius: 4;
-    --roomTopRectCenterR: 76;
-
     --roomGuideCenterR: 90;
     --roomGuideR: 35;
     --roomGuideStroke: #8b6b4f;
@@ -953,7 +946,6 @@
 
         <g id="sectorHits" transform="translate(150,150)"></g>
         <g id="roomGuideCircles" transform="translate(150,150)" style="pointer-events:none"></g>
-        <g id="roomTopRects" transform="translate(150,150)" style="pointer-events:none"></g>
         <g id="roomTexts" transform="translate(150,150)" style="pointer-events:none"></g>
         <g id="roomConditionHints" transform="translate(150,150)" style="pointer-events:none"></g>
         <g id="roomCards" style="pointer-events:none"></g>
@@ -4161,38 +4153,6 @@ function renderRoomGuideCircles(mission = currentStage){
   }
 }
 
-function renderRoomTopRects(mission = currentStage){
-  if (!STAGE_CODES.includes(mission)) return;
-  const g = stageSvg.querySelector('#roomTopRects');
-  if (!g) return;
-  while (g.firstChild) g.removeChild(g.firstChild);
-
-  const csRect = getComputedStyle(stageSvg);
-  const fill = csRect.getPropertyValue('--roomTopRectColor').trim() || '#ef4444';
-  const opacity = Math.max(0, Math.min(1, parseFloat(csRect.getPropertyValue('--roomTopRectOpacity')) || 0.32));
-  const rectW = Math.max(4, parseFloat(csRect.getPropertyValue('--roomTopRectW')) || 42);
-  const rectH = Math.max(2, parseFloat(csRect.getPropertyValue('--roomTopRectH')) || 14);
-  const rectRx = Math.max(0, parseFloat(csRect.getPropertyValue('--roomTopRectRadius')) || 4);
-  const centerRDefault = innerR + ((outerR - innerR) * 0.45);
-  const centerR = parseFloat(csRect.getPropertyValue('--roomTopRectCenterR')) || centerRDefault;
-
-  for (let room = 1; room <= 6; room++){
-    const midDeg = (room - 1) * 60 + 30;
-    const p = polar(centerR, midDeg);
-    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    rect.setAttribute('x', (-rectW / 2).toFixed(2));
-    rect.setAttribute('y', (-rectH / 2).toFixed(2));
-    rect.setAttribute('width', rectW.toFixed(2));
-    rect.setAttribute('height', rectH.toFixed(2));
-    rect.setAttribute('rx', rectRx.toFixed(2));
-    rect.setAttribute('ry', rectRx.toFixed(2));
-    rect.setAttribute('fill', fill);
-    rect.setAttribute('fill-opacity', String(opacity));
-    rect.setAttribute('transform', `translate(${p.x.toFixed(2)}, ${p.y.toFixed(2)}) rotate(${midDeg})`);
-    g.appendChild(rect);
-  }
-}
-
 function renderRoomTexts(mission){
   const g = stageSvg.querySelector('#roomTexts');
   if(!g) return;
@@ -4434,7 +4394,6 @@ function renderRoomConditionHints(mission = currentStage){
   const centerLineG  = stageSvg.querySelector('#centerTopLineG');
   const tipG         = stageSvg.querySelector('#centerTopDiamondG');
   const roomGuideCircles = stageSvg.querySelector('#roomGuideCircles');
-  const roomTopRects = stageSvg.querySelector('#roomTopRects');
   const roomTexts    = stageSvg.querySelector('#roomTexts');
   const roomConditionHints = stageSvg.querySelector('#roomConditionHints');
   const cardsG       = stageSvg.querySelector('#roomCards');
@@ -4445,7 +4404,7 @@ function renderRoomConditionHints(mission = currentStage){
   centerLineG?.setAttribute('transform', `translate(150,150) rotate(${rot})`);
   tipG?.setAttribute('transform',         `translate(150,150) rotate(${rot})`);
 
-  if (!back || !marks || !outG || !r2 || !orangeFill || !tiny20 || !orangeStroke || !infinityG || !spec || !clockMarks || !centerLineG || !tipG || !roomGuideCircles || !roomTopRects || !roomTexts || !roomConditionHints || !cardsG || !playedCardsG || !roomTotalsG) return;
+  if (!back || !marks || !outG || !r2 || !orangeFill || !tiny20 || !orangeStroke || !infinityG || !spec || !clockMarks || !centerLineG || !tipG || !roomGuideCircles || !roomTexts || !roomConditionHints || !cardsG || !playedCardsG || !roomTotalsG) return;
 
   if (innerLightFill && innerLightFill.previousSibling !== outG) stageSvg.insertBefore(outG, innerLightFill);
   else if (!innerLightFill && back.previousSibling !== outG)     stageSvg.insertBefore(outG, back);
@@ -4460,8 +4419,7 @@ function renderRoomConditionHints(mission = currentStage){
   if (infinityG.nextSibling !== spec)           stageSvg.insertBefore(spec,         infinityG.nextSibling);
   if (spec.nextSibling !== clockMarks)          stageSvg.insertBefore(clockMarks,   spec.nextSibling);
   if (clockMarks.nextSibling !== roomGuideCircles) stageSvg.insertBefore(roomGuideCircles, clockMarks.nextSibling);
-  if (roomGuideCircles.nextSibling !== roomTopRects) stageSvg.insertBefore(roomTopRects, roomGuideCircles.nextSibling);
-  if (roomTopRects.nextSibling !== roomTexts) stageSvg.insertBefore(roomTexts, roomTopRects.nextSibling);
+  if (roomGuideCircles.nextSibling !== roomTexts) stageSvg.insertBefore(roomTexts, roomGuideCircles.nextSibling);
   if (roomTexts.nextSibling !== cardsG) stageSvg.insertBefore(cardsG, roomTexts.nextSibling);
   if (cardsG.nextSibling !== playedCardsG) stageSvg.insertBefore(playedCardsG, cardsG.nextSibling);
   if (playedCardsG.nextSibling !== roomConditionHints) stageSvg.insertBefore(roomConditionHints, playedCardsG.nextSibling);
@@ -4503,10 +4461,6 @@ function redrawAll(m){
     if (roomTextsG){
       while (roomTextsG.firstChild) roomTextsG.removeChild(roomTextsG.firstChild);
     }
-    const roomTopRectsG = stageSvg.querySelector('#roomTopRects');
-    if (roomTopRectsG){
-      while (roomTopRectsG.firstChild) roomTopRectsG.removeChild(roomTopRectsG.firstChild);
-    }
     const roomCardsG = stageSvg.querySelector('#roomCards');
     if (roomCardsG){
       while (roomCardsG.firstChild) roomCardsG.removeChild(roomCardsG.firstChild);
@@ -4536,7 +4490,6 @@ function redrawAll(m){
   renderClockMarks(renderStage);
   renderInfinity(renderStage);
   renderRoomGuideCircles(renderStage);
-  renderRoomTopRects(renderStage);
   renderRoomTexts(renderStage);
   renderRoomConditionHints(renderStage);
   renderRoomCards(renderStage);
