@@ -953,7 +953,7 @@
 
         <g id="sectorHits" transform="translate(150,150)"></g>
         <g id="roomGuideCircles" transform="translate(150,150)" style="pointer-events:none"></g>
-        <g id="roomTopRects" transform="translate(150,150)" style="pointer-events:none"></g>
+        <g id="roomTopRects" transform="translate(150,150)" style="pointer-events:auto"></g>
         <g id="roomTexts" transform="translate(150,150)" style="pointer-events:none"></g>
         <g id="roomConditionHints" transform="translate(150,150)" style="pointer-events:none"></g>
         <g id="roomCards" style="pointer-events:none"></g>
@@ -1174,6 +1174,16 @@ const inFlightPlayedCardKeys = new Set();
 const placingCardIds = new Set();
 let hasPlayedCardsSnapshot = false;
 let currentSubgearCount = 0;
+let boardRotationDeg = 0;
+let roomTopRectDragState = null;
+const BOARD_ROTATABLE_GROUP_IDS = [
+  'triBack', 'outerStarBg', 'innerLightFill', 'ring30StarBg',
+  'unionForOutline', 'radials6', 'radials30', 'innerRingsBack',
+  'stageMarks', 'stageOutward', 'innerRing2Front', 'innerOrangeFill',
+  'innerTiny20', 'innerRingsOrange', 'r5Infinity', 'stageSpecified',
+  'stageClockMarks', 'sectorHits', 'roomGuideCircles', 'roomTopRects',
+  'roomTexts', 'roomConditionHints', 'roomCards', 'playedCards', 'roomTotals'
+];
 
 function getBlackBackGradient(){
   return 'repeating-linear-gradient(135deg,var(--black-card) 0px,var(--black-card) 4px,var(--black-card-stripe) 4px,var(--black-card-stripe) 8px)';
@@ -2997,6 +3007,85 @@ function clickAngleDeg(svgPoint, center){
   ang = (ang + 90 + 360) % 360;
   return ang;
 }
+function normalizeDeg(deg){
+  let v = Number(deg) || 0;
+  v %= 360;
+  if (v < 0) v += 360;
+  return v;
+}
+function shortestAngleDelta(fromDeg, toDeg){
+  let delta = normalizeDeg(toDeg) - normalizeDeg(fromDeg);
+  if (delta > 180) delta -= 360;
+  if (delta < -180) delta += 360;
+  return delta;
+}
+function setBoardRotation(nextDeg){
+  boardRotationDeg = normalizeDeg(nextDeg);
+  const angle = boardRotationDeg.toFixed(3).replace(/\.?0+$/, '');
+
+  BOARD_ROTATABLE_GROUP_IDS.forEach((id)=>{
+    const g = stageSvg.querySelector(`#${id}`);
+    if (!g) return;
+    const hasTranslate150 = (g.getAttribute('transform') || '').includes('translate(150,150)');
+    if (hasTranslate150){
+      g.setAttribute('transform', `translate(150,150) rotate(${angle})`);
+    } else {
+      g.setAttribute('transform', `rotate(${angle} 150 150)`);
+    }
+  });
+
+  const centerRot = parseFloat(getComputedStyle(stageSvg).getPropertyValue('--centerTopRotate')) || 0;
+  const centerLineG = stageSvg.querySelector('#centerTopLineG');
+  const centerTipG = stageSvg.querySelector('#centerTopDiamondG');
+  centerLineG?.setAttribute('transform', `translate(150,150) rotate(${(boardRotationDeg + centerRot).toFixed(3).replace(/\.?0+$/, '')})`);
+  centerTipG?.setAttribute('transform', `translate(150,150) rotate(${(boardRotationDeg + centerRot).toFixed(3).replace(/\.?0+$/, '')})`);
+}
+function getPointerAngleOnStage(clientX, clientY){
+  const pt = stageSvg.createSVGPoint();
+  pt.x = clientX;
+  pt.y = clientY;
+  const svgPt = pt.matrixTransform(stageSvg.getScreenCTM().inverse());
+  return clickAngleDeg(svgPt, { x: 150, y: 150 });
+}
+function bindRoomTopRectRotationDrag(){
+  const roomTopRectsG = stageSvg.querySelector('#roomTopRects');
+  if (!roomTopRectsG) return;
+
+  roomTopRectsG.addEventListener('pointerdown', (ev)=>{
+    const handle = ev.target.closest('.room-top-rect-handle');
+    if (!handle) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+
+    roomTopRectDragState = {
+      pointerId: ev.pointerId,
+      startPointerAngle: getPointerAngleOnStage(ev.clientX, ev.clientY),
+      startRotationDeg: boardRotationDeg
+    };
+    roomTopRectsG.setPointerCapture(ev.pointerId);
+    roomTopRectsG.style.cursor = 'grabbing';
+  });
+
+  roomTopRectsG.addEventListener('pointermove', (ev)=>{
+    if (!roomTopRectDragState || ev.pointerId !== roomTopRectDragState.pointerId) return;
+    const currAngle = getPointerAngleOnStage(ev.clientX, ev.clientY);
+    const delta = shortestAngleDelta(roomTopRectDragState.startPointerAngle, currAngle);
+    setBoardRotation(roomTopRectDragState.startRotationDeg + delta);
+  });
+
+  const endDrag = (ev)=>{
+    if (!roomTopRectDragState || ev.pointerId !== roomTopRectDragState.pointerId) return;
+    const snapStep = 60;
+    const snapped = Math.round(boardRotationDeg / snapStep) * snapStep;
+    setBoardRotation(snapped);
+    roomTopRectDragState = null;
+    roomTopRectsG.style.cursor = '';
+    if (roomTopRectsG.hasPointerCapture(ev.pointerId)) roomTopRectsG.releasePointerCapture(ev.pointerId);
+  };
+
+  roomTopRectsG.addEventListener('pointerup', endDrag);
+  roomTopRectsG.addEventListener('pointercancel', endDrag);
+}
 
 /* ================== 6等分セクタ（当たり判定） ================== */
 (function setupSectors(){
@@ -4188,6 +4277,9 @@ function renderRoomTopRects(mission = currentStage){
     rect.setAttribute('ry', rectRx.toFixed(2));
     rect.setAttribute('fill', fill);
     rect.setAttribute('fill-opacity', String(opacity));
+    rect.setAttribute('class', 'room-top-rect-handle');
+    rect.style.cursor = 'grab';
+    rect.style.pointerEvents = 'auto';
     rect.setAttribute('transform', `translate(${p.x.toFixed(2)}, ${p.y.toFixed(2)}) rotate(${midDeg})`);
     g.appendChild(rect);
   }
@@ -4442,8 +4534,9 @@ function renderRoomConditionHints(mission = currentStage){
   const roomTotalsG  = stageSvg.querySelector('#roomTotals');
 
   const rot = parseFloat(getComputedStyle(stageSvg).getPropertyValue('--centerTopRotate')) || 0;
-  centerLineG?.setAttribute('transform', `translate(150,150) rotate(${rot})`);
-  tipG?.setAttribute('transform',         `translate(150,150) rotate(${rot})`);
+  const totalRot = boardRotationDeg + rot;
+  centerLineG?.setAttribute('transform', `translate(150,150) rotate(${totalRot})`);
+  tipG?.setAttribute('transform',         `translate(150,150) rotate(${totalRot})`);
 
   if (!back || !marks || !outG || !r2 || !orangeFill || !tiny20 || !orangeStroke || !infinityG || !spec || !clockMarks || !centerLineG || !tipG || !roomGuideCircles || !roomTopRects || !roomTexts || !roomConditionHints || !cardsG || !playedCardsG || !roomTotalsG) return;
 
@@ -4527,6 +4620,7 @@ function redrawAll(m){
     if (roomConditionHintsG){
       while (roomConditionHintsG.firstChild) roomConditionHintsG.removeChild(roomConditionHintsG.firstChild);
     }
+    setBoardRotation(boardRotationDeg);
     return;
   }
 
@@ -4542,10 +4636,12 @@ function redrawAll(m){
   renderRoomCards(renderStage);
   renderPlayedCards();
   renderRoomTotals();
+  setBoardRotation(boardRotationDeg);
 }
 window.addEventListener('mission:change', (e)=>{
   redrawAll(e.detail?.value || currentStage);
 });
+bindRoomTopRectRotationDrag();
 redrawAll(currentStage);
 renderStageOptions();
 </script>
