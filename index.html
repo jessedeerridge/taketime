@@ -3138,7 +3138,7 @@ function syncRoomHintTableOrientation(){
   const onPointerUp = (ev) => {
     if (!boardRotationDrag || ev.pointerId !== boardRotationDrag.pointerId) return;
     stageSvg.classList.remove('rotating');
-    boardRotationDrag.handle?.releasePointerCapture?.(ev.pointerId);
+    boardRotationDrag.captureEl?.releasePointerCapture?.(ev.pointerId);
     boardRotationDrag = null;
     window.removeEventListener('pointermove', onPointerMove);
     window.removeEventListener('pointerup', onPointerUp);
@@ -3153,11 +3153,13 @@ function syncRoomHintTableOrientation(){
     if (!handle) return;
     ev.preventDefault();
     ev.stopPropagation();
-    handle.setPointerCapture(ev.pointerId);
+    const captureEl = ev.currentTarget;
+    captureEl.setPointerCapture(ev.pointerId);
     stageSvg.classList.add('rotating');
     boardRotationDrag = {
       pointerId: ev.pointerId,
       handle,
+      captureEl,
       currentRotationDeg: boardRotationDeg,
       lastPointerDeg: pointerAngleDegFromBoardCenter(ev.clientX, ev.clientY)
     };
@@ -4437,7 +4439,6 @@ function renderRoomConditionHints(mission = currentStage){
   const specifiedRooms = getSpecifiedRoomsForMission(mission);
   const hasInfinity = ['1-1', '1-2', '1-3'].includes(mission);
   const { centerR, guideR, outerOffset } = getGuideMetrics();
-  const roomOrder = specifiedRooms.slice().sort((a, b) => a - b);
   const defaultStyle = {
     maxCharsPerLine: 14,
     maxLines: 4,
@@ -4521,8 +4522,7 @@ function renderRoomConditionHints(mission = currentStage){
     const hintText = getStageRoomHintText(mission, room);
     if (!hintText) return;
     const midDeg = (room - 1) * 60 + 30;
-    const roomOrderIndex = roomOrder.indexOf(room);
-    const radialOut = centerR + guideR + outerOffset + 18 + roomOrderIndex * 18;
+    const radialOut = centerR + guideR + outerOffset + 18;
     const pOuter = polar(radialOut, midDeg);
     appendHintTable(hintText, pOuter.x, pOuter.y);
   });
