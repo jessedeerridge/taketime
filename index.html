@@ -3583,6 +3583,9 @@ const STAGE_SPEC = {
   '2-2': { specifiedRooms: [3,4] },
   '2-3': { specifiedRooms: [1,3,4,6] },
   '3-1': { specifiedRooms: [4,6] },
+  '3-2': { specifiedRooms: [1,3,6] },
+  '3-3': { specifiedRooms: [1,2,5] },
+  '3-4': { specifiedRooms: [1,3,4,5] },
 };
 function getSpecifiedRoomsForMission(mission){
   const rec = STAGE_SPEC[mission];
@@ -3595,6 +3598,19 @@ function isNavyStage(mission){
 
 const STAGE_CLOCK_LABELS = {
   '1-3': { 2: '2', 3: '1' },
+  '3-2': {
+    1: {
+      text: '',
+      centerFill: '#111111',
+      tickHighlights: [{ from: 11, to: 12, color: '#d9b38c' }]
+    }
+  },
+  '3-3': {
+    2: [
+      { text: '1', offsetTan: -14 },
+      { text: '2', offsetTan: 14 }
+    ]
+  }
 };
 function getClockLabelsForMission(mission){
   return STAGE_CLOCK_LABELS[mission] || null;
@@ -3735,51 +3751,78 @@ function renderClockMarks(mission){
   const deltaR = parseFloat(csClock.getPropertyValue('--clockMarkDeltaR')) || 0;
   const textScale = parseFloat(csClock.getPropertyValue('--clockMarkTextScale')) || 1;
 
-  Object.entries(labels).forEach(([roomStr, text])=>{
+  Object.entries(labels).forEach(([roomStr, rawSpec])=>{
     const room = Number(roomStr);
     if(!(room >= 1 && room <= 6)) return;
+    const markerSpecs = Array.isArray(rawSpec) ? rawSpec : [rawSpec];
 
     const midDeg = (room - 1) * 60 + 30;
-    const pos = polar((innerR + outerR) / 2 + 4 + deltaR, midDeg);
+    markerSpecs.forEach((specItem) => {
+      const spec = (specItem && typeof specItem === 'object' && !Array.isArray(specItem))
+        ? specItem
+        : { text: String(specItem ?? '') };
+      const offsetTan = Number(spec.offsetTan) || 0;
+      const offsetRad = Number(spec.offsetRad) || 0;
+      const pos = polar((innerR + outerR) / 2 + 4 + deltaR + offsetRad, midDeg);
+      const tangentRad = (midDeg + 90) * Math.PI / 180;
+      const x = pos.x + Math.cos(tangentRad) * offsetTan;
+      const y = pos.y + Math.sin(tangentRad) * offsetTan;
 
-    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    g.setAttribute('transform', `translate(${pos.x},${pos.y})`);
+      const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      g.setAttribute('transform', `translate(${x},${y})`);
 
-    const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    c.setAttribute('cx', '0');
-    c.setAttribute('cy', '0');
-    c.setAttribute('r', ringR.toFixed(2));
-    c.setAttribute('fill', fill);
-    c.setAttribute('stroke', stroke);
-    c.setAttribute('stroke-width', strokeW.toFixed(2));
-    g.appendChild(c);
+      const faceFill = (typeof spec.fill === 'string' && spec.fill.trim()) ? spec.fill : fill;
+      const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      c.setAttribute('cx', '0');
+      c.setAttribute('cy', '0');
+      c.setAttribute('r', ringR.toFixed(2));
+      c.setAttribute('fill', faceFill);
+      c.setAttribute('stroke', stroke);
+      c.setAttribute('stroke-width', strokeW.toFixed(2));
+      g.appendChild(c);
 
-    for(let i=0;i<12;i++){
-      const a = (i * 30) * Math.PI / 180;
-      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-      line.setAttribute('x1', (tickInner * Math.cos(a)).toFixed(2));
-      line.setAttribute('y1', (tickInner * Math.sin(a)).toFixed(2));
-      line.setAttribute('x2', (tickOuter * Math.cos(a)).toFixed(2));
-      line.setAttribute('y2', (tickOuter * Math.sin(a)).toFixed(2));
-      line.setAttribute('stroke', stroke);
-      line.setAttribute('stroke-width', Math.max(0.5, strokeW * 0.8).toFixed(2));
-      line.setAttribute('stroke-linecap', 'round');
-      g.appendChild(line);
-    }
+      for(let i=0;i<12;i++){
+        const a = (i * 30 - 90) * Math.PI / 180;
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', (tickInner * Math.cos(a)).toFixed(2));
+        line.setAttribute('y1', (tickInner * Math.sin(a)).toFixed(2));
+        line.setAttribute('x2', (tickOuter * Math.cos(a)).toFixed(2));
+        line.setAttribute('y2', (tickOuter * Math.sin(a)).toFixed(2));
+        const highlight = (Array.isArray(spec.tickHighlights) ? spec.tickHighlights : []).find((range) => {
+          const from = Number(range?.from);
+          const to = Number(range?.to);
+          return !Number.isNaN(from) && !Number.isNaN(to) && (i + 1) >= from && (i + 1) <= to;
+        });
+        line.setAttribute('stroke', highlight?.color || stroke);
+        line.setAttribute('stroke-width', Math.max(0.5, strokeW * 0.8).toFixed(2));
+        line.setAttribute('stroke-linecap', 'round');
+        g.appendChild(line);
+      }
 
-    const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    t.textContent = text;
-    t.setAttribute('x', '0');
-    t.setAttribute('y', '0.8');
-    t.setAttribute('transform', `rotate(${midDeg})`);
-    t.setAttribute('fill', textColor);
-    t.setAttribute('font-size', String(Math.max(4, size * 0.34 * textScale)));
-    t.setAttribute('font-weight', '700');
-    t.setAttribute('text-anchor', 'middle');
-    t.setAttribute('dominant-baseline', 'middle');
-    g.appendChild(t);
+      if (typeof spec.centerFill === 'string' && spec.centerFill.trim()){
+        const centerDot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        centerDot.setAttribute('cx', '0');
+        centerDot.setAttribute('cy', '0');
+        centerDot.setAttribute('r', String(Math.max(2, ringR * 0.24)));
+        centerDot.setAttribute('fill', spec.centerFill);
+        centerDot.setAttribute('stroke', 'none');
+        g.appendChild(centerDot);
+      }
 
-    stageClockG.appendChild(g);
+      const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      t.textContent = String(spec.text ?? '');
+      t.setAttribute('x', '0');
+      t.setAttribute('y', '0.8');
+      t.setAttribute('transform', `rotate(${midDeg})`);
+      t.setAttribute('fill', (typeof spec.textColor === 'string' && spec.textColor.trim()) ? spec.textColor : textColor);
+      t.setAttribute('font-size', String(Math.max(4, size * 0.34 * textScale)));
+      t.setAttribute('font-weight', '700');
+      t.setAttribute('text-anchor', 'middle');
+      t.setAttribute('dominant-baseline', 'middle');
+      g.appendChild(t);
+
+      stageClockG.appendChild(g);
+    });
   });
 }
 
@@ -4435,16 +4478,22 @@ function renderRoomCards(mission = currentStage){
     g.appendChild(cardG);
   }
 
-  function appendPlusMinusCards(room){
+  function appendPlusMinusCards(room, {
+    symbol = '+',
+    centerFill = null
+  } = {}){
     if (!specifiedRooms.has(room)) return;
     const fanIndices = [1, -1, 0];
     fanIndices.forEach((idx) => {
       const isCenter = idx === 0;
-      appendLabeledCardAt(room, isCenter ? '+' : '', {
+      const centerPaint = (isCenter && centerFill)
+        ? { fill: centerFill, stroke: '#000000' }
+        : null;
+      appendLabeledCardAt(room, isCenter ? symbol : '', {
         extraTan: idx * 7,
         extraRad: idx * -0.8,
         extraRot: idx * 15,
-        paint: {
+        paint: centerPaint || {
           fill: `rgba(160, 82, 45, ${isCenter ? 1 : 0.45})`,
           stroke: `rgba(0, 0, 0, ${isCenter ? 1 : 0.45})`
         },
@@ -4485,6 +4534,44 @@ function renderRoomCards(mission = currentStage){
     bg.setAttribute('fill', fill);
     bgG.appendChild(bg);
     g.appendChild(bgG);
+  }
+
+  function appendGoldNumberCircle(room, text = '6'){
+    if (!specifiedRooms.has(room)) return;
+    const midDeg = (room-1)*60 + 30;
+    const tr = [
+      'translate(150,150)',
+      `rotate(${midDeg})`,
+      `translate(${(roomTan[room]||0)}, 0)`,
+      `translate(0, ${-(rBase + (roomRad[room]||0))})`,
+      `rotate(${inwardBase + (roomAdjust[room]||0)})`,
+      `translate(${localX}, ${localY})`
+    ].join(' ');
+    const markerG = document.createElementNS('http://www.w3.org/2000/svg','g');
+    markerG.setAttribute('transform', tr);
+
+    const circle = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    circle.setAttribute('cx', '0');
+    circle.setAttribute('cy', '0');
+    circle.setAttribute('r', String(Math.max(10, cardW * 0.45)));
+    circle.setAttribute('fill', '#d4af37');
+    circle.setAttribute('stroke', '#7a5b10');
+    circle.setAttribute('stroke-width', '1.4');
+    markerG.appendChild(circle);
+
+    const num = document.createElementNS('http://www.w3.org/2000/svg','text');
+    num.textContent = String(text);
+    num.setAttribute('x', '0');
+    num.setAttribute('y', '0.5');
+    num.setAttribute('fill', '#111');
+    num.setAttribute('font-size', String(Math.max(10, cardW * 0.65)));
+    num.setAttribute('font-weight', '900');
+    num.setAttribute('text-anchor', 'middle');
+    num.setAttribute('dominant-baseline', 'middle');
+    num.setAttribute('transform', 'rotate(180)');
+    markerG.appendChild(num);
+
+    g.appendChild(markerG);
   }
 
   const specifiedRooms = new Set(getSpecifiedRoomsForMission(mission));
@@ -4607,6 +4694,21 @@ function renderRoomCards(mission = currentStage){
 
   if (mission === '3-1') {
     appendPlusMinusCards(4);
+  }
+  if (mission === '3-2') {
+    appendPlusMinusCards(3, { symbol: '-' });
+    appendPlusMinusCards(6, { symbol: '-' });
+  }
+  if (mission === '3-3') {
+    appendPlusMinusCards(1, { symbol: '-' });
+    appendPlusMinusCards(5, { symbol: '+' });
+  }
+  if (mission === '3-4') {
+    appendPlusMinusCards(1, { symbol: '+', centerFill: '#111111' });
+    appendCardAt(3, -6, 0, -8, { fill: fillRoom6, stroke: strokeRoom6 }, true);
+    appendCardAt(3,  6, 0,  8, { fill: fillRoom6, stroke: strokeRoom6 }, true);
+    appendGoldNumberCircle(4, '6');
+    appendPlusMinusCards(5, { symbol: '-', centerFill: '#ffffff' });
   }
 }
 
