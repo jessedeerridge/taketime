@@ -1166,7 +1166,8 @@ const STAGE_KEY = 'stageCode';
 const USER_NAME_KEY = 'takeTimeUserName';
 const STAGE_ROOM_SUCCESS_CONDITIONS = {
   '1-2': [{ room: 3, min: 8, max: 12, label: '8-12エリア' }],
-  '1-3': [{ room: 6, min: 20, max: 30, label: '20-30エリア' }]
+  '1-3': [{ room: 6, min: 20, max: 30, label: '20-30エリア' }],
+  '3-1': [{ room: 6, min: 20, max: 20, label: '20固定エリア' }]
 };
 const REVEAL_ROOM_INTERVAL_MS = 1200;
 const ROOM_TOTAL_DISPLAY_DELAY_MS = 1200;
@@ -3539,6 +3540,7 @@ const STAGE_SPEC = {
   '2-1': { specifiedRooms: [1,2,3] },
   '2-2': { specifiedRooms: [3,4] },
   '2-3': { specifiedRooms: [1,3,4,6] },
+  '3-1': { specifiedRooms: [4,6] },
 };
 function getSpecifiedRoomsForMission(mission){
   const rec = STAGE_SPEC[mission];
@@ -4390,6 +4392,64 @@ function renderRoomCards(mission = currentStage){
     g.appendChild(cardG);
   }
 
+  function appendPlusMinusCards(room){
+    if (!specifiedRooms.has(room)) return;
+    const fanIndices = [1, 0, -1];
+    fanIndices.forEach((idx) => {
+      const isCenter = idx === 0;
+      appendLabeledCardAt(room, isCenter ? '+' : '', {
+        extraTan: idx * 7,
+        extraRad: idx * -0.8,
+        extraRot: idx * 15,
+        paint: {
+          fill: `rgba(160, 82, 45, ${isCenter ? 1 : 0.45})`,
+          stroke: `rgba(0, 0, 0, ${isCenter ? 1 : 0.45})`
+        },
+        flipDirection: true,
+        textColor: '#d4af37',
+        textWeight: '900',
+        textRotateDeg: 180
+      });
+    });
+  }
+
+  function appendFixedTwentyToken(room){
+    if (!specifiedRooms.has(room)) return;
+    const midDeg = (room-1)*60 + 30;
+    const tr = [
+      'translate(150,150)',
+      `rotate(${midDeg})`,
+      `translate(${(roomTan[room]||0)}, 0)`,
+      `translate(0, ${-(rBase + (roomRad[room]||0))})`,
+      `rotate(${inwardBase + (roomAdjust[room]||0)})`,
+      `translate(${localX}, ${localY})`
+    ].join(' ');
+    const tokenG = document.createElementNS('http://www.w3.org/2000/svg','g');
+    tokenG.setAttribute('transform', tr);
+
+    const circle = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    circle.setAttribute('cx', '0');
+    circle.setAttribute('cy', '0');
+    circle.setAttribute('r', String(Math.max(7.5, cardW * 0.38)));
+    circle.setAttribute('fill', '#d4af37');
+    circle.setAttribute('stroke', '#8b6914');
+    circle.setAttribute('stroke-width', String(Math.max(0.8, sw)));
+    tokenG.appendChild(circle);
+
+    const text = document.createElementNS('http://www.w3.org/2000/svg','text');
+    text.textContent = '20';
+    text.setAttribute('x', '0');
+    text.setAttribute('y', '0');
+    text.setAttribute('fill', '#111');
+    text.setAttribute('font-size', String(Math.max(7.8, cardW * 0.48)));
+    text.setAttribute('font-weight', '800');
+    text.setAttribute('text-anchor', 'middle');
+    text.setAttribute('dominant-baseline', 'middle');
+    tokenG.appendChild(text);
+
+    g.appendChild(tokenG);
+  }
+
   function appendRoomBackground(room, {
     fill = '#ab5d1a',
     width = cardW * 2 + 16,
@@ -4536,6 +4596,11 @@ function renderRoomCards(mission = currentStage){
     appendDisallowedCards(3, ['4', '5', '6']);
     appendDisallowedCards(4, ['7', '8', '9']);
     appendDisallowedCards(6, ['10', '11', '12']);
+  }
+
+  if (mission === '3-1') {
+    appendPlusMinusCards(4);
+    appendFixedTwentyToken(6);
   }
 }
 
@@ -4928,6 +4993,9 @@ function getStageRoomHintText(stage, room){
 
   if ((stage === '1-2' && room === 4) || (stage === '1-1' && room === 6)){
     return 'カードを必ず3枚だけ置かなければならない。';
+  }
+  if (stage === '3-1' && room === 4){
+    return 'プラマイカード（中央＋・左右半透明）が置かれるエリア。';
   }
   if (sumCondition){
     return `このエリアの合計値が必ず${sumCondition.min}~${sumCondition.max}の数値にならなければならない。`;
