@@ -634,6 +634,13 @@
   }
   #stageBoard .sharp{ stroke-linecap:butt; stroke-linejoin:miter; }
   #stageBoard #sectorHits .sector { fill: rgba(255,255,0,0); cursor: pointer; pointer-events: fill; }
+  #stageBoard #roomTopRects .room-top-handle{
+    cursor:grab;
+    pointer-events:all;
+  }
+  #stageBoard #roomTopRects .room-top-handle.dragging{
+    cursor:grabbing;
+  }
   #missionText{display:none;}
 </style>
 </head>
@@ -953,7 +960,7 @@
 
         <g id="sectorHits" transform="translate(150,150)"></g>
         <g id="roomGuideCircles" transform="translate(150,150)" style="pointer-events:none"></g>
-        <g id="roomTopRects" transform="translate(150,150)" style="pointer-events:none"></g>
+        <g id="roomTopRects" transform="translate(150,150)"></g>
         <g id="roomTexts" transform="translate(150,150)" style="pointer-events:none"></g>
         <g id="roomConditionHints" transform="translate(150,150)" style="pointer-events:none"></g>
         <g id="roomCards" style="pointer-events:none"></g>
@@ -2791,6 +2798,82 @@ window.addEventListener('resize', () => {
 
 /* ===== ステージSVGロジック：元コードをそのまま移植 ===== */
 const stageSvg = document.getElementById('stageBoard');
+const BOARD_ROTATION_SNAP_DEG = 60;
+let boardRotationDeg = 0;
+let roomRectRotateDrag = null;
+
+function normalizeDeg(deg){
+  return ((deg % 360) + 360) % 360;
+}
+function shortestDegDelta(fromDeg, toDeg){
+  return ((toDeg - fromDeg + 540) % 360) - 180;
+}
+function getBoardClientCenter(){
+  const rect = stageSvg.getBoundingClientRect();
+  return {
+    x: rect.left + rect.width / 2,
+    y: rect.top + rect.height / 2
+  };
+}
+function getClientAngleDeg(clientX, clientY, center = getBoardClientCenter()){
+  return Math.atan2(clientY - center.y, clientX - center.x) * 180 / Math.PI;
+}
+function applyBoardRotation(deg = boardRotationDeg){
+  boardRotationDeg = normalizeDeg(deg);
+  stageSvg.style.transformOrigin = 'center center';
+  stageSvg.style.transform = `rotate(${boardRotationDeg.toFixed(3)}deg)`;
+}
+function snapBoardRotation(){
+  const snappedDeg = Math.round(boardRotationDeg / BOARD_ROTATION_SNAP_DEG) * BOARD_ROTATION_SNAP_DEG;
+  stageSvg.style.transition = 'transform 180ms ease-out';
+  applyBoardRotation(snappedDeg);
+  window.setTimeout(() => {
+    stageSvg.style.transition = '';
+  }, 220);
+}
+
+function setupRoomTopRectDragRotate(){
+  const group = stageSvg.querySelector('#roomTopRects');
+  if (!group) return;
+
+  group.addEventListener('pointerdown', (ev) => {
+    const targetRect = ev.target.closest('.room-top-handle');
+    if (!targetRect) return;
+
+    ev.preventDefault();
+    stageSvg.style.transition = '';
+    group.querySelectorAll('.room-top-handle').forEach((el) => el.classList.add('dragging'));
+
+    const center = getBoardClientCenter();
+    roomRectRotateDrag = {
+      pointerId: ev.pointerId,
+      center,
+      startPointerAngle: getClientAngleDeg(ev.clientX, ev.clientY, center),
+      startRotation: boardRotationDeg
+    };
+
+    targetRect.setPointerCapture(ev.pointerId);
+  });
+
+  group.addEventListener('pointermove', (ev) => {
+    if (!roomRectRotateDrag || ev.pointerId !== roomRectRotateDrag.pointerId) return;
+    const nowAngle = getClientAngleDeg(ev.clientX, ev.clientY, roomRectRotateDrag.center);
+    const delta = shortestDegDelta(roomRectRotateDrag.startPointerAngle, nowAngle);
+    applyBoardRotation(roomRectRotateDrag.startRotation + delta);
+  });
+
+  const endDrag = (ev) => {
+    if (!roomRectRotateDrag || ev.pointerId !== roomRectRotateDrag.pointerId) return;
+    roomRectRotateDrag = null;
+    group.querySelectorAll('.room-top-handle').forEach((el) => el.classList.remove('dragging'));
+    snapBoardRotation();
+  };
+
+  group.addEventListener('pointerup', endDrag);
+  group.addEventListener('pointercancel', endDrag);
+}
+setupRoomTopRectDragRotate();
+applyBoardRotation(boardRotationDeg);
 
 stageNameGear.addEventListener('click', async () => {
   if (!currentStage) return;
@@ -4188,6 +4271,7 @@ function renderRoomTopRects(mission = currentStage){
     rect.setAttribute('ry', rectRx.toFixed(2));
     rect.setAttribute('fill', fill);
     rect.setAttribute('fill-opacity', String(opacity));
+    rect.setAttribute('class', 'room-top-handle');
     rect.setAttribute('transform', `translate(${p.x.toFixed(2)}, ${p.y.toFixed(2)}) rotate(${midDeg})`);
     g.appendChild(rect);
   }
