@@ -628,6 +628,12 @@
   }
   #stageBoard .sharp{ stroke-linecap:butt; stroke-linejoin:miter; }
   #stageBoard #sectorHits .sector { fill: rgba(255,255,0,0); cursor: pointer; pointer-events: fill; }
+  #stageBoard{
+    overflow:visible;
+  }
+  #stageBoard #rotationHandles{
+    touch-action:none;
+  }
   #stageBoard.rotating{
     cursor:grabbing;
   }
@@ -3094,6 +3100,7 @@ function syncRoomHintTableOrientation(){
 (function setupRotationHandles(){
   const g = stageSvg.querySelector('#rotationHandles');
   if (!g) return;
+  g.style.touchAction = 'none';
 
   const handleScale = 5;
   const handleRadius = 8 * handleScale;
@@ -3121,9 +3128,12 @@ function syncRoomHintTableOrientation(){
 
   const onPointerMove = (ev) => {
     if (!boardRotationDrag || ev.pointerId !== boardRotationDrag.pointerId) return;
+    ev.preventDefault();
     const nextAngle = pointerAngleDegFromBoardCenter(ev.clientX, ev.clientY);
-    const delta = shortestDegDelta(boardRotationDrag.startPointerDeg, nextAngle);
-    applyBoardRotation(boardRotationDrag.startRotationDeg + delta);
+    const delta = shortestDegDelta(boardRotationDrag.lastPointerDeg, nextAngle);
+    boardRotationDrag.currentRotationDeg = normalizeDeg(boardRotationDrag.currentRotationDeg + delta);
+    boardRotationDrag.lastPointerDeg = nextAngle;
+    applyBoardRotation(boardRotationDrag.currentRotationDeg);
   };
   const onPointerUp = (ev) => {
     if (!boardRotationDrag || ev.pointerId !== boardRotationDrag.pointerId) return;
@@ -3137,6 +3147,8 @@ function syncRoomHintTableOrientation(){
   };
 
   g.addEventListener('pointerdown', (ev) => {
+    if (boardRotationDrag) return;
+    if (ev.pointerType === 'touch' && ev.isPrimary === false) return;
     const handle = ev.target.closest('.rotation-handle, .rotation-handle-hit');
     if (!handle) return;
     ev.preventDefault();
@@ -3146,8 +3158,8 @@ function syncRoomHintTableOrientation(){
     boardRotationDrag = {
       pointerId: ev.pointerId,
       handle,
-      startRotationDeg: boardRotationDeg,
-      startPointerDeg: pointerAngleDegFromBoardCenter(ev.clientX, ev.clientY)
+      currentRotationDeg: boardRotationDeg,
+      lastPointerDeg: pointerAngleDegFromBoardCenter(ev.clientX, ev.clientY)
     };
     stageSvg.style.transition = 'none';
     window.addEventListener('pointermove', onPointerMove);
@@ -4445,12 +4457,8 @@ function renderRoomConditionHints(mission = currentStage){
       lineH,
       fontSize
     } = style;
-    const xMin = -150 + boxW / 2 + 2;
-    const xMax = 150 - boxW / 2 - 2;
-    const yMin = -150 + boxH / 2 + 2;
-    const yMax = 150 - boxH / 2 - 2;
-    const clampedX = Math.max(xMin, Math.min(xMax, boxX));
-    const clampedY = Math.max(yMin, Math.min(yMax, boxY));
+    const clampedX = boxX;
+    const clampedY = boxY;
 
     const lines = [];
     for (let idx = 0; idx < hintText.length; idx += maxCharsPerLine){
