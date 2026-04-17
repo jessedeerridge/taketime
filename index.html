@@ -4510,27 +4510,38 @@ function renderRoomCards(mission = currentStage){
 
     const tokenG = document.createElementNS('http://www.w3.org/2000/svg','g');
     tokenG.setAttribute('transform', tr);
-    const rClock = Math.max(7.5, Math.min(cardW, cardH) * 0.46 * Math.max(0.4, sizeScale));
-    const strokeColor = '#5c3a21';
+    const csClock = getComputedStyle(stageSvg);
+    const markScale = parseFloat(csClock.getPropertyValue('--clockMarkScale')) || 1;
+    const roomFs = parseFloat(csClock.getPropertyValue('--roomTextSize')) || 12;
+    const roomBgRVar = parseFloat(csClock.getPropertyValue('--roomTextBgR'));
+    const roomBgR = Number.isNaN(roomBgRVar) ? (roomFs * 0.95) : roomBgRVar;
+    const rClock = Math.max(7.5, roomBgR * markScale * Math.max(0.4, sizeScale));
+    const size = rClock * 2;
+    const tickOuter = rClock * 0.98;
+    const tickInner = rClock * 0.84;
+    const fill = csClock.getPropertyValue('--clockMarkFill').trim() || '#ffd8a8';
+    const strokeColor = csClock.getPropertyValue('--clockMarkStroke').trim() || '#5c3a21';
+    const strokeW = Math.max(0.6, (parseFloat(csClock.getPropertyValue('--clockMarkStrokeW')) || 2.8) * markScale * Math.max(0.4, sizeScale));
+    const textColor = csClock.getPropertyValue('--clockMarkTextColor').trim() || '#2b2b2b';
 
     const circle = document.createElementNS('http://www.w3.org/2000/svg','circle');
     circle.setAttribute('cx', '0');
     circle.setAttribute('cy', '0');
     circle.setAttribute('r', rClock.toFixed(2));
-    circle.setAttribute('fill', '#ffd8a8');
+    circle.setAttribute('fill', fill);
     circle.setAttribute('stroke', strokeColor);
-    circle.setAttribute('stroke-width', String(Math.max(1, sw)));
+    circle.setAttribute('stroke-width', strokeW.toFixed(2));
     tokenG.appendChild(circle);
 
     if (fill11to12){
       const wedge = document.createElementNS('http://www.w3.org/2000/svg','path');
       const a0 = -90 * Math.PI / 180;
       const a1 = -60 * Math.PI / 180;
-      const x0 = rClock * 0.92 * Math.cos(a0);
-      const y0 = rClock * 0.92 * Math.sin(a0);
-      const x1 = rClock * 0.92 * Math.cos(a1);
-      const y1 = rClock * 0.92 * Math.sin(a1);
-      wedge.setAttribute('d', `M0,0 L${x0.toFixed(2)},${y0.toFixed(2)} A${(rClock*0.92).toFixed(2)},${(rClock*0.92).toFixed(2)} 0 0 1 ${x1.toFixed(2)},${y1.toFixed(2)} Z`);
+      const x0 = tickOuter * Math.cos(a0);
+      const y0 = tickOuter * Math.sin(a0);
+      const x1 = tickOuter * Math.cos(a1);
+      const y1 = tickOuter * Math.sin(a1);
+      wedge.setAttribute('d', `M0,0 L${x0.toFixed(2)},${y0.toFixed(2)} A${tickOuter.toFixed(2)},${tickOuter.toFixed(2)} 0 0 1 ${x1.toFixed(2)},${y1.toFixed(2)} Z`);
       wedge.setAttribute('fill', '#d9b38c');
       wedge.setAttribute('opacity', '0.9');
       tokenG.appendChild(wedge);
@@ -4538,17 +4549,17 @@ function renderRoomCards(mission = currentStage){
 
     for (let i = 0; i < 12; i++){
       const a = (i * 30 - 90) * Math.PI / 180;
-      const x1 = (rClock * 0.72 * Math.cos(a)).toFixed(2);
-      const y1 = (rClock * 0.72 * Math.sin(a)).toFixed(2);
-      const x2 = (rClock * 0.9 * Math.cos(a)).toFixed(2);
-      const y2 = (rClock * 0.9 * Math.sin(a)).toFixed(2);
+      const x1 = (tickInner * Math.cos(a)).toFixed(2);
+      const y1 = (tickInner * Math.sin(a)).toFixed(2);
+      const x2 = (tickOuter * Math.cos(a)).toFixed(2);
+      const y2 = (tickOuter * Math.sin(a)).toFixed(2);
       const line = document.createElementNS('http://www.w3.org/2000/svg','line');
       line.setAttribute('x1', x1);
       line.setAttribute('y1', y1);
       line.setAttribute('x2', x2);
       line.setAttribute('y2', y2);
       line.setAttribute('stroke', strokeColor);
-      line.setAttribute('stroke-width', '0.9');
+      line.setAttribute('stroke-width', Math.max(0.5, strokeW * 0.8).toFixed(2));
       line.setAttribute('stroke-linecap', 'round');
       tokenG.appendChild(line);
     }
@@ -4567,8 +4578,8 @@ function renderRoomCards(mission = currentStage){
       t.textContent = String(text);
       t.setAttribute('x', '0');
       t.setAttribute('y', String(rClock * 0.03));
-      t.setAttribute('fill', '#2b2b2b');
-      t.setAttribute('font-size', String(Math.max(8, rClock * 0.85)));
+      t.setAttribute('fill', textColor);
+      t.setAttribute('font-size', String(Math.max(4, size * 0.34)));
       t.setAttribute('font-weight', '800');
       t.setAttribute('text-anchor', 'middle');
       t.setAttribute('dominant-baseline', 'middle');
@@ -5208,19 +5219,19 @@ function getStageRoomHintText(stage, room){
     return 'このエリアに最も大きい数値のカードが置かれていなければならない。';
   }
   if (stage === '3-2' && room === 3){
-    return '茶色のプラマイカード（－）を示すエリア。';
+    return 'このエリアに最も小さい数値のカードが置かれていなければならない。';
   }
   if (stage === '3-2' && room === 6){
-    return '茶色のプラマイカード（－）を示すエリア。';
+    return 'このエリアに最も小さい数値のカードが置かれていなければならない。';
   }
   if (stage === '3-3' && room === 1){
-    return 'プラマイカードの－を示すエリア。';
+    return 'このエリアに最も小さい数値のカードが置かれていなければならない。';
   }
   if (stage === '3-3' && room === 5){
-    return 'プラマイカードの＋を示すエリア。';
+    return 'このエリアに最も大きい数値のカードが置かれていなければならない。';
   }
   if (stage === '3-4' && room === 1){
-    return 'プラマイカードの＋（中央カードのみ黒塗り）を示すエリア。';
+    return 'このエリアに最も大きい数値のカードが置かれていなければならない（中央カードのみ黒塗り表示）。';
   }
   if (stage === '3-4' && room === 3){
     return '茶カード2枚を示すエリア。';
@@ -5229,7 +5240,7 @@ function getStageRoomHintText(stage, room){
     return '金塗り丸の「6」を示すエリア。';
   }
   if (stage === '3-4' && room === 5){
-    return 'プラマイカードの－（中央カードのみ白塗り）を示すエリア。';
+    return 'このエリアに最も小さい数値のカードが置かれていなければならない（中央カードのみ白塗り表示）。';
   }
   if (sumCondition){
     return `このエリアの合計値が必ず${sumCondition.min}~${sumCondition.max}の数値にならなければならない。`;
