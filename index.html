@@ -1191,7 +1191,10 @@ const placingCardIds = new Set();
 let hasPlayedCardsSnapshot = false;
 let currentSubgearCount = 0;
 let boardRotationDeg = 0;
+let boardRotationVisualDeg = 0;
 let boardRotationDrag = null;
+let hasBoardRotationSnapshot = false;
+let lastBoardRotationTs = 0;
 
 function getBlackBackGradient(){
   return 'repeating-linear-gradient(135deg,var(--black-card) 0px,var(--black-card) 4px,var(--black-card-stripe) 4px,var(--black-card-stripe) 8px)';
@@ -2527,6 +2530,8 @@ btnJoin.addEventListener('click', async () => {
     onDisconnect(ref(db, `rooms/${state.roomCode}/users/${state.userId}`)).remove();
 
     state.joined = true;
+    hasBoardRotationSnapshot = false;
+    lastBoardRotationTs = 0;
 
     enterLobbyUI();
     updateHostUI();
@@ -2538,6 +2543,7 @@ btnJoin.addEventListener('click', async () => {
     subscribeStage();
     subscribePhaseEvents();
     subscribeSubgearCount();
+    subscribeBoardRotation();
 
     syncSeatUI();
   } catch (err) {
@@ -3041,20 +3047,69 @@ function pointerAngleDegFromBoardCenter(clientX, clientY){
   return normalizeDeg(Math.atan2(dy, dx) * 180 / Math.PI + 90);
 }
 
-function applyBoardRotation(deg, { animate = false } = {}){
-  boardRotationDeg = normalizeDeg(deg);
+function toShortestVisualRotation(currentVisualDeg, nextNormalizedDeg){
+  const currentNormalizedDeg = normalizeDeg(currentVisualDeg);
+  const delta = shortestDegDelta(currentNormalizedDeg, nextNormalizedDeg);
+  return currentVisualDeg + delta;
+}
+
+function applyBoardRotation(deg, { animate = false, useShortestPath = false } = {}){
+  const normalized = normalizeDeg(deg);
+  boardRotationVisualDeg = useShortestPath
+    ? toShortestVisualRotation(boardRotationVisualDeg, normalized)
+    : deg;
+  boardRotationDeg = normalizeDeg(boardRotationVisualDeg);
   stageSvg.style.transition = animate ? 'transform 220ms ease-out' : 'none';
   stageSvg.style.transformOrigin = '50% 50%';
-  stageSvg.style.transform = `rotate(${boardRotationDeg}deg)`;
+  stageSvg.style.transform = `rotate(${boardRotationVisualDeg}deg)`;
   syncRoomHintTableOrientation();
 }
 
 function snapBoardRotationToNearestRoom(){
-  const snapped = Math.round(boardRotationDeg / 60) * 60;
-  applyBoardRotation(snapped, { animate: true });
+  const snapped = normalizeDeg(Math.round(boardRotationDeg / 60) * 60);
+  applyBoardRotation(snapped, { animate: true, useShortestPath: true });
   window.setTimeout(() => {
     if (!boardRotationDrag) stageSvg.style.transition = 'none';
   }, 260);
+  return snapped;
+}
+
+function publishBoardRotation(deg){
+  if (!state.roomCode || !state.userId) return;
+  const payload = {
+    deg: normalizeDeg(deg),
+    ts: Date.now(),
+    actorId: state.userId
+  };
+  set(ref(db, `rooms/${state.roomCode}/boardRotation`), payload)
+    .catch((err) => console.error('盤面回転の同期に失敗しました', err));
+}
+
+function subscribeBoardRotation(){
+  const boardRotationRef = ref(db, `rooms/${state.roomCode}/boardRotation`);
+  onValue(boardRotationRef, (snap) => {
+    const data = snap.val();
+    if (!data || typeof data.deg !== 'number') return;
+
+    const ts = Number(data.ts || 0);
+    const actorId = String(data.actorId || '');
+    const normalizedDeg = normalizeDeg(data.deg);
+
+    if (!hasBoardRotationSnapshot){
+      hasBoardRotationSnapshot = true;
+      lastBoardRotationTs = ts;
+      applyBoardRotation(normalizedDeg, { animate: false, useShortestPath: true });
+      return;
+    }
+    if (ts && ts <= lastBoardRotationTs) return;
+    lastBoardRotationTs = Math.max(lastBoardRotationTs, ts);
+    if (actorId && actorId === state.userId) return;
+    if (boardRotationDrag) return;
+    applyBoardRotation(normalizedDeg, { animate: true, useShortestPath: true });
+    window.setTimeout(() => {
+      if (!boardRotationDrag) stageSvg.style.transition = 'none';
+    }, 260);
+  });
 }
 
 function syncRoomHintTableOrientation(){
@@ -3133,7 +3188,10 @@ function syncRoomHintTableOrientation(){
       boardRotationDrag.captureEl.releasePointerCapture(pointerId);
     }
     boardRotationDrag = null;
-    if (shouldSnap) snapBoardRotationToNearestRoom();
+    if (shouldSnap){
+      const snapped = snapBoardRotationToNearestRoom();
+      publishBoardRotation(snapped);
+    }
   };
 
   const handleScale = 5;
