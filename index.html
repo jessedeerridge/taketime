@@ -649,7 +649,8 @@
     pointer-events: none;
   }
   #stageBoard #roomRotateHandles .rotate-hit{
-    fill: transparent;
+    fill: #000;
+    fill-opacity: 0.001;
     pointer-events: all;
     cursor: grab;
   }
@@ -3184,6 +3185,17 @@ function clickAngleDeg(svgPoint, center){
   const handlesG = stageSvg.querySelector('#roomRotateHandles');
   if (!handlesG) return;
 
+  function findRotateHandleTarget(startNode){
+    let node = startNode;
+    while (node && node !== handlesG){
+      if (node.classList && (node.classList.contains('rotate-handle') || node.classList.contains('rotate-hit'))){
+        return node;
+      }
+      node = node.parentNode;
+    }
+    return null;
+  }
+
   const finishRotationDrag = (ev) => {
     if (!rotationDragState) return;
     if (ev && ev.pointerId != null && ev.pointerId !== rotationDragState.pointerId) return;
@@ -3220,7 +3232,7 @@ function clickAngleDeg(svgPoint, center){
   };
 
   handlesG.addEventListener('pointerdown', (ev) => {
-    const target = ev.target?.closest?.('.rotate-handle, .rotate-hit');
+    const target = findRotateHandleTarget(ev.target);
     if (!target) return;
     if (!isDiscussionPhaseActive()) return;
     if (rotationDragState) return;
@@ -4392,13 +4404,13 @@ function renderRoomRotateHandles(mission = currentStage){
   const handleR = Math.max(innerR + 10, centerR - guideR * 0.24);
   const canRotate = isDiscussionPhaseActive();
   const isDragging = !!rotationDragState;
-  g.style.pointerEvents = canRotate ? 'all' : 'none';
+  g.style.pointerEvents = 'all';
 
   for (let room = 1; room <= 6; room++){
     const midDeg = (room - 1) * 60 + 30;
     const p = polar(handleR, midDeg);
     const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    group.setAttribute('transform', `translate(${p.x.toFixed(2)},${p.y.toFixed(2)}) rotate(${midDeg + 90})`);
+    group.setAttribute('transform', `translate(${p.x.toFixed(2)},${p.y.toFixed(2)})`);
 
     const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     rect.setAttribute('class', `rotate-handle${canRotate ? '' : ' disabled'}${isDragging ? ' active' : ''}`);
@@ -4409,7 +4421,7 @@ function renderRoomRotateHandles(mission = currentStage){
     rect.setAttribute('rx', String((handleH * 0.36).toFixed(2)));
     rect.setAttribute('ry', String((handleH * 0.36).toFixed(2)));
     rect.dataset.room = String(room);
-    rect.setAttribute('pointer-events', canRotate ? 'all' : 'none');
+    rect.setAttribute('pointer-events', 'all');
     group.appendChild(rect);
 
     const hitRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -4418,7 +4430,7 @@ function renderRoomRotateHandles(mission = currentStage){
     hitRect.setAttribute('width', String(handleW.toFixed(2)));
     hitRect.setAttribute('height', String(handleH.toFixed(2)));
     hitRect.setAttribute('class', `rotate-hit${isDragging ? ' active' : ''}`);
-    hitRect.setAttribute('pointer-events', canRotate ? 'all' : 'none');
+    hitRect.setAttribute('pointer-events', 'all');
     hitRect.dataset.room = String(room);
     group.appendChild(hitRect);
 
