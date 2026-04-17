@@ -4310,7 +4310,8 @@ function renderRoomCards(mission = currentStage){
     paint = null,
     flipDirection = false,
     textColor = '#111',
-    textWeight = '800'
+    textWeight = '800',
+    textRotateDeg = 0
   } = {}){
     const midDeg = (room-1)*60 + 30;
     const rotBase = inwardBase + (roomAdjust[room]||0);
@@ -4355,6 +4356,7 @@ function renderRoomCards(mission = currentStage){
     text.setAttribute('font-weight', textWeight);
     text.setAttribute('text-anchor', 'middle');
     text.setAttribute('dominant-baseline', 'middle');
+    if (textRotateDeg) text.setAttribute('transform', `rotate(${textRotateDeg})`);
     cardG.appendChild(text);
 
     g.appendChild(cardG);
@@ -4440,7 +4442,8 @@ function renderRoomCards(mission = currentStage){
         sizeScale: 0.7,
         paint,
         flipDirection: true,
-        textColor: '#d4af37'
+        textColor: '#d4af37',
+        textRotateDeg: 180
       });
     });
 
@@ -4449,7 +4452,7 @@ function renderRoomCards(mission = currentStage){
       'translate(150,150)',
       `rotate(${midDeg})`,
       `translate(${(roomTan[1]||0)}, 0)`,
-      `translate(0, ${-(rBase + (roomRad[1]||0) - cardH * 0.55)})`,
+      `translate(0, ${-(rBase + (roomRad[1]||0) - cardH * 0.30)})`,
       `rotate(${inwardBase + (roomAdjust[1]||0)})`,
       `translate(${localX}, ${localY})`
     ].join(' ');
@@ -4459,29 +4462,31 @@ function renderRoomCards(mission = currentStage){
     const markerCircle = document.createElementNS('http://www.w3.org/2000/svg','circle');
     markerCircle.setAttribute('cx', '0');
     markerCircle.setAttribute('cy', '0');
-    markerCircle.setAttribute('r', String(Math.max(4, cardW * 0.22)));
+    const markerRadius = Math.max(5.2, cardW * 0.28);
+    markerCircle.setAttribute('r', String(markerRadius));
     markerCircle.setAttribute('fill', '#4a2c1f');
     markerCircle.setAttribute('stroke', '#d4af37');
     markerCircle.setAttribute('stroke-width', '1.6');
     markerG.appendChild(markerCircle);
 
     const cross1 = document.createElementNS('http://www.w3.org/2000/svg','line');
-    cross1.setAttribute('x1', '-4.8');
-    cross1.setAttribute('y1', '-4.8');
-    cross1.setAttribute('x2', '4.8');
-    cross1.setAttribute('y2', '4.8');
+    const crossHalf = markerRadius * 0.52;
+    cross1.setAttribute('x1', String(-crossHalf));
+    cross1.setAttribute('y1', String(-crossHalf));
+    cross1.setAttribute('x2', String(crossHalf));
+    cross1.setAttribute('y2', String(crossHalf));
     cross1.setAttribute('stroke', '#dc2626');
-    cross1.setAttribute('stroke-width', '1.8');
+    cross1.setAttribute('stroke-width', '1.5');
     cross1.setAttribute('stroke-linecap', 'round');
     markerG.appendChild(cross1);
 
     const cross2 = document.createElementNS('http://www.w3.org/2000/svg','line');
-    cross2.setAttribute('x1', '4.8');
-    cross2.setAttribute('y1', '-4.8');
-    cross2.setAttribute('x2', '-4.8');
-    cross2.setAttribute('y2', '4.8');
+    cross2.setAttribute('x1', String(crossHalf));
+    cross2.setAttribute('y1', String(-crossHalf));
+    cross2.setAttribute('x2', String(-crossHalf));
+    cross2.setAttribute('y2', String(crossHalf));
     cross2.setAttribute('stroke', '#dc2626');
-    cross2.setAttribute('stroke-width', '1.8');
+    cross2.setAttribute('stroke-width', '1.5');
     cross2.setAttribute('stroke-linecap', 'round');
     markerG.appendChild(cross2);
 
