@@ -561,6 +561,7 @@
     --tipDiaRingW: 1.8;
     --tipDiaRingStroke: #f8cb8d;
     --tipDiaRingFill: none;
+    --tipDiaHitR: 18;
     --centerTopRotate: 4;
 
     --cardW: 20;
@@ -4163,9 +4164,20 @@ function renderCenterTopDiamond(){
   const ringW = Math.max(0.6, Math.abs(parseFloat(cs12.getPropertyValue('--tipDiaRingW')) || 1.8));
   const ringStroke = cs12.getPropertyValue('--tipDiaRingStroke').trim() || '#f8cb8d';
   const ringFill = cs12.getPropertyValue('--tipDiaRingFill').trim() || 'none';
+  const hitR = Math.max(ringR, Math.abs(parseFloat(cs12.getPropertyValue('--tipDiaHitR')) || (ringR + 6)));
 
   const cx = 0;
   const cy = -r1 - offset;
+
+  const hit = document.createElementNS('http://www.w3.org/2000/svg','circle');
+  hit.setAttribute('class', 'center-needle-handle');
+  hit.setAttribute('cx', String(cx));
+  hit.setAttribute('cy', String(cy));
+  hit.setAttribute('r', String(hitR));
+  hit.setAttribute('fill', 'rgba(0,0,0,0)');
+  hit.setAttribute('stroke', 'none');
+  hit.style.cursor = 'grab';
+  g.appendChild(hit);
 
   const ring = document.createElementNS('http://www.w3.org/2000/svg','circle');
   ring.setAttribute('class', 'center-needle-handle');
@@ -4895,9 +4907,7 @@ function renderRoomConditionHints(mission = currentStage){
   else if (!innerLightFill && back.previousSibling !== outG)     stageSvg.insertBefore(outG, back);
   if (back.nextSibling !== marks)        stageSvg.insertBefore(marks, back.nextSibling);
   if (marks.nextSibling !== r2)          stageSvg.insertBefore(r2,    marks.nextSibling);
-  if (r2.nextSibling !== tipG)           stageSvg.insertBefore(tipG,  r2.nextSibling);
-  if (tipG.nextSibling !== centerLineG)  stageSvg.insertBefore(centerLineG, tipG.nextSibling);
-  if (centerLineG.nextSibling !== orangeFill)   stageSvg.insertBefore(orangeFill,   centerLineG.nextSibling);
+  if (r2.nextSibling !== orangeFill)   stageSvg.insertBefore(orangeFill,   r2.nextSibling);
   if (orangeFill.nextSibling !== tiny20)        stageSvg.insertBefore(tiny20,       orangeFill.nextSibling);
   if (tiny20.nextSibling !== orangeStroke)      stageSvg.insertBefore(orangeStroke, tiny20.nextSibling);
   if (orangeStroke.nextSibling !== infinityG)   stageSvg.insertBefore(infinityG,    orangeStroke.nextSibling);
@@ -4905,7 +4915,9 @@ function renderRoomConditionHints(mission = currentStage){
   if (spec.nextSibling !== clockMarks)          stageSvg.insertBefore(clockMarks,   spec.nextSibling);
   if (clockMarks.nextSibling !== roomGuideCircles) stageSvg.insertBefore(roomGuideCircles, clockMarks.nextSibling);
   if (roomGuideCircles.nextSibling !== roomTexts) stageSvg.insertBefore(roomTexts, roomGuideCircles.nextSibling);
-  if (roomTexts.nextSibling !== cardsG) stageSvg.insertBefore(cardsG, roomTexts.nextSibling);
+  if (roomTexts.nextSibling !== tipG) stageSvg.insertBefore(tipG, roomTexts.nextSibling);
+  if (tipG.nextSibling !== centerLineG) stageSvg.insertBefore(centerLineG, tipG.nextSibling);
+  if (centerLineG.nextSibling !== cardsG) stageSvg.insertBefore(cardsG, centerLineG.nextSibling);
   if (cardsG.nextSibling !== playedCardsG) stageSvg.insertBefore(playedCardsG, cardsG.nextSibling);
   if (playedCardsG.nextSibling !== roomConditionHints) stageSvg.insertBefore(roomConditionHints, playedCardsG.nextSibling);
   if (roomConditionHints.nextSibling !== roomTotalsG) stageSvg.insertBefore(roomTotalsG, roomConditionHints.nextSibling);
