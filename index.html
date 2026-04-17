@@ -630,6 +630,7 @@
   #stageBoard #sectorHits .sector { fill: rgba(255,255,0,0); cursor: pointer; pointer-events: fill; }
   #stageBoard{
     overflow:visible;
+    touch-action:none;
   }
   #stageBoard #rotationHandles{
     touch-action:none;
@@ -3101,6 +3102,39 @@ function syncRoomHintTableOrientation(){
   const g = stageSvg.querySelector('#rotationHandles');
   if (!g) return;
   g.style.touchAction = 'none';
+  let touchRotationId = null;
+
+  const startBoardRotationDrag = ({ pointerId, handle, captureEl, clientX, clientY }) => {
+    stageSvg.classList.add('rotating');
+    boardRotationDrag = {
+      pointerId,
+      handle,
+      captureEl,
+      currentRotationDeg: boardRotationDeg,
+      lastPointerDeg: pointerAngleDegFromBoardCenter(clientX, clientY)
+    };
+    stageSvg.style.transition = 'none';
+  };
+
+  const updateBoardRotationDrag = (clientX, clientY) => {
+    if (!boardRotationDrag) return;
+    const nextAngle = pointerAngleDegFromBoardCenter(clientX, clientY);
+    const delta = shortestDegDelta(boardRotationDrag.lastPointerDeg, nextAngle);
+    boardRotationDrag.currentRotationDeg = normalizeDeg(boardRotationDrag.currentRotationDeg + delta);
+    boardRotationDrag.lastPointerDeg = nextAngle;
+    applyBoardRotation(boardRotationDrag.currentRotationDeg);
+  };
+
+  const endBoardRotationDrag = ({ pointerId = null, shouldSnap = true } = {}) => {
+    if (!boardRotationDrag) return;
+    if (pointerId !== null && boardRotationDrag.pointerId !== pointerId) return;
+    stageSvg.classList.remove('rotating');
+    if (boardRotationDrag.captureEl && typeof boardRotationDrag.captureEl.releasePointerCapture === 'function' && pointerId !== null) {
+      boardRotationDrag.captureEl.releasePointerCapture(pointerId);
+    }
+    boardRotationDrag = null;
+    if (shouldSnap) snapBoardRotationToNearestRoom();
+  };
 
   const handleScale = 5;
   const handleRadius = 8 * handleScale;
@@ -3129,21 +3163,14 @@ function syncRoomHintTableOrientation(){
   const onPointerMove = (ev) => {
     if (!boardRotationDrag || ev.pointerId !== boardRotationDrag.pointerId) return;
     ev.preventDefault();
-    const nextAngle = pointerAngleDegFromBoardCenter(ev.clientX, ev.clientY);
-    const delta = shortestDegDelta(boardRotationDrag.lastPointerDeg, nextAngle);
-    boardRotationDrag.currentRotationDeg = normalizeDeg(boardRotationDrag.currentRotationDeg + delta);
-    boardRotationDrag.lastPointerDeg = nextAngle;
-    applyBoardRotation(boardRotationDrag.currentRotationDeg);
+    updateBoardRotationDrag(ev.clientX, ev.clientY);
   };
   const onPointerUp = (ev) => {
     if (!boardRotationDrag || ev.pointerId !== boardRotationDrag.pointerId) return;
-    stageSvg.classList.remove('rotating');
-    boardRotationDrag.captureEl?.releasePointerCapture?.(ev.pointerId);
-    boardRotationDrag = null;
+    endBoardRotationDrag({ pointerId: ev.pointerId, shouldSnap: true });
     window.removeEventListener('pointermove', onPointerMove);
     window.removeEventListener('pointerup', onPointerUp);
     window.removeEventListener('pointercancel', onPointerUp);
-    snapBoardRotationToNearestRoom();
   };
 
   g.addEventListener('pointerdown', (ev) => {
@@ -3154,20 +3181,60 @@ function syncRoomHintTableOrientation(){
     ev.preventDefault();
     ev.stopPropagation();
     const captureEl = ev.currentTarget;
-    captureEl.setPointerCapture(ev.pointerId);
-    stageSvg.classList.add('rotating');
-    boardRotationDrag = {
+    if (typeof captureEl.setPointerCapture === 'function') captureEl.setPointerCapture(ev.pointerId);
+    startBoardRotationDrag({
       pointerId: ev.pointerId,
       handle,
       captureEl,
-      currentRotationDeg: boardRotationDeg,
-      lastPointerDeg: pointerAngleDegFromBoardCenter(ev.clientX, ev.clientY)
-    };
-    stageSvg.style.transition = 'none';
+      clientX: ev.clientX,
+      clientY: ev.clientY
+    });
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
     window.addEventListener('pointercancel', onPointerUp);
   });
+
+  const onTouchMove = (ev) => {
+    if (!boardRotationDrag || !boardRotationDrag.pointerId || !String(boardRotationDrag.pointerId).startsWith('touch-')) return;
+    const touch = Array.from(ev.touches).find((t) => t.identifier === touchRotationId);
+    if (!touch) return;
+    ev.preventDefault();
+    updateBoardRotationDrag(touch.clientX, touch.clientY);
+  };
+
+  const onTouchEnd = (ev) => {
+    if (!boardRotationDrag || touchRotationId === null) return;
+    const isEndingTouch = Array.from(ev.changedTouches).some((t) => t.identifier === touchRotationId);
+    if (!isEndingTouch) return;
+    ev.preventDefault();
+    endBoardRotationDrag({ pointerId: `touch-${touchRotationId}`, shouldSnap: true });
+    touchRotationId = null;
+    window.removeEventListener('touchmove', onTouchMove);
+    window.removeEventListener('touchend', onTouchEnd);
+    window.removeEventListener('touchcancel', onTouchEnd);
+  };
+
+  g.addEventListener('touchstart', (ev) => {
+    if (boardRotationDrag) return;
+    const touch = ev.changedTouches[0];
+    if (!touch) return;
+    const startTarget = document.elementFromPoint(touch.clientX, touch.clientY);
+    const handle = startTarget?.closest?.('.rotation-handle, .rotation-handle-hit');
+    if (!handle) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    touchRotationId = touch.identifier;
+    startBoardRotationDrag({
+      pointerId: `touch-${touch.identifier}`,
+      handle,
+      captureEl: null,
+      clientX: touch.clientX,
+      clientY: touch.clientY
+    });
+    window.addEventListener('touchmove', onTouchMove, { passive: false });
+    window.addEventListener('touchend', onTouchEnd, { passive: false });
+    window.addEventListener('touchcancel', onTouchEnd, { passive: false });
+  }, { passive: false });
 })();
 
 /* ================== ステージ定義 ================== */
