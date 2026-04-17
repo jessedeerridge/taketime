@@ -123,18 +123,21 @@
   }
   .stage-top-hint{
     position:fixed;
-    top:64px;
-    right:20px;
+    left:0;
+    top:0;
+    transform:translate(-50%,-50%);
     z-index:240;
-    max-width:min(300px, calc(100vw - 24px));
-    background:rgba(17,17,17,.88);
+    width:132px;
+    max-width:calc(100vw - 24px);
+    background:rgba(31, 41, 55, 0.72);
     color:#fff;
-    border-radius:12px;
-    padding:8px 12px;
-    font-size:13px;
+    border-radius:10px;
+    padding:7px 10px;
+    font-size:10px;
     font-weight:700;
-    line-height:1.5;
-    box-shadow:0 10px 24px rgba(0,0,0,.24);
+    line-height:1.35;
+    text-align:center;
+    box-shadow:none;
     pointer-events:none;
   }
   .stage-top-hint.hidden{display:none;}
@@ -1425,6 +1428,22 @@ function updateStageTagPressState(isPressed){
   renderRoomConditionHints(currentStage);
 }
 
+function syncStageTopHint(mission = currentStage){
+  if (!stageTopHint) return;
+  const shouldShow = mission === '2-4'
+    && state.joined
+    && isStageTagPressed
+    && !stageNameGear.classList.contains('hidden');
+  stageTopHint.classList.toggle('hidden', !shouldShow);
+  if (!shouldShow) return;
+
+  const gearRect = stageNameGear.getBoundingClientRect();
+  const centerX = gearRect.left + (gearRect.width * 0.5);
+  const centerY = gearRect.top + (gearRect.height * (230 / 480));
+  stageTopHint.style.left = `${centerX}px`;
+  stageTopHint.style.top = `${centerY}px`;
+}
+
 stageNameTag.addEventListener('pointerdown', (e) => {
   if (stageNameTag.classList.contains('hidden')) return;
   e.preventDefault();
@@ -1475,6 +1494,7 @@ function getCurrentFacePlacementCount(){
 }
 
 function canPlaceFaceCard(){
+  if (currentStage === '2-4') return false;
   return getCurrentFacePlacementCount() < getFacePlacementLimit();
 }
 
@@ -2892,6 +2912,7 @@ btnStagePopClose.addEventListener('click', () => {
 window.addEventListener('resize', () => {
   updateMyHandPosition();
   renderPlayedCards();
+  syncStageTopHint(currentStage);
 });
 
 /* ===== ステージSVGロジック：元コードをそのまま移植 ===== */
@@ -4989,7 +5010,7 @@ function getStageRoomHintText(stage, room){
     return 'カードを必ず3枚だけ置かなければならない。';
   }
   if (stage === '3-1' && room === 4){
-    return 'このエリアに最も大きい数値のカードが置かれていなければならない。（※マイナスならその逆）';
+    return 'このエリアに最も大きい数値のカードが置かれていなければならない。';
   }
   if (sumCondition){
     return `このエリアの合計値が必ず${sumCondition.min}~${sumCondition.max}の数値にならなければならない。`;
@@ -5032,6 +5053,7 @@ function renderRoomConditionHints(mission = currentStage){
   const g = stageSvg.querySelector('#roomConditionHints');
   if (!g) return;
   while (g.firstChild) g.removeChild(g.firstChild);
+  syncStageTopHint(mission);
   if (!isStageTagPressed) return;
   if (!STAGE_CODES.includes(mission)) return;
 
@@ -5185,9 +5207,8 @@ function redrawAll(m){
   const hideStageName = !renderStage || !state.joined;
   stageNameTag.classList.toggle('hidden', hideStageName);
   stageNameGear.classList.toggle('hidden', hideStageName);
-  const showStageTopHint = renderStage === '2-4' && state.joined;
-  if (stageTopHint) stageTopHint.classList.toggle('hidden', !showStageTopHint);
   if (hideStageName) isStageTagPressed = false;
+  syncStageTopHint(renderStage);
   renderMainGearVisual();
   applySubgearCountToDom();
   syncGearClickableState();
