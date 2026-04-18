@@ -3676,7 +3676,7 @@ const STAGE_SPEC = {
   '3-2': { specifiedRooms: [1,3,6] },
   '3-3': { specifiedRooms: [1,2,5] },
   '3-4': { specifiedRooms: [1,3,4,5] },
-  '4-1': { specifiedRooms: [2,4] },
+  '4-1': { specifiedRooms: [2,5] },
   '4-2': { specifiedRooms: [1,6] },
   '4-3': { specifiedRooms: [1,3,5] },
   '4-4': { specifiedRooms: [3,4,5] },
@@ -3695,12 +3695,14 @@ function isNavyStage(mission){
 
 const STAGE_CLOCK_LABELS = {
   '1-3': { 2: '2', 3: '1' },
+  '4-1': { 2: '1' },
   '4-2': { 6: '1' },
   '5-4': { 2: '3', 5: '2' },
 };
 const STAGE_CLOCK_ROOMS = {
   '3-2': [1],
   '3-3': [2],
+  '4-1': [2],
   '4-2': [6],
   '5-4': [2, 5]
 };
@@ -3711,7 +3713,7 @@ const STAGE_BROWNCARDS = {
   '1-1': { 6: 3 },
   '1-2': { 4: 3 },
   '3-4': { 3: 2 },
-  '4-1': { 4: 1 }
+  '4-1': { 5: 1 }
 };
 const STAGE_PROHIBIT_ROOMS = {
   '2-1': [1, 2, 3],
@@ -3723,7 +3725,6 @@ const STAGE_CLOSECARD_LABELS = {
   '1-4': { 1: '6' },
   '3-1': { 6: '20' },
   '3-4': { 4: '6' },
-  '4-1': { 2: '1' },
   '4-4': { 3: '12' },
   '5-2': { 4: '15' }
 };
@@ -4936,8 +4937,7 @@ function renderRoomCards(mission = currentStage){
         signText.setAttribute('font-weight', '900');
         signText.setAttribute('font-family', 'Arial, "Hiragino Sans", "Yu Gothic", sans-serif');
         signText.setAttribute('text-anchor', 'middle');
-        signText.setAttribute('dominant-baseline', 'central');
-        signText.setAttribute('alignment-baseline', 'central');
+        signText.setAttribute('dominant-baseline', 'middle');
         cardG.appendChild(signText);
       }
       centerG.appendChild(cardG);
@@ -4957,11 +4957,12 @@ function renderRoomCards(mission = currentStage){
     }
     if (centerRightArrow){
       const arrow = document.createElementNS('http://www.w3.org/2000/svg','path');
-      arrow.setAttribute('d', 'M -9.8 4.1 L 3.6 4.1 L 3.6 2.1 L 10.2 6.2 L 3.6 10.3 L 3.6 8.3 L -9.8 8.3 Z');
+      arrow.setAttribute('d', 'M -7.4 4.1 L 3.2 4.1 L 3.2 2.1 L 7.6 6.2 L 3.2 10.3 L 3.2 8.3 L -7.4 8.3 Z');
       arrow.setAttribute('fill', '#111111');
       arrow.setAttribute('stroke', '#d4af37');
       arrow.setAttribute('stroke-width', '0.5');
       arrow.setAttribute('stroke-linejoin', 'round');
+      arrow.setAttribute('transform', 'translate(2,0)');
       centerG.appendChild(arrow);
 
       if (lockOnArrow){
@@ -5172,7 +5173,7 @@ function renderRoomCards(mission = currentStage){
     appendPlusMinusCards(5, { sign: '-', centerFill: '#ffffff', centerStroke: '#111111' });
   }
   if (mission === '4-1') {
-    appendLabeledCardAt(4, '', {
+    appendLabeledCardAt(5, '', {
       paint: { fill: '#a0522d', stroke: '#111111' },
       flipDirection: true
     });
@@ -5202,9 +5203,9 @@ function renderRoomCards(mission = currentStage){
     appendClockRoom(5, { text: '2' });
   }
   if (mission === '4-1') {
-    appendCenterBrownPair({ halfGapDelta: -2, leftBackCount: 2, centerRightArrow: true, leftSign: '－', rightSign: '＋' });
+    appendCenterBrownPair({ halfGapDelta: -2, leftBackCount: 2, centerRightArrow: true, leftSign: '+', rightSign: '-' });
   } else if (mission === '4-2') {
-    appendCenterBrownPair({ halfGapDelta: -2, leftBackCount: 2, centerRightArrow: true, leftSign: '＋', rightSign: '－' });
+    appendCenterBrownPair({ halfGapDelta: -2, leftBackCount: 2, centerRightArrow: true, leftSign: '-', rightSign: '+' });
   } else if (mission === '4-3' || mission === '4-4') {
     appendCenterBrownPair({ halfGapDelta: -2, leftBackCount: 2, centerRightArrow: true, lockOnArrow: true });
   } else if (typeof mission === 'string' && mission.startsWith('5-')) {
@@ -5600,9 +5601,6 @@ function renderRoomTexts(mission){
   }
   if (mission === '3-4') {
     textSpecs.push(makeClosecardTextSpec(4, '6', (midDeg)=>midDeg + 180));
-  }
-  if (mission === '4-1') {
-    textSpecs.push(makeClosecardTextSpec(2, '1', (midDeg)=>midDeg));
   }
   if (mission === '4-4') {
     textSpecs.push(makeClosecardTextSpec(3, '12', (midDeg)=>midDeg));
