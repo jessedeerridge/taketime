@@ -2098,6 +2098,9 @@ function getRoomPlacementRule(stage, room){
     if (room === 4) return { disallowedNums: ['7', '8', '9'] };
     if (room === 6) return { disallowedNums: ['10', '11', '12'] };
   }
+  if (stage === '4-3'){
+    if ([1, 3, 5].includes(room)) return { disallowedNums: ['1', '2', '3'] };
+  }
   return null;
 }
 
@@ -3641,6 +3644,10 @@ const STAGE_SPEC = {
   '3-2': { specifiedRooms: [1,3,6] },
   '3-3': { specifiedRooms: [1,2,5] },
   '3-4': { specifiedRooms: [1,3,4,5] },
+  '4-1': { specifiedRooms: [2,4] },
+  '4-2': { specifiedRooms: [1,6] },
+  '4-3': { specifiedRooms: [1,3,5] },
+  '4-4': { specifiedRooms: [3,4,5] },
 };
 function getSpecifiedRoomsForMission(mission){
   const rec = STAGE_SPEC[mission];
@@ -3653,10 +3660,12 @@ function isNavyStage(mission){
 
 const STAGE_CLOCK_LABELS = {
   '1-3': { 2: '2', 3: '1' },
+  '4-2': { 6: '1' }
 };
 const STAGE_CLOCK_ROOMS = {
   '3-2': [1],
-  '3-3': [2]
+  '3-3': [2],
+  '4-2': [6]
 };
 const STAGE_BLACKCLOCK_ROOMS = {
   '3-2': [1]
@@ -3664,7 +3673,8 @@ const STAGE_BLACKCLOCK_ROOMS = {
 const STAGE_BROWNCARDS = {
   '1-1': { 6: 3 },
   '1-2': { 4: 3 },
-  '3-4': { 3: 2 }
+  '3-4': { 3: 2 },
+  '4-1': { 4: 1 }
 };
 const STAGE_PROHIBIT_ROOMS = {
   '2-1': [1, 2, 3],
@@ -4825,6 +4835,77 @@ function renderRoomCards(mission = currentStage){
     g.appendChild(eyeG);
   }
 
+  function appendCenterArrow({
+    leftLabel = '+',
+    rightLabel = '-',
+    showLeftLabel = true,
+    showRightLabel = true,
+    withLock = false
+  } = {}){
+    const arrowG = document.createElementNS('http://www.w3.org/2000/svg','g');
+    arrowG.setAttribute('transform', 'translate(150,208)');
+
+    const shaft = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    shaft.setAttribute('x', '-34');
+    shaft.setAttribute('y', '-9');
+    shaft.setAttribute('width', '52');
+    shaft.setAttribute('height', '18');
+    shaft.setAttribute('rx', '6');
+    shaft.setAttribute('ry', '6');
+    shaft.setAttribute('fill', '#7a5b15');
+    shaft.setAttribute('stroke', '#d4af37');
+    shaft.setAttribute('stroke-width', '2');
+    arrowG.appendChild(shaft);
+
+    const tip = document.createElementNS('http://www.w3.org/2000/svg','polygon');
+    tip.setAttribute('points', '18,-15 40,0 18,15');
+    tip.setAttribute('fill', '#7a5b15');
+    tip.setAttribute('stroke', '#d4af37');
+    tip.setAttribute('stroke-width', '2');
+    tip.setAttribute('stroke-linejoin', 'round');
+    arrowG.appendChild(tip);
+
+    const addArrowLabel = (x, textContent) => {
+      const t = document.createElementNS('http://www.w3.org/2000/svg','text');
+      t.textContent = textContent;
+      t.setAttribute('x', String(x));
+      t.setAttribute('y', '1');
+      t.setAttribute('fill', '#111');
+      t.setAttribute('font-size', '18');
+      t.setAttribute('font-weight', '900');
+      t.setAttribute('text-anchor', 'middle');
+      t.setAttribute('dominant-baseline', 'middle');
+      arrowG.appendChild(t);
+    };
+
+    if (showLeftLabel) addArrowLabel(-56, String(leftLabel));
+    if (showRightLabel) addArrowLabel(56, String(rightLabel));
+
+    if (withLock){
+      const lockG = document.createElementNS('http://www.w3.org/2000/svg','g');
+      lockG.setAttribute('transform', 'translate(0,-30)');
+      const shackle = document.createElementNS('http://www.w3.org/2000/svg','path');
+      shackle.setAttribute('d', 'M -7 0 A 7 7 0 0 1 7 0');
+      shackle.setAttribute('fill', 'none');
+      shackle.setAttribute('stroke', '#111111');
+      shackle.setAttribute('stroke-width', '3');
+      shackle.setAttribute('stroke-linecap', 'round');
+      lockG.appendChild(shackle);
+      const body = document.createElementNS('http://www.w3.org/2000/svg','rect');
+      body.setAttribute('x', '-10');
+      body.setAttribute('y', '0');
+      body.setAttribute('width', '20');
+      body.setAttribute('height', '14');
+      body.setAttribute('rx', '2.5');
+      body.setAttribute('ry', '2.5');
+      body.setAttribute('fill', '#111111');
+      lockG.appendChild(body);
+      arrowG.appendChild(lockG);
+    }
+
+    g.appendChild(arrowG);
+  }
+
   function appendRoomBackground(room, {
     fill = '#ab5d1a',
     width = cardW * 2 + 16,
@@ -5005,6 +5086,32 @@ function renderRoomCards(mission = currentStage){
   }
   if (mission === '2-4') {
     appendCenterEyeCross();
+  }
+  if (mission === '4-1') {
+    appendLabeledCardAt(4, '1', {
+      paint: { fill: '#a0522d', stroke: '#111111' },
+      flipDirection: true,
+      textColor: '#d4af37',
+      textWeight: '900',
+      textRotateDeg: 180
+    });
+    appendCenterArrow({ leftLabel: '+', rightLabel: '-', showLeftLabel: true, showRightLabel: true });
+  }
+  if (mission === '4-2') {
+    appendPlusMinusCards(1, { sign: '+', centerFill: '#a0522d', centerStroke: '#000000' });
+    appendClockRoom(6, { text: '1', centerFill: '#111111' });
+    appendCenterArrow({ leftLabel: '-', rightLabel: '+', showLeftLabel: true, showRightLabel: true });
+  }
+  if (mission === '4-3') {
+    appendDisallowedCards(1, ['1', '2', '3']);
+    appendDisallowedCards(3, ['1', '2', '3']);
+    appendDisallowedCards(5, ['1', '2', '3']);
+    appendCenterArrow({ showLeftLabel: false, showRightLabel: false, withLock: true });
+  }
+  if (mission === '4-4') {
+    appendPlusMinusCards(4, { sign: '-', centerFill: '#a0522d', centerStroke: '#000000' });
+    appendPlusMinusCards(5, { sign: '+', centerFill: '#a0522d', centerStroke: '#000000' });
+    appendCenterArrow({ showLeftLabel: false, showRightLabel: false, withLock: true });
   }
 }
 
@@ -5392,6 +5499,12 @@ function renderRoomTexts(mission){
   if (mission === '3-4') {
     textSpecs.push(makeClosecardTextSpec(4, '6', (midDeg)=>midDeg + 180));
   }
+  if (mission === '4-1') {
+    textSpecs.push(makeClosecardTextSpec(2, '1', (midDeg)=>midDeg));
+  }
+  if (mission === '4-4') {
+    textSpecs.push(makeClosecardTextSpec(3, '12', (midDeg)=>midDeg + 180));
+  }
   if (textSpecs.length === 0) return;
 
   textSpecs.forEach(({room, label, rotate, color: textColor, bgColor: circleColor, bgOpacity: circleOpacity, underline})=>{
@@ -5446,6 +5559,8 @@ function getStageRoomHintText(stage, room){
     (stage === '1-4' && room === 1) ? '6'
       : (stage === '3-1' && room === 6) ? '20'
         : (stage === '3-4' && room === 4) ? '6'
+          : (stage === '4-1' && room === 2) ? '1'
+            : (stage === '4-4' && room === 3) ? '12'
         : ''
   );
 
