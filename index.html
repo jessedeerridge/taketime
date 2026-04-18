@@ -575,8 +575,8 @@
     --infinityOpacity: 0.95;
 
     --tipDiaFill: #facc15;
-    --tipDiaStroke: #000;
-    --tipDiaStrokeW: 1;
+    --tipDiaStroke: none;
+    --tipDiaStrokeW: 0;
     --tipDiaW: 6;
     --tipDiaH: 8;
     --tipDiaOffset: 0;
@@ -988,7 +988,7 @@
         <g transform="translate(150,150)" id="stageClockMarks" style="pointer-events:none"></g>
 
         <g transform="translate(150,150)" id="centerTopLineG" style="pointer-events:none">
-          <line id="centerTopLine" x1="0" y1="0" x2="0" y2="-90"
+          <line id="centerTopLine" x1="0" y1="-10" x2="0" y2="-90"
                 stroke="var(--centerTopColor)" stroke-width="var(--centerTopW)" stroke-linecap="round"/>
         </g>
         <g transform="translate(150,150)" id="centerTopDiamondG" style="pointer-events:none"></g>
@@ -2110,6 +2110,9 @@ function getRoomPlacementCounts(room){
 
 function canPlaceCardInRoom(cardData, room, stage = currentStage){
   if (!cardData || !(room >= 1 && room <= 6)) return false;
+  const forcedClockRooms = getForcedClockRoomsForNextPlacement(stage);
+  if (forcedClockRooms.size > 0 && !forcedClockRooms.has(Number(room))) return false;
+
   const rule = getRoomPlacementRule(stage, Number(room));
   if (!rule) return true;
 
@@ -2918,6 +2921,7 @@ window.addEventListener('resize', () => {
 const stageSvg = document.getElementById('stageBoard');
 const centerTopLineG = stageSvg.querySelector('#centerTopLineG');
 const centerTopDiamondG = stageSvg.querySelector('#centerTopDiamondG');
+const innerOrangeFillG = stageSvg.querySelector('#innerOrangeFill');
 const orangeCenterFill = stageSvg.querySelector('#orangeCenterFill');
 const rotationHandlesG = stageSvg.querySelector('#rotationHandles');
 const initialCenterNeedleRotate = parseFloat(getComputedStyle(stageSvg).getPropertyValue('--centerTopRotate')) || 0;
@@ -2945,6 +2949,10 @@ function applyCenterNeedleRotation(deg, { animate = false, useShortestPath = fal
   if (centerTopDiamondG){
     centerTopDiamondG.style.transition = animate ? 'transform 220ms ease-out' : 'none';
     centerTopDiamondG.setAttribute('transform', transform);
+  }
+  if (innerOrangeFillG){
+    innerOrangeFillG.style.transition = animate ? 'transform 220ms ease-out' : 'none';
+    innerOrangeFillG.setAttribute('transform', transform);
   }
 }
 
@@ -3043,11 +3051,17 @@ stageSvg.querySelector('#innerRing').setAttribute('r', innerR);
 stageSvg.querySelector('#innerRing2').setAttribute('r', innerR2);
 stageSvg.querySelector('#innerRing3').setAttribute('r', innerR3);
 
-const r1 = parseFloat(cs.getPropertyValue('--innerR'))  || 65;
-const r5css = parseFloat(cs.getPropertyValue('--innerR5')) || 20;
 const line = stageSvg.querySelector('#centerTopLine');
-line.setAttribute('y1', -r5css);
-line.setAttribute('y2', -r1);
+function syncCenterTopLineRange(){
+  if (!line) return;
+  const csLine = getComputedStyle(stageSvg);
+  const rOuter = parseFloat(csLine.getPropertyValue('--innerR')) || 65;
+  const rCenterOuter = parseFloat(csLine.getPropertyValue('--innerR4')) || 28;
+  line.setAttribute('stroke-linecap', 'butt');
+  line.setAttribute('y1', String(-rCenterOuter));
+  line.setAttribute('y2', String(-rOuter));
+}
+syncCenterTopLineRange();
 
 function updateOrangeGraphics(){
   const cs2 = getComputedStyle(stageSvg);
@@ -3075,6 +3089,7 @@ function updateOrangeGraphics(){
     cpPath.setAttribute('d', dRing);
     cpPath.setAttribute('fill-rule','evenodd');
   }
+  syncCenterTopLineRange();
 }
 updateOrangeGraphics();
 
@@ -3600,6 +3615,9 @@ const STAGE_CLOCK_ROOMS = {
   '3-2': [1],
   '3-3': [2]
 };
+const STAGE_BLACKCLOCK_ROOMS = {
+  '3-2': [1]
+};
 const STAGE_BROWNCARDS = {
   '3-4': { 3: 2 }
 };
@@ -3629,6 +3647,74 @@ function getClockroomSharedStyle(){
 }
 function getDoubleclockSpec(mission){
   return STAGE_DOUBLECLOCK[mission] || null;
+}
+
+function normalizeOrderLabel(value){
+  return String(value ?? '')
+    .replace(/[０-９]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
+    .trim();
+}
+
+function parseOrderNumber(value){
+  const n = Number(normalizeOrderLabel(value));
+  return Number.isFinite(n) ? n : null;
+}
+
+function getSeatedPlayerIds(){
+  return Object.values(state.tables || {})
+    .filter((seat) => seat?.playerId)
+    .map((seat) => seat.playerId);
+}
+
+function getGlobalPlacementProgress(){
+  const seatedPlayerIds = getSeatedPlayerIds();
+  if (!seatedPlayerIds.length) return null;
+
+  const remainingCards = seatedPlayerIds.reduce((sum, pid) => {
+    const cards = state.hands?.[pid]?.cards;
+    return sum + (Array.isArray(cards) ? cards.length : 0);
+  }, 0);
+  const placedCount = Object.values(state.playedCards || {})
+    .filter((card) => card?.playerId && seatedPlayerIds.includes(card.playerId))
+    .length;
+  const totalExpectedCards = remainingCards + placedCount;
+  if (!totalExpectedCards) return null;
+  return {
+    nextIndex: placedCount + 1,
+    totalExpectedCards
+  };
+}
+
+function getForcedClockRoomsForNextPlacement(stage = currentStage){
+  const progress = getGlobalPlacementProgress();
+  if (!progress) return new Set();
+
+  const forcedRooms = new Set();
+  const { nextIndex, totalExpectedCards } = progress;
+
+  const clockLabels = getClockLabelsForMission(stage) || {};
+  Object.entries(clockLabels).forEach(([roomKey, label]) => {
+    const order = parseOrderNumber(label);
+    if (order !== null && order === nextIndex){
+      forcedRooms.add(Number(roomKey));
+    }
+  });
+
+  const doubleclock = getDoubleclockSpec(stage);
+  if (doubleclock && Number(doubleclock.room) >= 1){
+    const leftOrder = parseOrderNumber(doubleclock.left);
+    const rightOrder = parseOrderNumber(doubleclock.right);
+    if (leftOrder === nextIndex || rightOrder === nextIndex){
+      forcedRooms.add(Number(doubleclock.room));
+    }
+  }
+
+  const blackClockRooms = STAGE_BLACKCLOCK_ROOMS[stage] || [];
+  if (nextIndex === totalExpectedCards){
+    blackClockRooms.forEach((room) => forcedRooms.add(Number(room)));
+  }
+
+  return forcedRooms;
 }
 
 function renderStageMarks(mission){
@@ -4653,7 +4739,7 @@ function renderRoomCards(mission = currentStage){
 
   function appendCenterEyeCross(){
     const eyeG = document.createElementNS('http://www.w3.org/2000/svg','g');
-    eyeG.setAttribute('transform', 'translate(150,150) scale(0.58)');
+    eyeG.setAttribute('transform', 'translate(150,150) scale(0.54)');
 
     const eyePath = document.createElementNS('http://www.w3.org/2000/svg','path');
     eyePath.setAttribute('d', 'M -24 0 Q 0 -22 24 0 Q 0 22 -24 0 Z');
@@ -5512,14 +5598,24 @@ function redrawAll(m){
   const renderStage = hasStage ? currentStage : '';
   const isStage24 = renderStage === '2-4';
 
-  missionTextEl.textContent = isStage24 ? 'カードをオモテでプレイできない。' : renderStage;
+  missionTextEl.textContent = renderStage;
   missionTextEl.style.display = isStage24 ? '' : 'none';
   missionTextEl.setAttribute('x', isStage24 ? '150' : '292');
-  missionTextEl.setAttribute('y', isStage24 ? '150' : '22');
+  missionTextEl.setAttribute('y', isStage24 ? '142' : '22');
   missionTextEl.setAttribute('text-anchor', isStage24 ? 'middle' : 'end');
   missionTextEl.setAttribute('fill', isStage24 ? '#111' : '#8c5a22');
   missionTextEl.setAttribute('font-size', isStage24 ? '16' : '18');
   missionTextEl.setAttribute('font-weight', isStage24 ? '800' : '700');
+  if (isStage24){
+    while (missionTextEl.firstChild) missionTextEl.removeChild(missionTextEl.firstChild);
+    ['カードをオモテでプレイできない。', 'カードをオモテで置くことができない。'].forEach((line, idx) => {
+      const tspan = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+      tspan.textContent = line;
+      tspan.setAttribute('x', '150');
+      tspan.setAttribute('dy', idx === 0 ? '0' : '20');
+      missionTextEl.appendChild(tspan);
+    });
+  }
   stageNameText.textContent = renderStage;
   const hideStageName = !renderStage || !state.joined;
   const hideStageGear = hideStageName || isStage24;
@@ -5593,6 +5689,10 @@ function redrawAll(m){
   renderRoomCards(renderStage);
   renderPlayedCards();
   renderRoomTotals();
+  if (centerTopLineG && centerTopDiamondG){
+    stageSvg.appendChild(centerTopLineG);
+    stageSvg.appendChild(centerTopDiamondG);
+  }
 }
 window.addEventListener('mission:change', (e)=>{
   redrawAll(e.detail?.value || currentStage);
