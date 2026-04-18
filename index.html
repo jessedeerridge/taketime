@@ -1328,6 +1328,18 @@ function canCurrentUserDragCard(){
   return isMyTurnInPlacement();
 }
 
+function isTwoPlayerMatch(){
+  return latestPlayers.filter((player) => player?.id).length === 2;
+}
+
+function getMyPlacedCardCount(){
+  if (!state.userId) return 0;
+  return Object.values(state.playedCards || {}).reduce((count, card) => {
+    if (card?.playerId !== state.userId) return count;
+    return count + 1;
+  }, 0);
+}
+
 function syncMyHandPulseDom(){
   const shouldPulse = canCurrentUserDragCard() && !activeDrag;
   myHandEl.querySelectorAll('.my-card').forEach((cardEl) => {
@@ -1850,30 +1862,44 @@ function renderMyHand(){
     && state.currentPhase !== 'reveal';
   const canDragNow = canCurrentUserDragCard() && !shouldLockHand && !shouldHideInDiscussion;
   const shouldPulse = canDragNow && !activeDrag;
+  const isTwoPlayers = isTwoPlayerMatch();
+  const myPlacedCardCount = getMyPlacedCardCount();
+
+  const remainingCards = handData.cards.filter((cardData) => {
+    const cardId = makeCardId(myId, cardData);
+    return !placedCardIds.has(cardId) && !pendingPlacedCardIds.has(cardId);
+  });
 
   let leftmostPlayableFound = false;
-  handData.cards.forEach((cardData) => {
+  remainingCards.forEach((cardData, idx) => {
     const cardId = makeCardId(myId, cardData);
-    if (placedCardIds.has(cardId) || pendingPlacedCardIds.has(cardId)) return;
+    const shouldHideByTwoPlayerRule = isTwoPlayers
+      && myPlacedCardCount < 2
+      && idx >= Math.max(0, remainingCards.length - 2);
     const isLeftmostPlayable = !leftmostPlayableFound;
     leftmostPlayableFound = true;
-    const canPlayThisCard = !isLeftmostOnlyStage(currentStage) || isLeftmostPlayable;
+    const canPlayThisCard = !shouldHideByTwoPlayerRule
+      && (!isLeftmostOnlyStage(currentStage) || isLeftmostPlayable);
 
     const card = document.createElement('div');
     card.className = 'my-card';
     card.dataset.cardId = cardId;
 
-    if (shouldPulse){
+    if (shouldPulse && !shouldHideByTwoPlayerRule){
       card.classList.add('turn-pulse');
     }
 
-    if (shouldLockHand || shouldHideInDiscussion){
+    if (shouldLockHand || shouldHideInDiscussion || shouldHideByTwoPlayerRule){
       card.textContent = '';
       card.style.background = cardData.color === 'black'
         ? getBlackBackGradient()
         : 'repeating-linear-gradient(135deg,#ffffff 0px,#ffffff 4px,#e5e7eb 4px,#e5e7eb 8px)';
       card.style.border = cardData.color === 'black' ? '1px solid #58606f' : '1px solid #cfcfcf';
-      card.style.cursor = shouldLockHand ? 'not-allowed' : 'default';
+      if (shouldHideByTwoPlayerRule){
+        card.style.cursor = 'not-allowed';
+      } else {
+        card.style.cursor = shouldLockHand ? 'not-allowed' : 'default';
+      }
     } else {
       const num = cardData.num;
       const color = cardData.color;
