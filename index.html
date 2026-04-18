@@ -4891,9 +4891,11 @@ function renderRoomCards(mission = currentStage){
     const cardHeight = 12.8 + sizeDelta;
     const radius = 1.8 + (sizeDelta * 0.16);
     const halfGap = Math.max(2, (overlap ? 4.2 : 8) + halfGapDelta);
-    [-halfGap, halfGap].forEach((dx, idx) => {
+    [
+      { dx: halfGap, rotateDeg: rightRotateDeg, isLeft: false },
+      { dx: -halfGap, rotateDeg: leftRotateDeg, isLeft: true }
+    ].forEach(({ dx, rotateDeg, isLeft }) => {
       const cardG = document.createElementNS('http://www.w3.org/2000/svg','g');
-      const rotateDeg = idx === 0 ? leftRotateDeg : rightRotateDeg;
       cardG.setAttribute('transform', `translate(${dx},0) rotate(${rotateDeg})`);
 
       const appendBrownRect = ({ translate = '' } = {}) => {
@@ -4911,7 +4913,7 @@ function renderRoomCards(mission = currentStage){
         cardG.appendChild(token);
       };
 
-      if (idx === 0 && leftBackCount > 0){
+      if (isLeft && leftBackCount > 0){
         for (let i = leftBackCount; i >= 1; i -= 1){
           appendBrownRect({
             translate: `translate(${1.3 * i}, ${-0.9 * i})`
@@ -4936,7 +4938,7 @@ function renderRoomCards(mission = currentStage){
     }
     if (centerRightArrow){
       const arrow = document.createElementNS('http://www.w3.org/2000/svg','path');
-      arrow.setAttribute('d', 'M -7.8 5.1 L 3.6 5.1 L 3.6 3.1 L 10.2 7.2 L 3.6 11.3 L 3.6 9.3 L -7.8 9.3 Z');
+      arrow.setAttribute('d', 'M -7.8 4.1 L 3.6 4.1 L 3.6 2.1 L 10.2 6.2 L 3.6 10.3 L 3.6 8.3 L -7.8 8.3 Z');
       arrow.setAttribute('fill', '#111111');
       arrow.setAttribute('stroke', '#d4af37');
       arrow.setAttribute('stroke-width', '0.5');
