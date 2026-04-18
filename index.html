@@ -3043,11 +3043,19 @@ stageSvg.querySelector('#innerRing').setAttribute('r', innerR);
 stageSvg.querySelector('#innerRing2').setAttribute('r', innerR2);
 stageSvg.querySelector('#innerRing3').setAttribute('r', innerR3);
 
-const r1 = parseFloat(cs.getPropertyValue('--innerR'))  || 65;
-const r5css = parseFloat(cs.getPropertyValue('--innerR5')) || 20;
 const line = stageSvg.querySelector('#centerTopLine');
-line.setAttribute('y1', -r5css);
-line.setAttribute('y2', -r1);
+function syncCenterTopLineRange(){
+  if (!line) return;
+  const csLine = getComputedStyle(stageSvg);
+  const rOuter = parseFloat(csLine.getPropertyValue('--innerR')) || 65;
+  const rCenter = parseFloat(csLine.getPropertyValue('--innerR5')) || 20;
+  const centerTopW = parseFloat(csLine.getPropertyValue('--centerTopW')) || 2;
+  const safeGap = Math.max(1, centerTopW * 0.55);
+  line.setAttribute('stroke-linecap', 'butt');
+  line.setAttribute('y1', String(-(rCenter + safeGap)));
+  line.setAttribute('y2', String(-rOuter));
+}
+syncCenterTopLineRange();
 
 function updateOrangeGraphics(){
   const cs2 = getComputedStyle(stageSvg);
@@ -3075,6 +3083,7 @@ function updateOrangeGraphics(){
     cpPath.setAttribute('d', dRing);
     cpPath.setAttribute('fill-rule','evenodd');
   }
+  syncCenterTopLineRange();
 }
 updateOrangeGraphics();
 
