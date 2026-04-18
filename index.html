@@ -4879,6 +4879,7 @@ function renderRoomCards(mission = currentStage){
     sizeDelta = 0,
     overlap = false,
     centerSign = '',
+    centerRightArrow = false,
     halfGapDelta = 0,
     leftRotateDeg = -6,
     rightRotateDeg = 6,
@@ -4932,6 +4933,15 @@ function renderRoomCards(mission = currentStage){
       sign.setAttribute('text-anchor', 'middle');
       sign.setAttribute('dominant-baseline', 'middle');
       centerG.appendChild(sign);
+    }
+    if (centerRightArrow){
+      const arrow = document.createElementNS('http://www.w3.org/2000/svg','path');
+      arrow.setAttribute('d', 'M -3.8 -2.1 L 1.2 -2.1 L 1.2 -4.1 L 6.8 0 L 1.2 4.1 L 1.2 2.1 L -3.8 2.1 Z');
+      arrow.setAttribute('fill', '#111111');
+      arrow.setAttribute('stroke', '#d4af37');
+      arrow.setAttribute('stroke-width', '0.5');
+      arrow.setAttribute('stroke-linejoin', 'round');
+      centerG.appendChild(arrow);
     }
     g.appendChild(centerG);
   }
@@ -5145,7 +5155,7 @@ function renderRoomCards(mission = currentStage){
     appendClockRoom(5, { text: '2' });
   }
   if (typeof mission === 'string' && mission.startsWith('4-')) {
-    appendCenterBrownPair({ halfGapDelta: -2, leftBackCount: 2 });
+    appendCenterBrownPair({ halfGapDelta: -2, leftBackCount: 2, centerRightArrow: true });
   } else if (typeof mission === 'string' && mission.startsWith('5-')) {
     appendCenterBrownPair({ sizeDelta: 3, overlap: true });
   } else if (typeof mission === 'string' && mission.startsWith('6-')) {
