@@ -3713,7 +3713,7 @@ const STAGE_BROWNCARDS = {
   '1-1': { 6: 3 },
   '1-2': { 4: 3 },
   '3-4': { 3: 2 },
-  '4-1': { 5: 1 }
+  '4-1': { 4: 1 }
 };
 const STAGE_PROHIBIT_ROOMS = {
   '2-1': [1, 2, 3],
@@ -4935,7 +4935,6 @@ function renderRoomCards(mission = currentStage){
         signText.setAttribute('fill', '#d4af37');
         signText.setAttribute('font-size', '11');
         signText.setAttribute('font-weight', '900');
-        signText.setAttribute('font-family', 'Arial, "Hiragino Sans", "Yu Gothic", sans-serif');
         signText.setAttribute('text-anchor', 'middle');
         signText.setAttribute('dominant-baseline', 'central');
         signText.setAttribute('alignment-baseline', 'central');
@@ -4951,7 +4950,6 @@ function renderRoomCards(mission = currentStage){
       sign.setAttribute('fill', '#d4af37');
       sign.setAttribute('font-size', '11');
       sign.setAttribute('font-weight', '900');
-      sign.setAttribute('font-family', 'Arial, "Hiragino Sans", "Yu Gothic", sans-serif');
       sign.setAttribute('text-anchor', 'middle');
       sign.setAttribute('dominant-baseline', 'middle');
       centerG.appendChild(sign);
