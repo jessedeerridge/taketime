@@ -1218,6 +1218,7 @@ let revealFlipRetryTimer = null;
 let revealResultAnnouncedKey = '';
 let roomTotalsRefreshTimer = null;
 let revealResultDelayTimer = null;
+let lastAutoSortedHandSignature = '';
 let lastPlayedCardKeys = new Set();
 const inFlightPlayedCardKeys = new Set();
 const placingCardIds = new Set();
@@ -1672,6 +1673,7 @@ function subscribeHands(){
   const handsRef = ref(db, `rooms/${state.roomCode}/hands`);
   onValue(handsRef, snap => {
     state.hands = snap.val() || {};
+    ensureMyHandStageOrder();
     maybeAnnounceRevealPhase();
     renderHands();
   });
@@ -1773,6 +1775,7 @@ function subscribeStage(){
     }
 
     currentStage = sharedStage;
+    lastAutoSortedHandSignature = '';
     resetBoardAndNeedleRotations();
     if (currentStage) localStorage.setItem(STAGE_KEY, currentStage);
     else localStorage.removeItem(STAGE_KEY);
@@ -1848,9 +1851,13 @@ function renderMyHand(){
   const canDragNow = canCurrentUserDragCard() && !shouldLockHand && !shouldHideInDiscussion;
   const shouldPulse = canDragNow && !activeDrag;
 
+  let leftmostPlayableFound = false;
   handData.cards.forEach((cardData) => {
     const cardId = makeCardId(myId, cardData);
     if (placedCardIds.has(cardId) || pendingPlacedCardIds.has(cardId)) return;
+    const isLeftmostPlayable = !leftmostPlayableFound;
+    leftmostPlayableFound = true;
+    const canPlayThisCard = !isLeftmostOnlyStage(currentStage) || isLeftmostPlayable;
 
     const card = document.createElement('div');
     card.className = 'my-card';
@@ -1874,10 +1881,10 @@ function renderMyHand(){
       card.style.background = color === 'black' ? '#0b1530' : '#fff';
       card.style.color = color === 'black' ? '#fff' : '#111';
       card.style.border = color === 'black' ? '1px solid #0b1530' : '1px solid #ddd';
-      if (canDragNow){
+      if (canDragNow && canPlayThisCard){
         card.addEventListener('pointerdown', (ev) => startCardDrag(ev, { ...cardData, id: cardId }));
       } else {
-        card.style.cursor = 'default';
+        card.style.cursor = canDragNow ? 'not-allowed' : 'default';
       }
     }
 
@@ -2097,6 +2104,11 @@ function getGuideMetrics(){
 }
 
 function getRoomPlacementRule(stage, room){
+  const browncardsCount = getBrowncardsCountForMission(stage, room);
+  if (browncardsCount > 0){
+    return { maxTotal: browncardsCount };
+  }
+
   if (stage === '1-1'){
     if (room === 1) return { maxTotal: 1, allowedColors: ['white'], perColorMax: { white: 1 } };
     if (room === 6) return { maxTotal: 3 };
@@ -2283,6 +2295,69 @@ function setCardNumberDom(el, num){
   el.appendChild(span);
 }
 
+function getStageSortOrder(stage = currentStage){
+  if (stage === '4-1') return 'desc';
+  if (stage === '4-2') return 'asc';
+  return '';
+}
+
+function sortCardsByNum(cards = [], order = 'asc'){
+  return cards.slice().sort((a, b) => {
+    const an = Number(a?.num || 0);
+    const bn = Number(b?.num || 0);
+    if (an !== bn) return order === 'desc' ? (bn - an) : (an - bn);
+    const ac = String(a?.color || 'white');
+    const bc = String(b?.color || 'white');
+    if (ac === bc) return 0;
+    return ac === 'white' ? -1 : 1;
+  });
+}
+
+function getCardsSignature(cards = []){
+  return cards.map((card, idx) => {
+    if (!card) return `${idx}:null`;
+    const uid = card.uid ? `uid:${card.uid}` : '';
+    return `${idx}:${uid}|${String(card.color || 'white')}|${Number(card.num || 0)}`;
+  }).join('||');
+}
+
+function ensureMyHandStageOrder(){
+  const order = getStageSortOrder(currentStage);
+  if (!order || !state.roomCode || !state.userId) return;
+  const cards = state.hands?.[state.userId]?.cards;
+  if (!Array.isArray(cards) || cards.length <= 1) return;
+
+  const sorted = sortCardsByNum(cards, order);
+  const currentSig = getCardsSignature(cards);
+  const sortedSig = getCardsSignature(sorted);
+  if (currentSig === sortedSig || lastAutoSortedHandSignature === currentSig) return;
+  lastAutoSortedHandSignature = currentSig;
+
+  const cardsRef = ref(db, `rooms/${state.roomCode}/hands/${state.userId}/cards`);
+  runTransaction(cardsRef, (dbCards) => {
+    if (!Array.isArray(dbCards) || dbCards.length <= 1) return dbCards;
+    const next = sortCardsByNum(dbCards, order);
+    return getCardsSignature(dbCards) === getCardsSignature(next) ? dbCards : next;
+  }).catch((err) => {
+    console.error('手札の自動並び替えに失敗しました', err);
+  });
+}
+
+function sortMyHandByNum(order = 'asc'){
+  if (!state.roomCode || !state.userId) return;
+  const cardsRef = ref(db, `rooms/${state.roomCode}/hands/${state.userId}/cards`);
+  runTransaction(cardsRef, (cards) => {
+    if (!Array.isArray(cards) || cards.length <= 1) return cards;
+    return sortCardsByNum(cards, order);
+  }).catch((err) => {
+    console.error('手札の並び替えに失敗しました', err);
+  });
+}
+
+function isLeftmostOnlyStage(stage){
+  return typeof stage === 'string' && stage.startsWith('4-');
+}
+
 function paintChoiceCards(cardData){
   const isBlack = cardData.color === 'black';
   setCardNumberDom(btnChoiceFace, cardData.num);
@@ -2326,6 +2401,20 @@ function bindChoiceButton(button, choice){
 
 bindChoiceButton(btnChoiceFace, 'face');
 bindChoiceButton(btnChoiceBack, 'back');
+
+window.addEventListener('keydown', (ev) => {
+  if (!state.joined || !currentStage) return;
+  if (ev.repeat) return;
+  const key = (ev.key || '').toLowerCase();
+  const isSKey = key === 's' || ev.code === 'KeyS';
+  if (!isSKey) return;
+
+  const order = getStageSortOrder(currentStage);
+  if (order){
+    ev.preventDefault();
+    sortMyHandByNum(order);
+  }
+});
 
 function startCardDrag(ev, cardData){
   ev.preventDefault();
