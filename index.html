@@ -3998,6 +3998,7 @@ function renderClockMarks(mission){
     t.setAttribute('fill', textColor);
     t.setAttribute('font-size', String(Math.max(4, size * 0.34 * textScale) + 2));
     t.setAttribute('font-weight', '900');
+    t.setAttribute('font-family', 'Arial, "Hiragino Sans", "Yu Gothic", sans-serif');
     t.setAttribute('text-anchor', 'middle');
     t.setAttribute('dominant-baseline', 'middle');
     g.appendChild(t);
@@ -4738,6 +4739,7 @@ function renderRoomCards(mission = currentStage){
     const strokeColor = clockroomStyle.stroke;
     const strokeW = Math.max(0.6, (parseFloat(csClock.getPropertyValue('--clockMarkStrokeW')) || 2.8) * markScale * Math.max(0.4, sizeScale));
     const textColor = csClock.getPropertyValue('--clockMarkTextColor').trim() || '#2b2b2b';
+    const textScale = parseFloat(csClock.getPropertyValue('--clockMarkTextScale')) || 1;
 
     const circle = document.createElementNS('http://www.w3.org/2000/svg','circle');
     circle.setAttribute('cx', '0');
@@ -4793,10 +4795,11 @@ function renderRoomCards(mission = currentStage){
       const t = document.createElementNS('http://www.w3.org/2000/svg','text');
       t.textContent = String(text);
       t.setAttribute('x', '0');
-      t.setAttribute('y', String(rClock * 0.03));
+      t.setAttribute('y', '0.8');
+      t.setAttribute('transform', `rotate(${-(rotBase + extraRot)})`);
       t.setAttribute('fill', textColor);
-      t.setAttribute('font-size', String(Math.max(4, roomFs * 0.92)));
-      t.setAttribute('font-weight', csClock.getPropertyValue('--roomTextWeight').trim() || '800');
+      t.setAttribute('font-size', String(Math.max(4, size * 0.34 * textScale) + 2));
+      t.setAttribute('font-weight', '900');
       t.setAttribute('font-family', 'Arial, "Hiragino Sans", "Yu Gothic", sans-serif');
       t.setAttribute('text-anchor', 'middle');
       t.setAttribute('dominant-baseline', 'middle');
@@ -4872,16 +4875,6 @@ function renderRoomCards(mission = currentStage){
       token.setAttribute('stroke', '#111111');
       token.setAttribute('stroke-width', '0.9');
       cardG.appendChild(token);
-      const tiny = document.createElementNS('http://www.w3.org/2000/svg','text');
-      tiny.textContent = '茶';
-      tiny.setAttribute('x', '0');
-      tiny.setAttribute('y', '0');
-      tiny.setAttribute('fill', '#f8cb8d');
-      tiny.setAttribute('font-size', '4.6');
-      tiny.setAttribute('font-weight', '800');
-      tiny.setAttribute('text-anchor', 'middle');
-      tiny.setAttribute('dominant-baseline', 'middle');
-      cardG.appendChild(tiny);
       centerG.appendChild(cardG);
     });
     g.appendChild(centerG);
@@ -5095,7 +5088,7 @@ function renderRoomCards(mission = currentStage){
     appendWhiteBlackPair(4);
     appendClockRoom(5, { text: '2' });
   }
-  if (typeof mission === 'string' && mission.startsWith('5-')) {
+  if (typeof mission === 'string' && /^(5|6)-/.test(mission)) {
     appendCenterBrownPair();
   }
   if (mission === '2-4') {
