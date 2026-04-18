@@ -1967,6 +1967,67 @@ function getRoomResultValue(stage, cards = []){
   return cards.reduce((acc, card) => acc + Number(card.num || 0), 0);
 }
 
+function getPlusMinusColorForRoom(stage, room){
+  const placementRule = getRoomPlacementRule(stage, Number(room));
+  if (
+    placementRule
+    && Array.isArray(placementRule.allowedColors)
+    && placementRule.allowedColors.length === 1
+  ){
+    const onlyColor = placementRule.allowedColors[0];
+    if (onlyColor === 'white' || onlyColor === 'black'){
+      return onlyColor;
+    }
+  }
+  return null;
+}
+
+function evaluatePlusMinusSuccess(stage, entries, roomCardsMap){
+  const stagePlusMinus = STAGE_PLUS_MINUS[stage];
+  if (!stagePlusMinus) return true;
+
+  const groupedRequirements = new Map();
+  Object.entries(stagePlusMinus).forEach(([roomKey, sign]) => {
+    if (sign !== '+' && sign !== '-') return;
+    const room = Number(roomKey);
+    if (!(room >= 1 && room <= 6)) return;
+    const color = getPlusMinusColorForRoom(stage, room);
+    const groupKey = `${sign}:${color || 'any'}`;
+    if (!groupedRequirements.has(groupKey)){
+      groupedRequirements.set(groupKey, { sign, color, rooms: [] });
+    }
+    groupedRequirements.get(groupKey).rooms.push(room);
+  });
+
+  for (const group of groupedRequirements.values()){
+    const domainCards = entries.filter((card) => {
+      if (group.color && String(card.color || 'white') !== group.color) return false;
+      return true;
+    });
+    const requiredCount = group.rooms.length;
+    if (domainCards.length < requiredCount) return false;
+
+    const sortedNums = domainCards
+      .map((card) => Number(card.num || 0))
+      .sort((a, b) => a - b);
+    const threshold = group.sign === '-'
+      ? sortedNums[requiredCount - 1]
+      : sortedNums[sortedNums.length - requiredCount];
+
+    for (const room of group.rooms){
+      const roomCards = roomCardsMap.get(room) || [];
+      const hasRequiredCard = roomCards.some((card) => {
+        if (group.color && String(card.color || 'white') !== group.color) return false;
+        const num = Number(card.num || 0);
+        return group.sign === '-' ? num <= threshold : num >= threshold;
+      });
+      if (!hasRequiredCard) return false;
+    }
+  }
+
+  return true;
+}
+
 function evaluatePlacementResult(stage, roomCardsMap){
   if (
     typeof stage === 'string'
@@ -2007,8 +2068,9 @@ function evaluatePlacementResult(stage, roomCardsMap){
   const hasInfinity = stage === '1-1';
   const room6Sum = getRoomResultValue(stage, roomCardsMap.get(6) || []);
   const room6Ok = hasInfinity || room6Sum <= 24;
+  const plusMinusOk = evaluatePlusMinusSuccess(stage, getPlayedEntriesSorted(), roomCardsMap);
 
-  return isAscending && conditionsOk && room6Ok;
+  return isAscending && conditionsOk && room6Ok && plusMinusOk;
 }
 
 async function maybeRunRevealFlipSequence(){
