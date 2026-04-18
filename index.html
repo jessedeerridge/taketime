@@ -3662,6 +3662,8 @@ const STAGE_BLACKCLOCK_ROOMS = {
   '3-2': [1]
 };
 const STAGE_BROWNCARDS = {
+  '1-1': { 6: 3 },
+  '1-2': { 4: 3 },
   '3-4': { 3: 2 }
 };
 const STAGE_PROHIBIT_ROOMS = {
@@ -5469,9 +5471,6 @@ function getStageRoomHintText(stage, room){
     return `カードを必ず${browncardsCount}枚だけ置かなければならない。`;
   }
 
-  if ((stage === '1-2' && room === 4) || (stage === '1-1' && room === 6)){
-    return 'カードを必ず3枚だけ置かなければならない。';
-  }
   if (stage === '3-1' && room === 4){
     return 'このエリアに最も大きい数値のカードが置かれていなければならない。';
   }
