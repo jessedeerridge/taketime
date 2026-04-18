@@ -5127,7 +5127,9 @@ function renderRoomCards(mission = currentStage){
     appendWhiteBlackPair(4);
     appendClockRoom(5, { text: '2' });
   }
-  if (typeof mission === 'string' && mission.startsWith('5-')) {
+  if (typeof mission === 'string' && mission.startsWith('4-')) {
+    appendCenterBrownPair({ halfGapDelta: -2 });
+  } else if (typeof mission === 'string' && mission.startsWith('5-')) {
     appendCenterBrownPair({ sizeDelta: 3, overlap: true });
   } else if (typeof mission === 'string' && mission.startsWith('6-')) {
     appendCenterBrownPair({ centerSign: '‐', halfGapDelta: -1 });
