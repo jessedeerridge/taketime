@@ -4880,6 +4880,9 @@ function renderRoomCards(mission = currentStage){
     overlap = false,
     centerSign = '',
     centerRightArrow = false,
+    leftSign = '',
+    rightSign = '',
+    lockOnArrow = false,
     halfGapDelta = 0,
     leftRotateDeg = -6,
     rightRotateDeg = 6,
@@ -4921,6 +4924,21 @@ function renderRoomCards(mission = currentStage){
         }
       }
       appendBrownRect();
+
+      const sideSign = isLeft ? leftSign : rightSign;
+      if (sideSign){
+        const signText = document.createElementNS('http://www.w3.org/2000/svg','text');
+        signText.textContent = String(sideSign);
+        signText.setAttribute('x', '0');
+        signText.setAttribute('y', '0');
+        signText.setAttribute('fill', '#d4af37');
+        signText.setAttribute('font-size', '10');
+        signText.setAttribute('font-weight', '900');
+        signText.setAttribute('font-family', 'Arial, "Hiragino Sans", "Yu Gothic", sans-serif');
+        signText.setAttribute('text-anchor', 'middle');
+        signText.setAttribute('dominant-baseline', 'middle');
+        cardG.appendChild(signText);
+      }
       centerG.appendChild(cardG);
     });
     if (centerSign){
@@ -4944,6 +4962,28 @@ function renderRoomCards(mission = currentStage){
       arrow.setAttribute('stroke-width', '0.5');
       arrow.setAttribute('stroke-linejoin', 'round');
       centerG.appendChild(arrow);
+
+      if (lockOnArrow){
+        const lockG = document.createElementNS('http://www.w3.org/2000/svg','g');
+        lockG.setAttribute('transform', 'translate(1,0.8)');
+
+        const shackle = document.createElementNS('http://www.w3.org/2000/svg','path');
+        shackle.setAttribute('d', 'M -2.8 1.2 A 2.8 2.8 0 0 1 2.8 1.2 L 1.7 1.2 A 1.7 1.7 0 0 0 -1.7 1.2 Z');
+        shackle.setAttribute('fill', '#111111');
+        lockG.appendChild(shackle);
+
+        const body = document.createElementNS('http://www.w3.org/2000/svg','rect');
+        body.setAttribute('x', '-3.6');
+        body.setAttribute('y', '1.1');
+        body.setAttribute('width', '7.2');
+        body.setAttribute('height', '6.6');
+        body.setAttribute('rx', '1.1');
+        body.setAttribute('ry', '1.1');
+        body.setAttribute('fill', '#111111');
+        lockG.appendChild(body);
+
+        centerG.appendChild(lockG);
+      }
     }
     g.appendChild(centerG);
   }
@@ -5156,8 +5196,12 @@ function renderRoomCards(mission = currentStage){
     appendWhiteBlackPair(4);
     appendClockRoom(5, { text: '2' });
   }
-  if (typeof mission === 'string' && mission.startsWith('4-')) {
-    appendCenterBrownPair({ halfGapDelta: -2, leftBackCount: 2, centerRightArrow: true });
+  if (mission === '4-1') {
+    appendCenterBrownPair({ halfGapDelta: -2, leftBackCount: 2, centerRightArrow: true, leftSign: '－', rightSign: '＋' });
+  } else if (mission === '4-2') {
+    appendCenterBrownPair({ halfGapDelta: -2, leftBackCount: 2, centerRightArrow: true, leftSign: '＋', rightSign: '－' });
+  } else if (mission === '4-3' || mission === '4-4') {
+    appendCenterBrownPair({ halfGapDelta: -2, leftBackCount: 2, centerRightArrow: true, lockOnArrow: true });
   } else if (typeof mission === 'string' && mission.startsWith('5-')) {
     appendCenterBrownPair({ sizeDelta: 3, overlap: true });
   } else if (typeof mission === 'string' && mission.startsWith('6-')) {
