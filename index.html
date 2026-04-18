@@ -3846,6 +3846,7 @@ const STAGE_SPEC = {
   '6-2': { specifiedRooms: [1,2] },
   '6-3': { specifiedRooms: [2,5] },
   '6-4': { specifiedRooms: [1,2,4] },
+  '7-1': { specifiedRooms: [1] },
 };
 function getSpecifiedRoomsForMission(mission){
   const rec = STAGE_SPEC[mission];
@@ -3877,7 +3878,8 @@ const STAGE_BROWNCARDS = {
   '1-1': { 6: 3 },
   '1-2': { 4: 3 },
   '3-4': { 3: 2 },
-  '4-1': { 5: 1 }
+  '4-1': { 5: 1 },
+  '7-1': { 1: 7 }
 };
 const STAGE_PROHIBIT_ROOMS = {
   '2-1': [1, 2, 3],
@@ -5193,6 +5195,30 @@ function renderRoomCards(mission = currentStage){
     g.appendChild(bgG);
   }
 
+  function appendFlatDeckPile(room, {
+    paint = { fill: '#a0522d', stroke: '#111111' }
+  } = {}){
+    const pileCards = [
+      { extraTan: -8.5, extraRad: -1.5, extraRot: 0 },
+      { extraTan: 0, extraRad: -1.5, extraRot: 0 },
+      { extraTan: 8.5, extraRad: -1.5, extraRot: 0 },
+      { extraTan: -6.5, extraRad: 1.8, extraRot: 0 },
+      { extraTan: 0, extraRad: 1.8, extraRot: 0 },
+      { extraTan: 6.5, extraRad: 1.8, extraRot: 0 },
+      { extraTan: 0, extraRad: 5.5, extraRot: -14 }
+    ];
+    pileCards.forEach(({ extraTan, extraRad, extraRot }) => {
+      appendLabeledCardAt(room, '', {
+        extraTan,
+        extraRad,
+        extraRot,
+        sizeScale: 0.74,
+        paint,
+        flipDirection: true
+      });
+    });
+  }
+
   const specifiedRooms = new Set(getSpecifiedRoomsForMission(mission));
 
   if (mission==='1-1'){
@@ -5387,6 +5413,9 @@ function renderRoomCards(mission = currentStage){
   if (mission === '6-4') {
     appendPlusMinusCards(1, { sign: '-', centerFill: '#ffffff', centerStroke: '#111111' });
     appendPlusMinusCards(4, { sign: '+', centerFill: '#111111', centerStroke: '#ffffff' });
+  }
+  if (mission === '7-1') {
+    appendFlatDeckPile(1);
   }
   if (mission === '4-1') {
     appendCenterBrownPair({ halfGapDelta: -2, leftBackCount: 2, centerRightArrow: true, leftSign: '+', rightSign: '-' });
