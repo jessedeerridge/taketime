@@ -1841,6 +1841,9 @@ function renderMyHand(){
   const myId = state.userId;
   const handData = state.hands[myId];
   if (!handData || !Array.isArray(handData.cards)) return;
+  const isStage4x = typeof currentStage === 'string' && currentStage.startsWith('4-');
+  const playableCards = getMyPlayableHandCards();
+  const leftmostPlayableId = playableCards[0]?.id || '';
   const shouldLockHand = state.isHost && hostHandLockedByStage && !!currentStage;
   const shouldHideInDiscussion = !state.isHost && !!currentStage
     && state.currentPhase !== 'placement'
@@ -1874,10 +1877,11 @@ function renderMyHand(){
       card.style.background = color === 'black' ? '#0b1530' : '#fff';
       card.style.color = color === 'black' ? '#fff' : '#111';
       card.style.border = color === 'black' ? '1px solid #0b1530' : '1px solid #ddd';
-      if (canDragNow){
+      const canDragThisCard = canDragNow && !isStage4x && cardId === leftmostPlayableId;
+      if (canDragThisCard){
         card.addEventListener('pointerdown', (ev) => startCardDrag(ev, { ...cardData, id: cardId }));
       } else {
-        card.style.cursor = 'default';
+        card.style.cursor = (isStage4x || cardId !== leftmostPlayableId) ? 'not-allowed' : 'default';
       }
     }
 
@@ -2180,6 +2184,8 @@ function canPlaceCardInRoom(cardData, room, stage = currentStage){
   }
 
   const counts = getRoomPlacementCounts(room);
+  const browncardsCount = getBrowncardsCountForMission(stage, Number(room));
+  if (browncardsCount > 0 && counts.total >= browncardsCount) return false;
   if (typeof rule.maxTotal === 'number' && counts.total >= rule.maxTotal) return false;
   if (rule.perColorMax && typeof rule.perColorMax[color] === 'number' && (counts.perColor[color] || 0) >= rule.perColorMax[color]){
     return false;
@@ -2269,6 +2275,43 @@ function makeCardId(playerId, cardData){
   return `${playerId}-${color}-${num}`;
 }
 
+function getMyPlayableHandCards(){
+  const myId = state.userId;
+  const cards = state.hands?.[myId]?.cards;
+  if (!Array.isArray(cards)) return [];
+  const playable = [];
+  cards.forEach((cardData) => {
+    const cardId = makeCardId(myId, cardData);
+    if (placedCardIds.has(cardId) || pendingPlacedCardIds.has(cardId)) return;
+    playable.push({ ...cardData, id: cardId });
+  });
+  return playable;
+}
+
+function getStage4SortDirection(stage = currentStage){
+  if (stage === '4-1') return 'asc';
+  if (stage === '4-2') return 'desc';
+  return '';
+}
+
+async function sortMyHandForStage4(direction){
+  if (!state.roomCode || !state.userId) return;
+  if (direction !== 'asc' && direction !== 'desc') return;
+  const cardsRef = ref(db, `rooms/${state.roomCode}/hands/${state.userId}/cards`);
+  await runTransaction(cardsRef, (cards) => {
+    if (!Array.isArray(cards) || cards.length <= 1) return cards;
+    const next = cards.slice().sort((a, b) => {
+      const aNum = Number(a?.num || 0);
+      const bNum = Number(b?.num || 0);
+      if (aNum !== bNum) return direction === 'asc' ? aNum - bNum : bNum - aNum;
+      const aColor = String(a?.color || 'white');
+      const bColor = String(b?.color || 'white');
+      return aColor.localeCompare(bColor);
+    });
+    return next;
+  });
+}
+
 function isUnderlineTargetNumber(num){
   const parsed = Number(num);
   return parsed === 6 || parsed === 9;
@@ -2326,6 +2369,57 @@ function bindChoiceButton(button, choice){
 
 bindChoiceButton(btnChoiceFace, 'face');
 bindChoiceButton(btnChoiceBack, 'back');
+
+async function tryPlaceLeftmostCardForStage4(clientX, clientY){
+  if (!(typeof currentStage === 'string' && currentStage.startsWith('4-'))) return;
+  if (!canCurrentUserDragCard()) return;
+  if (state.isHost && hostHandLockedByStage && currentStage) return;
+  if (!state.isHost && currentStage && state.currentPhase !== 'placement' && state.currentPhase !== 'reveal') return;
+
+  const playableCards = getMyPlayableHandCards();
+  const leftmost = playableCards[0];
+  if (!leftmost) return;
+  if (placingCardIds.has(leftmost.id)) return;
+
+  const room = findDropRoom(clientX, clientY, leftmost);
+  if (!room) return;
+
+  placingCardIds.add(leftmost.id);
+  pendingPlacedCardIds.add(leftmost.id);
+  renderHands();
+  try{
+    const choice = await openCardChoice(leftmost);
+    await placeDroppedCard(leftmost, room, choice);
+  } catch (err){
+    console.error('カード配置に失敗しました', err);
+  } finally {
+    placingCardIds.delete(leftmost.id);
+  }
+}
+
+window.addEventListener('keydown', (ev) => {
+  if (ev.defaultPrevented || ev.repeat) return;
+  if (ev.key !== 's' && ev.key !== 'S') return;
+  const direction = getStage4SortDirection();
+  if (!direction) return;
+  ev.preventDefault();
+  sortMyHandForStage4(direction).catch((err) => {
+    console.error('手札並べ替えに失敗しました', err);
+  });
+});
+
+stageSvg.addEventListener('pointerup', (ev) => {
+  if (activeDrag || boardRotationDrag || isCenterNeedleDragging || centerNeedleDrag) return;
+  const target = ev.target;
+  if (!(target instanceof Element)) return;
+  if (
+    target.closest('.rotation-handle, .rotation-handle-hit, .center-needle-handle')
+    || target.closest('#roomTexts')
+  ){
+    return;
+  }
+  tryPlaceLeftmostCardForStage4(ev.clientX, ev.clientY);
+});
 
 function startCardDrag(ev, cardData){
   ev.preventDefault();
