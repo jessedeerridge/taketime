@@ -2110,6 +2110,9 @@ function getRoomPlacementCounts(room){
 
 function canPlaceCardInRoom(cardData, room, stage = currentStage){
   if (!cardData || !(room >= 1 && room <= 6)) return false;
+  const forcedClockRooms = getForcedClockRoomsForNextPlacement(stage);
+  if (forcedClockRooms.size > 0 && !forcedClockRooms.has(Number(room))) return false;
+
   const rule = getRoomPlacementRule(stage, Number(room));
   if (!rule) return true;
 
@@ -3612,6 +3615,9 @@ const STAGE_CLOCK_ROOMS = {
   '3-2': [1],
   '3-3': [2]
 };
+const STAGE_BLACKCLOCK_ROOMS = {
+  '3-2': [1]
+};
 const STAGE_BROWNCARDS = {
   '3-4': { 3: 2 }
 };
@@ -3641,6 +3647,74 @@ function getClockroomSharedStyle(){
 }
 function getDoubleclockSpec(mission){
   return STAGE_DOUBLECLOCK[mission] || null;
+}
+
+function normalizeOrderLabel(value){
+  return String(value ?? '')
+    .replace(/[０-９]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
+    .trim();
+}
+
+function parseOrderNumber(value){
+  const n = Number(normalizeOrderLabel(value));
+  return Number.isFinite(n) ? n : null;
+}
+
+function getSeatedPlayerIds(){
+  return Object.values(state.tables || {})
+    .filter((seat) => seat?.playerId)
+    .map((seat) => seat.playerId);
+}
+
+function getGlobalPlacementProgress(){
+  const seatedPlayerIds = getSeatedPlayerIds();
+  if (!seatedPlayerIds.length) return null;
+
+  const remainingCards = seatedPlayerIds.reduce((sum, pid) => {
+    const cards = state.hands?.[pid]?.cards;
+    return sum + (Array.isArray(cards) ? cards.length : 0);
+  }, 0);
+  const placedCount = Object.values(state.playedCards || {})
+    .filter((card) => card?.playerId && seatedPlayerIds.includes(card.playerId))
+    .length;
+  const totalExpectedCards = remainingCards + placedCount;
+  if (!totalExpectedCards) return null;
+  return {
+    nextIndex: placedCount + 1,
+    totalExpectedCards
+  };
+}
+
+function getForcedClockRoomsForNextPlacement(stage = currentStage){
+  const progress = getGlobalPlacementProgress();
+  if (!progress) return new Set();
+
+  const forcedRooms = new Set();
+  const { nextIndex, totalExpectedCards } = progress;
+
+  const clockLabels = getClockLabelsForMission(stage) || {};
+  Object.entries(clockLabels).forEach(([roomKey, label]) => {
+    const order = parseOrderNumber(label);
+    if (order !== null && order === nextIndex){
+      forcedRooms.add(Number(roomKey));
+    }
+  });
+
+  const doubleclock = getDoubleclockSpec(stage);
+  if (doubleclock && Number(doubleclock.room) >= 1){
+    const leftOrder = parseOrderNumber(doubleclock.left);
+    const rightOrder = parseOrderNumber(doubleclock.right);
+    if (leftOrder === nextIndex || rightOrder === nextIndex){
+      forcedRooms.add(Number(doubleclock.room));
+    }
+  }
+
+  const blackClockRooms = STAGE_BLACKCLOCK_ROOMS[stage] || [];
+  if (nextIndex === totalExpectedCards){
+    blackClockRooms.forEach((room) => forcedRooms.add(Number(room)));
+  }
+
+  return forcedRooms;
 }
 
 function renderStageMarks(mission){
