@@ -2183,7 +2183,8 @@ async function placeDroppedCard(cardData, room, face = 'face'){
     face,
     room,
     playerId: state.userId,
-    placedAt
+    placedAt,
+    boardRotationAtPlacement: boardRotationDeg
   };
   pendingPlacedCardIds.delete(cardData.id);
   placedCardIds.add(cardData.id);
@@ -3252,7 +3253,9 @@ function applyBoardRotation(deg, { animate = false, useShortestPath = false } = 
     ? toShortestVisualRotation(boardRotationVisualDeg, normalized)
     : deg;
   boardRotationDeg = normalizeDeg(boardRotationVisualDeg);
-  stageSvg.style.transition = animate ? 'transform 220ms ease-out' : 'none';
+  const hasPlacedCards = Object.keys(state.playedCards || {}).length > 0;
+  const shouldAnimate = animate && !hasPlacedCards;
+  stageSvg.style.transition = shouldAnimate ? 'transform 220ms ease-out' : 'none';
   stageSvg.style.transformOrigin = '50% 50%';
   stageSvg.style.transform = `rotate(${boardRotationVisualDeg}deg)`;
   syncRoomHintTableOrientation();
@@ -5073,13 +5076,18 @@ function renderPlayedCards(){
   });
 }
 
+function rotatePointAroundBoardCenter(x, y, deg){
+  const rad = Number(deg) * Math.PI / 180;
+  const dx = Number(x) - 150;
+  const dy = Number(y) - 150;
+  return {
+    x: 150 + dx * Math.cos(rad) - dy * Math.sin(rad),
+    y: 150 + dx * Math.sin(rad) + dy * Math.cos(rad)
+  };
+}
+
 function getCounterRotatedLocalPoint(baseX, baseY){
-  const rad = (-boardRotationDeg) * Math.PI / 180;
-  const dx = Number(baseX) - 150;
-  const dy = Number(baseY) - 150;
-  const localX = 150 + dx * Math.cos(rad) - dy * Math.sin(rad);
-  const localY = 150 + dx * Math.sin(rad) + dy * Math.cos(rad);
-  return { x: localX, y: localY };
+  return rotatePointAroundBoardCenter(baseX, baseY, -boardRotationDeg);
 }
 
 function getPlayedCardEntryTransform(baseX, baseY, baseRot){
@@ -5108,10 +5116,14 @@ function getPlayedCardLayouts(playedList = getPlayedEntriesSorted()){
 
     cards.forEach((cardData, idx) => {
       const offset = (idx - centerOffset) * step;
+      const baseX = 150 + pOuter.x + dirX * offset;
+      const baseY = 150 + pOuter.y + dirY * offset;
+      const placementRotationDeg = Number(cardData.boardRotationAtPlacement || 0);
+      const worldPoint = rotatePointAroundBoardCenter(baseX, baseY, placementRotationDeg);
       layoutMap.set(cardData.key, {
-        x: 150 + pOuter.x + dirX * offset,
-        y: 150 + pOuter.y + dirY * offset,
-        rot
+        x: worldPoint.x,
+        y: worldPoint.y,
+        rot: rot + placementRotationDeg
       });
     });
   }
