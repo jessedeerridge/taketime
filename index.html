@@ -575,8 +575,8 @@
     --infinityOpacity: 0.95;
 
     --tipDiaFill: #facc15;
-    --tipDiaStroke: #000;
-    --tipDiaStrokeW: 1;
+    --tipDiaStroke: none;
+    --tipDiaStrokeW: 0;
     --tipDiaW: 6;
     --tipDiaH: 8;
     --tipDiaOffset: 0;
@@ -2918,6 +2918,7 @@ window.addEventListener('resize', () => {
 const stageSvg = document.getElementById('stageBoard');
 const centerTopLineG = stageSvg.querySelector('#centerTopLineG');
 const centerTopDiamondG = stageSvg.querySelector('#centerTopDiamondG');
+const innerOrangeFillG = stageSvg.querySelector('#innerOrangeFill');
 const orangeCenterFill = stageSvg.querySelector('#orangeCenterFill');
 const rotationHandlesG = stageSvg.querySelector('#rotationHandles');
 const initialCenterNeedleRotate = parseFloat(getComputedStyle(stageSvg).getPropertyValue('--centerTopRotate')) || 0;
@@ -2945,6 +2946,10 @@ function applyCenterNeedleRotation(deg, { animate = false, useShortestPath = fal
   if (centerTopDiamondG){
     centerTopDiamondG.style.transition = animate ? 'transform 220ms ease-out' : 'none';
     centerTopDiamondG.setAttribute('transform', transform);
+  }
+  if (innerOrangeFillG){
+    innerOrangeFillG.style.transition = animate ? 'transform 220ms ease-out' : 'none';
+    innerOrangeFillG.setAttribute('transform', transform);
   }
 }
 
@@ -3049,10 +3054,8 @@ function syncCenterTopLineRange(){
   const csLine = getComputedStyle(stageSvg);
   const rOuter = parseFloat(csLine.getPropertyValue('--innerR')) || 65;
   const rCenterOuter = parseFloat(csLine.getPropertyValue('--innerR4')) || 28;
-  const centerTopW = parseFloat(csLine.getPropertyValue('--centerTopW')) || 2;
-  const safeGap = Math.max(1, centerTopW * 0.55);
   line.setAttribute('stroke-linecap', 'butt');
-  line.setAttribute('y1', String(-(rCenterOuter + safeGap)));
+  line.setAttribute('y1', String(-rCenterOuter));
   line.setAttribute('y2', String(-rOuter));
 }
 syncCenterTopLineRange();
