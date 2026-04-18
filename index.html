@@ -5860,7 +5860,7 @@ function renderRoomConditionHints(mission = currentStage){
   const defaultStyle = {
     maxCharsPerLine: 10,
     maxLines: 4,
-    boxW: 104,
+    boxW: 96,
     lineH: 12,
     fontSize: 9.5
   };
@@ -5912,7 +5912,7 @@ function renderRoomConditionHints(mission = currentStage){
     const paddingX = 2;
     const paddingY = 3;
     const textBlockH = Math.max(1, renderLines.length) * lineH;
-    const tableW = Number(boxW) || 104;
+    const tableW = Number(boxW) || 96;
     const tableH = textBlockH + paddingY * 2;
 
     table.setAttribute('x', String(-tableW / 2));
@@ -5941,51 +5941,51 @@ function renderRoomConditionHints(mission = currentStage){
     appendHintTable('合計値が24を超えてはいけない。', 0, 0, {
       maxCharsPerLine: 10,
       maxLines: 3,
-      boxW: 112,
+      boxW: 104,
       lineH: 11,
       fontSize: 9.5
     });
     if (mission === '2-4'){
-      appendHintTable('カードをオモテでおくことができない。', 0, 52, {
+      appendHintTable('カードをオモテでおくことができない。', 0, 48, {
         maxCharsPerLine: 10,
         maxLines: 3,
-        boxW: 104,
+        boxW: 96,
         lineH: 11,
         fontSize: 9.5
       });
     }
     if (mission === '4-1'){
-      appendHintTable('手札にある一番大きいカードをプレイしなければならない。', 0, 52, {
+      appendHintTable('手札にある一番大きいカードをプレイしなければならない。', 0, 48, {
         maxCharsPerLine: 11,
         maxLines: 4,
-        boxW: 108,
+        boxW: 100,
         lineH: 11,
         fontSize: 9.4
       });
     }
     if (mission === '4-2'){
-      appendHintTable('手札にある一番小さいカードをプレイしなければならない。', 0, 52, {
+      appendHintTable('手札にある一番小さいカードをプレイしなければならない。', 0, 48, {
         maxCharsPerLine: 11,
         maxLines: 4,
-        boxW: 108,
+        boxW: 100,
         lineH: 11,
         fontSize: 9.4
       });
     }
     if (mission === '4-3' || mission === '4-4'){
-      appendHintTable('手札を並び替えてはいけない。手札の左からプレイしなければならない。', 0, 52, {
+      appendHintTable('手札を並び替えてはいけない。手札の左からプレイしなければならない。', 0, 48, {
         maxCharsPerLine: 11,
         maxLines: 5,
-        boxW: 108,
+        boxW: 100,
         lineH: 11,
         fontSize: 9.4
       });
     }
     if (typeof mission === 'string' && mission.startsWith('5-')){
-      appendHintTable('各エリアにカードを必ず2枚置かなければならない。', 0, 52, {
+      appendHintTable('各エリアにカードを必ず2枚置かなければならない。', 0, 48, {
         maxCharsPerLine: 11,
         maxLines: 4,
-        boxW: 106,
+        boxW: 98,
         lineH: 11,
         fontSize: 9.5
       });
