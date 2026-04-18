@@ -4861,14 +4861,15 @@ function renderRoomCards(mission = currentStage){
   function appendCenterBrownPair({
     sizeDelta = 0,
     overlap = false,
-    centerSign = ''
+    centerSign = '',
+    halfGapDelta = 0
   } = {}){
     const centerG = document.createElementNS('http://www.w3.org/2000/svg','g');
     centerG.setAttribute('transform', 'translate(150,150)');
     const cardWidth = 9.6 + sizeDelta;
     const cardHeight = 12.8 + sizeDelta;
     const radius = 1.8 + (sizeDelta * 0.16);
-    const halfGap = overlap ? 4.2 : 8;
+    const halfGap = Math.max(2, (overlap ? 4.2 : 8) + halfGapDelta);
     [-halfGap, halfGap].forEach((dx, idx) => {
       const cardG = document.createElementNS('http://www.w3.org/2000/svg','g');
       cardG.setAttribute('transform', `translate(${dx},0) rotate(${idx === 0 ? -6 : 6})`);
@@ -5112,7 +5113,7 @@ function renderRoomCards(mission = currentStage){
   if (typeof mission === 'string' && mission.startsWith('5-')) {
     appendCenterBrownPair({ sizeDelta: 3, overlap: true });
   } else if (typeof mission === 'string' && mission.startsWith('6-')) {
-    appendCenterBrownPair({ centerSign: '－' });
+    appendCenterBrownPair({ centerSign: '‐', halfGapDelta: -1 });
   }
   if (mission === '2-4') {
     appendCenterEyeCross();
@@ -5757,6 +5758,24 @@ function renderRoomConditionHints(mission = currentStage){
         boxH: 56,
         lineH: 11,
         fontSize: 9.5
+      });
+    }
+    if (typeof mission === 'string' && mission.startsWith('6-')){
+      appendHintTable('各エリアにカードを必ず2枚置かなければならない。', 0, 58, {
+        maxCharsPerLine: 11,
+        maxLines: 4,
+        boxW: 124,
+        boxH: 56,
+        lineH: 11,
+        fontSize: 9.5
+      });
+      appendHintTable('カードは大きいカードの数値から小さいカードの数値を引いた数がエリアの値となる。', 0, 116, {
+        maxCharsPerLine: 11,
+        maxLines: 5,
+        boxW: 132,
+        boxH: 66,
+        lineH: 11,
+        fontSize: 9.2
       });
     }
   }
