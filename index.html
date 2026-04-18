@@ -5053,7 +5053,6 @@ function renderRoomCards(mission = currentStage){
     const deckRot = rotBase + 174;
     const width = cardW * 0.92;
     const height = Math.max(8.2, cardH * 0.62);
-    const radius = Math.max(1.5, cardR * 0.72);
     for (let i = safeCount - 1; i >= 0; i -= 1){
       const tr = [
         'translate(150,150)',
@@ -5061,29 +5060,37 @@ function renderRoomCards(mission = currentStage){
         `translate(${(roomTan[room] || 0) - (1.35 * i)}, 0)`,
         `translate(0, ${-(rBase + (roomRad[room] || 0) - (0.95 * i))})`,
         `rotate(${deckRot})`,
-        `scale(1, ${Math.max(0.7, 0.88 - (0.03 * i)).toFixed(2)})`,
         `translate(${localX}, ${localY})`
       ].join(' ');
       const cardG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
       cardG.setAttribute('transform', tr);
 
-      const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-      rect.setAttribute('x', String((-width / 2).toFixed(3)));
-      rect.setAttribute('y', String((-height / 2).toFixed(3)));
-      rect.setAttribute('width', String(width.toFixed(3)));
-      rect.setAttribute('height', String(height.toFixed(3)));
-      rect.setAttribute('rx', String(radius.toFixed(3)));
-      rect.setAttribute('ry', String(radius.toFixed(3)));
-      rect.setAttribute('fill', '#a0522d');
-      rect.setAttribute('stroke', '#111111');
-      rect.setAttribute('stroke-width', String(sw));
-      cardG.appendChild(rect);
+      const skewX = Math.max(2.2, width * 0.14);
+      const xL = -width / 2;
+      const xR = width / 2;
+      const yT = -height / 2;
+      const yB = height / 2;
+      const face = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      face.setAttribute(
+        'd',
+        [
+          `M ${(xL + skewX).toFixed(3)} ${yT.toFixed(3)}`,
+          `L ${xR.toFixed(3)} ${yT.toFixed(3)}`,
+          `L ${(xR - skewX).toFixed(3)} ${yB.toFixed(3)}`,
+          `L ${xL.toFixed(3)} ${yB.toFixed(3)} Z`
+        ].join(' ')
+      );
+      face.setAttribute('fill', '#a0522d');
+      face.setAttribute('stroke', '#111111');
+      face.setAttribute('stroke-width', String(sw));
+      face.setAttribute('stroke-linejoin', 'round');
+      cardG.appendChild(face);
 
       const topEdge = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-      topEdge.setAttribute('x1', String((-width / 2 + 1.1).toFixed(3)));
-      topEdge.setAttribute('y1', String((-height / 2 + 1.1).toFixed(3)));
-      topEdge.setAttribute('x2', String((width / 2 - 1.1).toFixed(3)));
-      topEdge.setAttribute('y2', String((-height / 2 + 1.1).toFixed(3)));
+      topEdge.setAttribute('x1', String((xL + skewX + 1.0).toFixed(3)));
+      topEdge.setAttribute('y1', String((yT + 0.9).toFixed(3)));
+      topEdge.setAttribute('x2', String((xR - 1.0).toFixed(3)));
+      topEdge.setAttribute('y2', String((yT + 0.9).toFixed(3)));
       topEdge.setAttribute('stroke', 'rgba(255,255,255,0.45)');
       topEdge.setAttribute('stroke-width', '0.8');
       topEdge.setAttribute('stroke-linecap', 'round');
