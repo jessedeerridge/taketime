@@ -5237,10 +5237,13 @@ function getStageRoomHintText(stage, room){
   }
   if (isClockRoom){
     if (stage === '3-2' && room === 1){
-      return 'clockroom：時計マークのエリア。中心は黒、11時〜12時のみ薄茶で表示される。';
+      return '最後の一枚のカードはこのエリアに置かなければならない。';
     }
     if (stage === '3-3' && room === 2){
-      return 'clockroom：時計1と時計2を横並び（平行）で示すエリア。';
+      const doubleclock = getDoubleclockSpec(stage);
+      const left = String(doubleclock?.left || '1');
+      const right = String(doubleclock?.right || '2');
+      return `${left}枚目と${right}枚目のカードはこのエリアに置かなければならない。`;
     }
     return 'clockroom：時計マークで指定されたエリア。';
   }
@@ -5282,7 +5285,7 @@ function getStageRoomHintText(stage, room){
     return '';
   }
   if (Array.isArray(placementRule.disallowedNums) && placementRule.disallowedNums.length){
-    const nums = placementRule.disallowedNums.join('、');
+    const nums = placementRule.disallowedNums.join(',');
     return `${nums}のカードはこのエリアに置けない。`;
   }
   if (
