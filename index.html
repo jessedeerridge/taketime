@@ -988,7 +988,7 @@
         <g transform="translate(150,150)" id="stageClockMarks" style="pointer-events:none"></g>
 
         <g transform="translate(150,150)" id="centerTopLineG" style="pointer-events:none">
-          <line id="centerTopLine" x1="0" y1="0" x2="0" y2="-90"
+          <line id="centerTopLine" x1="0" y1="-10" x2="0" y2="-90"
                 stroke="var(--centerTopColor)" stroke-width="var(--centerTopW)" stroke-linecap="round"/>
         </g>
         <g transform="translate(150,150)" id="centerTopDiamondG" style="pointer-events:none"></g>
@@ -4653,7 +4653,7 @@ function renderRoomCards(mission = currentStage){
 
   function appendCenterEyeCross(){
     const eyeG = document.createElementNS('http://www.w3.org/2000/svg','g');
-    eyeG.setAttribute('transform', 'translate(150,150) scale(0.58)');
+    eyeG.setAttribute('transform', 'translate(150,150) scale(0.54)');
 
     const eyePath = document.createElementNS('http://www.w3.org/2000/svg','path');
     eyePath.setAttribute('d', 'M -24 0 Q 0 -22 24 0 Q 0 22 -24 0 Z');
@@ -5512,14 +5512,24 @@ function redrawAll(m){
   const renderStage = hasStage ? currentStage : '';
   const isStage24 = renderStage === '2-4';
 
-  missionTextEl.textContent = isStage24 ? 'カードをオモテでプレイできない。' : renderStage;
+  missionTextEl.textContent = renderStage;
   missionTextEl.style.display = isStage24 ? '' : 'none';
   missionTextEl.setAttribute('x', isStage24 ? '150' : '292');
-  missionTextEl.setAttribute('y', isStage24 ? '150' : '22');
+  missionTextEl.setAttribute('y', isStage24 ? '142' : '22');
   missionTextEl.setAttribute('text-anchor', isStage24 ? 'middle' : 'end');
   missionTextEl.setAttribute('fill', isStage24 ? '#111' : '#8c5a22');
   missionTextEl.setAttribute('font-size', isStage24 ? '16' : '18');
   missionTextEl.setAttribute('font-weight', isStage24 ? '800' : '700');
+  if (isStage24){
+    while (missionTextEl.firstChild) missionTextEl.removeChild(missionTextEl.firstChild);
+    ['カードをオモテでプレイできない。', 'カードをオモテで置くことができない。'].forEach((line, idx) => {
+      const tspan = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+      tspan.textContent = line;
+      tspan.setAttribute('x', '150');
+      tspan.setAttribute('dy', idx === 0 ? '0' : '20');
+      missionTextEl.appendChild(tspan);
+    });
+  }
   stageNameText.textContent = renderStage;
   const hideStageName = !renderStage || !state.joined;
   const hideStageGear = hideStageName || isStage24;
@@ -5593,6 +5603,10 @@ function redrawAll(m){
   renderRoomCards(renderStage);
   renderPlayedCards();
   renderRoomTotals();
+  if (centerTopLineG && centerTopDiamondG){
+    stageSvg.appendChild(centerTopLineG);
+    stageSvg.appendChild(centerTopDiamondG);
+  }
 }
 window.addEventListener('mission:change', (e)=>{
   redrawAll(e.detail?.value || currentStage);
