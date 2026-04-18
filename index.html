@@ -5048,15 +5048,36 @@ function renderRoomCards(mission = currentStage){
 
   function appendGroundBrownDeck(room, count = 3){
     const safeCount = Math.max(1, Number(count) || 1);
+    const midDeg = (room - 1) * 60 + 30;
+    const rotBase = inwardBase + (roomAdjust[room] || 0);
+    const deckRot = rotBase + 180;
+    const width = cardW * 0.95;
+    const height = Math.max(4.8, cardH * 0.32);
+    const radius = Math.max(1.2, cardR * 0.6);
     for (let i = safeCount - 1; i >= 0; i -= 1){
-      appendLabeledCardAt(room, '', {
-        extraTan: -1.4 * i,
-        extraRad: -1.1 * i,
-        extraRot: -3 + (i * 1.5),
-        sizeScale: 0.92,
-        paint: { fill: '#a0522d', stroke: '#111111' },
-        flipDirection: true
-      });
+      const tr = [
+        'translate(150,150)',
+        `rotate(${midDeg})`,
+        `translate(${(roomTan[room] || 0) - (1.8 * i)}, 0)`,
+        `translate(0, ${-(rBase + (roomRad[room] || 0) - (0.8 * i))})`,
+        `rotate(${deckRot})`,
+        `translate(${localX}, ${localY})`
+      ].join(' ');
+      const cardG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      cardG.setAttribute('transform', tr);
+
+      const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      rect.setAttribute('x', String((-width / 2).toFixed(3)));
+      rect.setAttribute('y', String((-height / 2).toFixed(3)));
+      rect.setAttribute('width', String(width.toFixed(3)));
+      rect.setAttribute('height', String(height.toFixed(3)));
+      rect.setAttribute('rx', String(radius.toFixed(3)));
+      rect.setAttribute('ry', String(radius.toFixed(3)));
+      rect.setAttribute('fill', '#a0522d');
+      rect.setAttribute('stroke', '#111111');
+      rect.setAttribute('stroke-width', String(sw));
+      cardG.appendChild(rect);
+      g.appendChild(cardG);
     }
   }
 
