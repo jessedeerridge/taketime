@@ -2139,6 +2139,14 @@ function getRoomPlacementRule(stage, room){
       return { maxTotal: 2, allowedColors: ['white', 'black'], perColorMax: { white: 1, black: 1 } };
     }
   }
+  if (stage === '6-2'){
+    if (room === 1) return { maxTotal: 2, disallowedNums: ['1', '2', '3'] };
+    if (room === 2) return { maxTotal: 2, allowedColors: ['white', 'black'], perColorMax: { white: 1, black: 1 } };
+  }
+  if (stage === '6-4'){
+    if (room === 1) return { maxTotal: 2, allowedColors: ['white'], perColorMax: { white: 2 } };
+    if (room === 4) return { maxTotal: 2, allowedColors: ['black'], perColorMax: { black: 2 } };
+  }
   if (typeof stage === 'string' && stage.startsWith('5-')){
     return { maxTotal: 2 };
   }
@@ -3772,6 +3780,10 @@ const STAGE_SPEC = {
   '5-2': { specifiedRooms: [4,6] },
   '5-3': { specifiedRooms: [1,6] },
   '5-4': { specifiedRooms: [2,3,4,5] },
+  '6-1': { specifiedRooms: [6] },
+  '6-2': { specifiedRooms: [1,2] },
+  '6-3': { specifiedRooms: [2,5] },
+  '6-4': { specifiedRooms: [1,2,4] },
 };
 function getSpecifiedRoomsForMission(mission){
   const rec = STAGE_SPEC[mission];
@@ -3793,7 +3805,8 @@ const STAGE_CLOCK_ROOMS = {
   '3-3': [2],
   '4-1': [2],
   '4-2': [6],
-  '5-4': [2, 5]
+  '5-4': [2, 5],
+  '6-3': [5]
 };
 const STAGE_BLACKCLOCK_ROOMS = {
   '3-2': [1]
@@ -3815,7 +3828,9 @@ const STAGE_CLOSECARD_LABELS = {
   '3-1': { 6: '20' },
   '3-4': { 4: '6' },
   '4-4': { 3: '12' },
-  '5-2': { 4: '15' }
+  '5-2': { 4: '15' },
+  '6-3': { 2: '12' },
+  '6-4': { 2: '24' }
 };
 const STAGE_PLUS_MINUS = {
   '3-1': { 4: '+' },
@@ -3825,10 +3840,13 @@ const STAGE_PLUS_MINUS = {
   '4-2': { 1: '+' },
   '4-4': { 4: '-', 5: '+' },
   '5-2': { 6: '-' },
-  '5-3': { 1: '+', 6: '-' }
+  '5-3': { 1: '+', 6: '-' },
+  '6-1': { 6: '-' },
+  '6-4': { 1: '-', 4: '+' }
 };
 const STAGE_DOUBLECLOCK = {
-  '3-3': { room: 2, left: '2', right: '1', gap: 12 }
+  '3-3': { room: 2, left: '2', right: '1', gap: 12 },
+  '6-3': { room: 5, left: '2', right: '3', gap: 12 }
 };
 function getClockLabelsForMission(mission){
   return STAGE_CLOCK_LABELS[mission] || null;
@@ -5291,6 +5309,23 @@ function renderRoomCards(mission = currentStage){
     appendWhiteBlackPair(4);
     appendClockRoom(5, { text: '2' });
   }
+  if (mission === '6-1') {
+    appendPlusMinusCards(6, { sign: '-' });
+  }
+  if (mission === '6-2') {
+    appendDisallowedCards(1, ['1', '2', '3']);
+    appendWhiteBlackPair(2);
+  }
+  if (mission === '6-3') {
+    const doubleclock = getDoubleclockSpec('6-3');
+    const clockGap = Math.max(10, Number(doubleclock?.gap) || 12);
+    appendClockRoom(5, { extraTan: -clockGap, text: String(doubleclock?.left || '2'), sizeScale: 0.9 });
+    appendClockRoom(5, { extraTan: clockGap, text: String(doubleclock?.right || '3'), sizeScale: 0.9 });
+  }
+  if (mission === '6-4') {
+    appendPlusMinusCards(1, { sign: '-', centerFill: '#ffffff', centerStroke: '#111111' });
+    appendPlusMinusCards(4, { sign: '+', centerFill: '#111111', centerStroke: '#ffffff' });
+  }
   if (mission === '4-1') {
     appendCenterBrownPair({ halfGapDelta: -2, leftBackCount: 2, centerRightArrow: true, leftSign: '+', rightSign: '-' });
   } else if (mission === '4-2') {
@@ -5697,6 +5732,12 @@ function renderRoomTexts(mission){
   if (mission === '5-2') {
     textSpecs.push(makeClosecardTextSpec(4, '15', (midDeg)=>midDeg + 180));
   }
+  if (mission === '6-3') {
+    textSpecs.push(makeClosecardTextSpec(2, '12', (midDeg)=>midDeg + 180));
+  }
+  if (mission === '6-4') {
+    textSpecs.push(makeClosecardTextSpec(2, '24', (midDeg)=>midDeg + 180));
+  }
   if (textSpecs.length === 0) return;
 
   textSpecs.forEach(({room, label, rotate, color: textColor, bgColor: circleColor, bgOpacity: circleOpacity, underline})=>{
@@ -5757,8 +5798,8 @@ function getStageRoomHintText(stage, room){
     if (stage === '3-2' && room === 1){
       return '最後の一枚のカードはこのエリアに置かなければならない。';
     }
-    if (stage === '3-3' && room === 2){
-      const doubleclock = getDoubleclockSpec(stage);
+    const doubleclock = getDoubleclockSpec(stage);
+    if (doubleclock && Number(doubleclock.room) === Number(room)){
       const left = String(doubleclock?.left || '1');
       const right = String(doubleclock?.right || '2');
       return `${right}枚目と${left}枚目のカードはこのエリアに置かなければならない。`;
