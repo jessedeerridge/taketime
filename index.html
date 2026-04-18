@@ -5950,6 +5950,36 @@ function renderRoomConditionHints(mission = currentStage){
         fontSize: 9.5
       });
     }
+    if (mission === '4-1'){
+      appendHintTable('手札にある一番大きいカードをプレイしなければならない。', 0, 58, {
+        maxCharsPerLine: 11,
+        maxLines: 4,
+        boxW: 132,
+        boxH: 56,
+        lineH: 11,
+        fontSize: 9.4
+      });
+    }
+    if (mission === '4-2'){
+      appendHintTable('手札にある一番小さいカードをプレイしなければならない。', 0, 58, {
+        maxCharsPerLine: 11,
+        maxLines: 4,
+        boxW: 132,
+        boxH: 56,
+        lineH: 11,
+        fontSize: 9.4
+      });
+    }
+    if (mission === '4-3' || mission === '4-4'){
+      appendHintTable('手札を並び替えてはいけない。手札の左からプレイしなければならない。', 0, 58, {
+        maxCharsPerLine: 11,
+        maxLines: 5,
+        boxW: 132,
+        boxH: 66,
+        lineH: 11,
+        fontSize: 9.4
+      });
+    }
     if (typeof mission === 'string' && mission.startsWith('5-')){
       appendHintTable('各エリアにカードを必ず2枚置かなければならない。', 0, 58, {
         maxCharsPerLine: 11,
