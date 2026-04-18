@@ -1432,10 +1432,7 @@ function updateStageTagPressState(isPressed){
 
 function syncStageTopHint(mission = currentStage){
   if (!stageTopHint) return;
-  const shouldShow = mission === '2-4'
-    && state.joined
-    && isStageTagPressed
-    && !stageNameGear.classList.contains('hidden');
+  const shouldShow = false;
   stageTopHint.classList.toggle('hidden', !shouldShow);
   if (!shouldShow) return;
 
@@ -4592,8 +4589,8 @@ function renderRoomCards(mission = currentStage){
 
       if (fill11to12){
         const wedge = document.createElementNS('http://www.w3.org/2000/svg','path');
-        const a0 = -90 * Math.PI / 180;
-        const a1 = -60 * Math.PI / 180;
+        const a0 = -120 * Math.PI / 180;
+        const a1 = -90 * Math.PI / 180;
         const x0 = centerRadius * Math.cos(a0);
         const y0 = centerRadius * Math.sin(a0);
         const x1 = centerRadius * Math.cos(a1);
@@ -4652,6 +4649,43 @@ function renderRoomCards(mission = currentStage){
     text.setAttribute('dominant-baseline', 'middle');
     badgeG.appendChild(text);
     g.appendChild(badgeG);
+  }
+
+  function appendCenterEyeCross(){
+    const eyeG = document.createElementNS('http://www.w3.org/2000/svg','g');
+    eyeG.setAttribute('transform', 'translate(150,150)');
+
+    const eye = document.createElementNS('http://www.w3.org/2000/svg','ellipse');
+    eye.setAttribute('cx', '0');
+    eye.setAttribute('cy', '0');
+    eye.setAttribute('rx', String(Math.max(10, cardW * 0.55)));
+    eye.setAttribute('ry', String(Math.max(6.5, cardH * 0.24)));
+    eye.setAttribute('fill', '#0b0b0b');
+    eye.setAttribute('stroke', '#111');
+    eye.setAttribute('stroke-width', '1');
+    eyeG.appendChild(eye);
+
+    const cross1 = document.createElementNS('http://www.w3.org/2000/svg','line');
+    cross1.setAttribute('x1', '-5');
+    cross1.setAttribute('y1', '-3.8');
+    cross1.setAttribute('x2', '5');
+    cross1.setAttribute('y2', '3.8');
+    cross1.setAttribute('stroke', '#dc2626');
+    cross1.setAttribute('stroke-width', '1.8');
+    cross1.setAttribute('stroke-linecap', 'round');
+    eyeG.appendChild(cross1);
+
+    const cross2 = document.createElementNS('http://www.w3.org/2000/svg','line');
+    cross2.setAttribute('x1', '5');
+    cross2.setAttribute('y1', '-3.8');
+    cross2.setAttribute('x2', '-5');
+    cross2.setAttribute('y2', '3.8');
+    cross2.setAttribute('stroke', '#dc2626');
+    cross2.setAttribute('stroke-width', '1.8');
+    cross2.setAttribute('stroke-linecap', 'round');
+    eyeG.appendChild(cross2);
+
+    g.appendChild(eyeG);
   }
 
   function appendRoomBackground(room, {
@@ -4831,6 +4865,9 @@ function renderRoomCards(mission = currentStage){
       flipDirection: true
     });
     appendPlusMinusCards(5, { sign: '-', centerFill: '#ffffff', centerStroke: '#111111' });
+  }
+  if (mission === '2-4') {
+    appendCenterEyeCross();
   }
 }
 
@@ -5243,7 +5280,7 @@ function getStageRoomHintText(stage, room){
       const doubleclock = getDoubleclockSpec(stage);
       const left = String(doubleclock?.left || '1');
       const right = String(doubleclock?.right || '2');
-      return `${left}枚目と${right}枚目のカードはこのエリアに置かなければならない。`;
+      return `${right}枚目と${left}枚目のカードはこのエリアに置かなければならない。`;
     }
     return 'clockroom：時計マークで指定されたエリア。';
   }
@@ -5454,8 +5491,8 @@ function renderRoomConditionHints(mission = currentStage){
   if (spec.nextSibling !== clockMarks)          stageSvg.insertBefore(clockMarks,   spec.nextSibling);
   if (clockMarks.nextSibling !== roomGuideCircles) stageSvg.insertBefore(roomGuideCircles, clockMarks.nextSibling);
   if (roomGuideCircles.nextSibling !== roomTexts) stageSvg.insertBefore(roomTexts, roomGuideCircles.nextSibling);
-  if (roomTexts.nextSibling !== tipG) stageSvg.insertBefore(tipG, roomTexts.nextSibling);
-  if (tipG.nextSibling !== centerLineG) stageSvg.insertBefore(centerLineG, tipG.nextSibling);
+  if (roomTexts.nextSibling !== centerLineG) stageSvg.insertBefore(centerLineG, roomTexts.nextSibling);
+  if (centerLineG.nextSibling !== tipG) stageSvg.insertBefore(tipG, centerLineG.nextSibling);
   if (centerLineG.nextSibling !== cardsG) stageSvg.insertBefore(cardsG, centerLineG.nextSibling);
   if (cardsG.nextSibling !== playedCardsG) stageSvg.insertBefore(playedCardsG, cardsG.nextSibling);
   if (playedCardsG.nextSibling !== roomConditionHints) stageSvg.insertBefore(roomConditionHints, playedCardsG.nextSibling);
@@ -5467,12 +5504,21 @@ function redrawAll(m){
   if (typeof m === 'string') currentStage = m;
   const hasStage = STAGE_CODES.includes(currentStage);
   const renderStage = hasStage ? currentStage : '';
+  const isStage24 = renderStage === '2-4';
 
-  missionTextEl.textContent = renderStage;
+  missionTextEl.textContent = isStage24 ? 'カードをオモテでプレイできない。' : renderStage;
+  missionTextEl.style.display = isStage24 ? '' : 'none';
+  missionTextEl.setAttribute('x', isStage24 ? '150' : '292');
+  missionTextEl.setAttribute('y', isStage24 ? '150' : '22');
+  missionTextEl.setAttribute('text-anchor', isStage24 ? 'middle' : 'end');
+  missionTextEl.setAttribute('fill', isStage24 ? '#111' : '#8c5a22');
+  missionTextEl.setAttribute('font-size', isStage24 ? '16' : '18');
+  missionTextEl.setAttribute('font-weight', isStage24 ? '800' : '700');
   stageNameText.textContent = renderStage;
   const hideStageName = !renderStage || !state.joined;
+  const hideStageGear = hideStageName || isStage24;
   stageNameTag.classList.toggle('hidden', hideStageName);
-  stageNameGear.classList.toggle('hidden', hideStageName);
+  stageNameGear.classList.toggle('hidden', hideStageGear);
   if (hideStageName) isStageTagPressed = false;
   syncStageTopHint(renderStage);
   renderMainGearVisual();
