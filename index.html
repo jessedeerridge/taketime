@@ -4858,25 +4858,47 @@ function renderRoomCards(mission = currentStage){
     appendCardAt(room, 6, 0, 6, { fill: '#ffffff', stroke: '#000000' }, true);
   }
 
-  function appendCenterBrownPair(){
+  function appendCenterBrownPair({
+    sizeDelta = 0,
+    overlap = false,
+    centerSign = '',
+    halfGapDelta = 0
+  } = {}){
     const centerG = document.createElementNS('http://www.w3.org/2000/svg','g');
     centerG.setAttribute('transform', 'translate(150,150)');
-    [-8, 8].forEach((dx, idx) => {
+    const cardWidth = 9.6 + sizeDelta;
+    const cardHeight = 12.8 + sizeDelta;
+    const radius = 1.8 + (sizeDelta * 0.16);
+    const halfGap = Math.max(2, (overlap ? 4.2 : 8) + halfGapDelta);
+    [-halfGap, halfGap].forEach((dx, idx) => {
       const cardG = document.createElementNS('http://www.w3.org/2000/svg','g');
       cardG.setAttribute('transform', `translate(${dx},0) rotate(${idx === 0 ? -6 : 6})`);
       const token = document.createElementNS('http://www.w3.org/2000/svg','rect');
-      token.setAttribute('x', '-4.8');
-      token.setAttribute('y', '-6.4');
-      token.setAttribute('width', '9.6');
-      token.setAttribute('height', '12.8');
-      token.setAttribute('rx', '1.8');
-      token.setAttribute('ry', '1.8');
+      token.setAttribute('x', String((-cardWidth / 2).toFixed(2)));
+      token.setAttribute('y', String((-cardHeight / 2).toFixed(2)));
+      token.setAttribute('width', String(cardWidth.toFixed(2)));
+      token.setAttribute('height', String(cardHeight.toFixed(2)));
+      token.setAttribute('rx', String(Math.max(1.2, radius).toFixed(2)));
+      token.setAttribute('ry', String(Math.max(1.2, radius).toFixed(2)));
       token.setAttribute('fill', '#a0522d');
       token.setAttribute('stroke', '#111111');
       token.setAttribute('stroke-width', '0.9');
       cardG.appendChild(token);
       centerG.appendChild(cardG);
     });
+    if (centerSign){
+      const sign = document.createElementNS('http://www.w3.org/2000/svg','text');
+      sign.textContent = String(centerSign);
+      sign.setAttribute('x', '0');
+      sign.setAttribute('y', '0');
+      sign.setAttribute('fill', '#d4af37');
+      sign.setAttribute('font-size', '11');
+      sign.setAttribute('font-weight', '900');
+      sign.setAttribute('font-family', 'Arial, "Hiragino Sans", "Yu Gothic", sans-serif');
+      sign.setAttribute('text-anchor', 'middle');
+      sign.setAttribute('dominant-baseline', 'middle');
+      centerG.appendChild(sign);
+    }
     g.appendChild(centerG);
   }
 
@@ -5088,8 +5110,10 @@ function renderRoomCards(mission = currentStage){
     appendWhiteBlackPair(4);
     appendClockRoom(5, { text: '2' });
   }
-  if (typeof mission === 'string' && /^(5|6)-/.test(mission)) {
-    appendCenterBrownPair();
+  if (typeof mission === 'string' && mission.startsWith('5-')) {
+    appendCenterBrownPair({ sizeDelta: 3, overlap: true });
+  } else if (typeof mission === 'string' && mission.startsWith('6-')) {
+    appendCenterBrownPair({ centerSign: '‐', halfGapDelta: -1 });
   }
   if (mission === '2-4') {
     appendCenterEyeCross();
@@ -5734,6 +5758,16 @@ function renderRoomConditionHints(mission = currentStage){
         boxH: 56,
         lineH: 11,
         fontSize: 9.5
+      });
+    }
+    if (typeof mission === 'string' && mission.startsWith('6-')){
+      appendHintTable('各エリアにカードを必ず2枚置かなければならない。カードは大きいカードの数値から小さいカードの数値を引いた数がエリアの値となる。', 0, 58, {
+        maxCharsPerLine: 11,
+        maxLines: 7,
+        boxW: 132,
+        boxH: 86,
+        lineH: 11,
+        fontSize: 9.2
       });
     }
   }
