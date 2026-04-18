@@ -1949,8 +1949,22 @@ function getRoomCardsMap(entries = getPlayedEntriesSorted()){
   return map;
 }
 
+function getRoomResultValue(stage, cards = []){
+  if (typeof stage === 'string' && stage.startsWith('6-')){
+    if (!cards.length) return 0;
+    const nums = cards.map((card) => Number(card.num || 0));
+    const maxNum = Math.max(...nums);
+    const minNum = Math.min(...nums);
+    return maxNum - minNum;
+  }
+  return cards.reduce((acc, card) => acc + Number(card.num || 0), 0);
+}
+
 function evaluatePlacementResult(stage, roomCardsMap){
-  if (typeof stage === 'string' && stage.startsWith('5-')){
+  if (
+    typeof stage === 'string'
+    && (stage.startsWith('5-') || stage.startsWith('6-'))
+  ){
     for (let room = 1; room <= 6; room++){
       const cards = roomCardsMap.get(room) || [];
       if (cards.length !== 2) return false;
@@ -1961,8 +1975,8 @@ function evaluatePlacementResult(stage, roomCardsMap){
   for (let room = 1; room <= 6; room++){
     const cards = roomCardsMap.get(room) || [];
     if (!cards.length) continue;
-    const sum = cards.reduce((acc, card) => acc + Number(card.num || 0), 0);
-    roomSums.push({ room, sum });
+    const value = getRoomResultValue(stage, cards);
+    roomSums.push({ room, sum: value });
   }
 
   let isAscending = true;
@@ -1977,14 +1991,14 @@ function evaluatePlacementResult(stage, roomCardsMap){
   const conditions = STAGE_ROOM_SUCCESS_CONDITIONS[stage] || [];
   conditions.forEach((cond) => {
     const cards = roomCardsMap.get(cond.room) || [];
-    const sum = cards.reduce((acc, card) => acc + Number(card.num || 0), 0);
-    if (!cards.length || sum < Number(cond.min) || sum > Number(cond.max)){
+    const value = getRoomResultValue(stage, cards);
+    if (!cards.length || value < Number(cond.min) || value > Number(cond.max)){
       conditionsOk = false;
     }
   });
 
   const hasInfinity = stage === '1-1';
-  const room6Sum = (roomCardsMap.get(6) || []).reduce((acc, card) => acc + Number(card.num || 0), 0);
+  const room6Sum = getRoomResultValue(stage, roomCardsMap.get(6) || []);
   const room6Ok = hasInfinity || room6Sum <= 24;
 
   return isAscending && conditionsOk && room6Ok;
@@ -2114,6 +2128,9 @@ function getRoomPlacementRule(stage, room){
     }
   }
   if (typeof stage === 'string' && stage.startsWith('5-')){
+    return { maxTotal: 2 };
+  }
+  if (typeof stage === 'string' && stage.startsWith('6-')){
     return { maxTotal: 2 };
   }
   return null;
@@ -5379,7 +5396,7 @@ function renderRoomTotals(){
       continue;
     }
 
-    const sum = cards.reduce((acc, card) => acc + Number(card.num || 0), 0);
+    const sum = getRoomResultValue(currentStage, cards);
     const midDeg = (room - 1) * 60 + 30;
     const pOuter = polar(centerR + guideR * 0.5 + outerOffset, midDeg);
     const x = 150 + pOuter.x;
