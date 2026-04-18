@@ -4279,8 +4279,8 @@ function renderCenterTopDiamond(){
   const sw     = Math.max(0, parseFloat(cs12.getPropertyValue('--tipDiaStrokeW')) || 0);
   const ringR = Math.max(2, Math.abs(parseFloat(cs12.getPropertyValue('--tipDiaRingR')) || 11));
   const ringW = Math.max(0.6, Math.abs(parseFloat(cs12.getPropertyValue('--tipDiaRingW')) || 1.8));
-  const ringStroke = cs12.getPropertyValue('--tipDiaRingStroke').trim() || 'none';
-  const ringFill = cs12.getPropertyValue('--tipDiaRingFill').trim() || 'none';
+  const ringStroke = cs12.getPropertyValue('--tipDiaRingStroke').trim() || '#d4af37';
+  const ringFill = cs12.getPropertyValue('--tipDiaRingFill').trim() || '#8b5e3c';
   const hitR = Math.max(ringR, Math.abs(parseFloat(cs12.getPropertyValue('--tipDiaHitR')) || (ringR + 6)));
 
   const cx = 0;
@@ -4655,20 +4655,24 @@ function renderRoomCards(mission = currentStage){
     const eyeG = document.createElementNS('http://www.w3.org/2000/svg','g');
     eyeG.setAttribute('transform', 'translate(150,150)');
 
-    const eye = document.createElementNS('http://www.w3.org/2000/svg','ellipse');
-    eye.setAttribute('cx', '0');
-    eye.setAttribute('cy', '0');
-    eye.setAttribute('rx', String(Math.max(10, cardW * 0.55)));
-    eye.setAttribute('ry', String(Math.max(6.5, cardH * 0.24)));
-    eye.setAttribute('fill', '#0b0b0b');
-    eye.setAttribute('stroke', '#111');
-    eye.setAttribute('stroke-width', '1');
-    eyeG.appendChild(eye);
+    const eyePath = document.createElementNS('http://www.w3.org/2000/svg','path');
+    eyePath.setAttribute('d', 'M -18,0 Q 0,-11 18,0 Q 0,11 -18,0 Z');
+    eyePath.setAttribute('fill', '#0b0b0b');
+    eyePath.setAttribute('stroke', '#0b0b0b');
+    eyePath.setAttribute('stroke-width', '1.2');
+    eyeG.appendChild(eyePath);
+
+    const pupil = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    pupil.setAttribute('cx', '0');
+    pupil.setAttribute('cy', '0');
+    pupil.setAttribute('r', '6');
+    pupil.setAttribute('fill', '#0b0b0b');
+    eyeG.appendChild(pupil);
 
     const cross1 = document.createElementNS('http://www.w3.org/2000/svg','line');
-    cross1.setAttribute('x1', '-5');
+    cross1.setAttribute('x1', '-3.8');
     cross1.setAttribute('y1', '-3.8');
-    cross1.setAttribute('x2', '5');
+    cross1.setAttribute('x2', '3.8');
     cross1.setAttribute('y2', '3.8');
     cross1.setAttribute('stroke', '#dc2626');
     cross1.setAttribute('stroke-width', '1.8');
@@ -4676,9 +4680,9 @@ function renderRoomCards(mission = currentStage){
     eyeG.appendChild(cross1);
 
     const cross2 = document.createElementNS('http://www.w3.org/2000/svg','line');
-    cross2.setAttribute('x1', '5');
+    cross2.setAttribute('x1', '3.8');
     cross2.setAttribute('y1', '-3.8');
-    cross2.setAttribute('x2', '-5');
+    cross2.setAttribute('x2', '-3.8');
     cross2.setAttribute('y2', '3.8');
     cross2.setAttribute('stroke', '#dc2626');
     cross2.setAttribute('stroke-width', '1.8');
