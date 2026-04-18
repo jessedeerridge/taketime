@@ -4932,11 +4932,12 @@ function renderRoomCards(mission = currentStage){
         signText.setAttribute('x', '0');
         signText.setAttribute('y', '0');
         signText.setAttribute('fill', '#d4af37');
-        signText.setAttribute('font-size', '10');
+        signText.setAttribute('font-size', '11');
         signText.setAttribute('font-weight', '900');
         signText.setAttribute('font-family', 'Arial, "Hiragino Sans", "Yu Gothic", sans-serif');
         signText.setAttribute('text-anchor', 'middle');
-        signText.setAttribute('dominant-baseline', 'middle');
+        signText.setAttribute('dominant-baseline', 'central');
+        signText.setAttribute('alignment-baseline', 'central');
         cardG.appendChild(signText);
       }
       centerG.appendChild(cardG);
@@ -4965,11 +4966,13 @@ function renderRoomCards(mission = currentStage){
 
       if (lockOnArrow){
         const lockG = document.createElementNS('http://www.w3.org/2000/svg','g');
-        lockG.setAttribute('transform', 'translate(1,0.8)');
+        lockG.setAttribute('transform', 'translate(1,2.8)');
 
         const shackle = document.createElementNS('http://www.w3.org/2000/svg','path');
         shackle.setAttribute('d', 'M -2.8 1.2 A 2.8 2.8 0 0 1 2.8 1.2 L 1.7 1.2 A 1.7 1.7 0 0 0 -1.7 1.2 Z');
         shackle.setAttribute('fill', '#111111');
+        shackle.setAttribute('stroke', '#d4af37');
+        shackle.setAttribute('stroke-width', '0.5');
         lockG.appendChild(shackle);
 
         const body = document.createElementNS('http://www.w3.org/2000/svg','rect');
@@ -4980,6 +4983,8 @@ function renderRoomCards(mission = currentStage){
         body.setAttribute('rx', '1.1');
         body.setAttribute('ry', '1.1');
         body.setAttribute('fill', '#111111');
+        body.setAttribute('stroke', '#d4af37');
+        body.setAttribute('stroke-width', '0.5');
         lockG.appendChild(body);
 
         centerG.appendChild(lockG);
