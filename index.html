@@ -3846,7 +3846,7 @@ const STAGE_PLUS_MINUS = {
 };
 const STAGE_DOUBLECLOCK = {
   '3-3': { room: 2, left: '2', right: '1', gap: 12 },
-  '6-3': { room: 5, left: '3', right: '2', gap: 12 }
+  '6-3': { room: 5, left: '2', right: '3', gap: 12 }
 };
 function getClockLabelsForMission(mission){
   return STAGE_CLOCK_LABELS[mission] || null;
@@ -5319,8 +5319,8 @@ function renderRoomCards(mission = currentStage){
   if (mission === '6-3') {
     const doubleclock = getDoubleclockSpec('6-3');
     const clockGap = Math.max(10, Number(doubleclock?.gap) || 12);
-    appendClockRoom(5, { extraTan: -clockGap, text: String(doubleclock?.left || '3'), sizeScale: 0.9 });
-    appendClockRoom(5, { extraTan: clockGap, text: String(doubleclock?.right || '2'), sizeScale: 0.9 });
+    appendClockRoom(5, { extraTan: -clockGap, text: String(doubleclock?.left || '2'), sizeScale: 0.9 });
+    appendClockRoom(5, { extraTan: clockGap, text: String(doubleclock?.right || '3'), sizeScale: 0.9 });
   }
   if (mission === '6-4') {
     appendPlusMinusCards(1, { sign: '-', centerFill: '#ffffff', centerStroke: '#111111' });
