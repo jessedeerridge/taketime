@@ -4653,13 +4653,13 @@ function renderRoomCards(mission = currentStage){
 
   function appendCenterEyeCross(){
     const eyeG = document.createElementNS('http://www.w3.org/2000/svg','g');
-    eyeG.setAttribute('transform', 'translate(150,150)');
+    eyeG.setAttribute('transform', 'translate(150,150) scale(0.58)');
 
     const eyePath = document.createElementNS('http://www.w3.org/2000/svg','path');
     eyePath.setAttribute('d', 'M -24 0 Q 0 -22 24 0 Q 0 22 -24 0 Z');
     eyePath.setAttribute('fill', '#0b0b0b');
-    eyePath.setAttribute('stroke', '#0b0b0b');
-    eyePath.setAttribute('stroke-width', '1.2');
+    eyePath.setAttribute('stroke', '#ffffff');
+    eyePath.setAttribute('stroke-width', '1.8');
     eyeG.appendChild(eyePath);
 
     const pupil = document.createElementNS('http://www.w3.org/2000/svg','circle');
@@ -4667,6 +4667,8 @@ function renderRoomCards(mission = currentStage){
     pupil.setAttribute('cy', '0');
     pupil.setAttribute('r', '9');
     pupil.setAttribute('fill', '#0b0b0b');
+    pupil.setAttribute('stroke', '#ffffff');
+    pupil.setAttribute('stroke-width', '1.4');
     eyeG.appendChild(pupil);
 
     const cross1 = document.createElementNS('http://www.w3.org/2000/svg','line');
@@ -5535,6 +5537,14 @@ function redrawAll(m){
   updateOrangeGraphics();
   renderInnerTinyDiv();
   renderCenterTopDiamond();
+  if (centerTopLineG && centerTopDiamondG){
+    if (centerTopLineG.nextSibling !== centerTopDiamondG){
+      stageSvg.insertBefore(centerTopLineG, centerTopDiamondG);
+    }
+    if (stageSvg.lastElementChild !== centerTopDiamondG){
+      stageSvg.appendChild(centerTopDiamondG);
+    }
+  }
 
   if (!hasStage){
     [stageMarksG, stageOutG, stageSpecifiedG, stageClockG].forEach(group => {
