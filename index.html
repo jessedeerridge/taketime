@@ -1277,8 +1277,9 @@ function resetBoardAndNeedleRotations(){
   boardRotationDrag = null;
   centerNeedleDrag = null;
   isCenterNeedleDragging = false;
+  const centerNeedleResetDeg = CENTER_NEEDLE_SNAP_DEG;
   applyBoardRotation(0, { animate: false, useShortestPath: false });
-  applyCenterNeedleRotation(0, { animate: false, useShortestPath: false });
+  applyCenterNeedleRotation(centerNeedleResetDeg, { animate: false, useShortestPath: false });
   if (stageSvg){
     stageSvg.style.transition = 'none';
   }
@@ -2915,7 +2916,7 @@ async function setStage(code){
         isFinal: true
       }),
       set(ref(db, `rooms/${state.roomCode}/centerNeedleRotation`), {
-        deg: 0,
+        deg: CENTER_NEEDLE_SNAP_DEG,
         ts: now,
         actorId: state.userId || '',
         isFinal: true
@@ -3354,6 +3355,13 @@ function syncRoomHintTableOrientation(){
     const cx = Number(tableG.dataset.cx || 0);
     const cy = Number(tableG.dataset.cy || 0);
     tableG.setAttribute('transform', `translate(${cx},${cy}) rotate(${-boardRotationDeg})`);
+  });
+  const playedCards = stageSvg.querySelectorAll('#playedCards .played-card-entry');
+  playedCards.forEach((cardG) => {
+    const baseX = Number(cardG.dataset.baseX || 0);
+    const baseY = Number(cardG.dataset.baseY || 0);
+    const baseRot = Number(cardG.dataset.baseRot || 0);
+    cardG.setAttribute('transform', getPlayedCardEntryTransform(baseX, baseY, baseRot));
   });
 }
 
@@ -5015,7 +5023,11 @@ function renderPlayedCards(){
     if (!layout) return;
 
     const cardG = document.createElementNS('http://www.w3.org/2000/svg','g');
-    cardG.setAttribute('transform', `translate(${layout.x},${layout.y}) rotate(${layout.rot})`);
+    cardG.setAttribute('class', 'played-card-entry');
+    cardG.dataset.baseX = String(layout.x);
+    cardG.dataset.baseY = String(layout.y);
+    cardG.dataset.baseRot = String(layout.rot);
+    cardG.setAttribute('transform', getPlayedCardEntryTransform(layout.x, layout.y, layout.rot));
 
     const rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
     rect.setAttribute('x', (-cardW/2).toFixed(3));
@@ -5059,6 +5071,20 @@ function renderPlayedCards(){
 
     g.appendChild(cardG);
   });
+}
+
+function getCounterRotatedLocalPoint(baseX, baseY){
+  const rad = (-boardRotationDeg) * Math.PI / 180;
+  const dx = Number(baseX) - 150;
+  const dy = Number(baseY) - 150;
+  const localX = 150 + dx * Math.cos(rad) - dy * Math.sin(rad);
+  const localY = 150 + dx * Math.sin(rad) + dy * Math.cos(rad);
+  return { x: localX, y: localY };
+}
+
+function getPlayedCardEntryTransform(baseX, baseY, baseRot){
+  const p = getCounterRotatedLocalPoint(baseX, baseY);
+  return `translate(${p.x},${p.y}) rotate(${Number(baseRot) - boardRotationDeg})`;
 }
 
 function getPlayedCardLayouts(playedList = getPlayedEntriesSorted()){
@@ -5163,7 +5189,8 @@ function animateRemotePlayedCards(entries){
       renderPlayedCards();
       return;
     }
-    const targetClient = svgToClientPoint(target.x, target.y);
+    const localTarget = getCounterRotatedLocalPoint(target.x, target.y);
+    const targetClient = svgToClientPoint(localTarget.x, localTarget.y);
     const flyer = buildFlyingCard(entry, targetCardSize.w, targetCardSize.h);
     flyer.style.left = `${source.x - targetCardSize.w / 2}px`;
     flyer.style.top = `${source.y - targetCardSize.h / 2}px`;
