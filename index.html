@@ -5909,10 +5909,13 @@ function renderRoomConditionHints(mission = currentStage){
       renderLines[lastIdx] = `${renderLines[lastIdx].slice(0, Math.max(0, maxCharsPerLine - 1))}…`;
     }
     const finalFontSize = Math.min(Number(fontSize) || 9.5, 9.5);
-    const paddingX = 2;
+    const paddingX = 1;
     const paddingY = 3;
+    const maxLineLen = renderLines.reduce((max, line) => Math.max(max, line.length), 0);
+    const textBlockW = maxLineLen * finalFontSize;
     const textBlockH = Math.max(1, renderLines.length) * lineH;
-    const tableW = Number(boxW) || 96;
+    const minBoxW = 56;
+    const tableW = Math.max(minBoxW, textBlockW + paddingX * 2);
     const tableH = textBlockH + paddingY * 2;
 
     table.setAttribute('x', String(-tableW / 2));
@@ -6005,7 +6008,7 @@ function renderRoomConditionHints(mission = currentStage){
     const hintText = getStageRoomHintText(mission, room);
     if (!hintText) return;
     const midDeg = (room - 1) * 60 + 30;
-    const radialOut = centerR + guideR + outerOffset + 18;
+    const radialOut = centerR + guideR + outerOffset + 8;
     const pOuter = polar(radialOut, midDeg);
     appendHintTable(hintText, pOuter.x, pOuter.y);
   });
