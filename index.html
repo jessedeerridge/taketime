@@ -3877,7 +3877,8 @@ const STAGE_BROWNCARDS = {
   '1-1': { 6: 3 },
   '1-2': { 4: 3 },
   '3-4': { 3: 2 },
-  '4-1': { 5: 1 }
+  '4-1': { 5: 1 },
+  '7-1': { 1: 3 }
 };
 const STAGE_PROHIBIT_ROOMS = {
   '2-1': [1, 2, 3],
@@ -5045,6 +5046,20 @@ function renderRoomCards(mission = currentStage){
     appendCardAt(room, 6, 0, 6, { fill: '#ffffff', stroke: '#000000' }, true);
   }
 
+  function appendGroundBrownDeck(room, count = 3){
+    const safeCount = Math.max(1, Number(count) || 1);
+    for (let i = safeCount - 1; i >= 0; i -= 1){
+      appendLabeledCardAt(room, '', {
+        extraTan: -1.4 * i,
+        extraRad: -1.1 * i,
+        extraRot: -3 + (i * 1.5),
+        sizeScale: 0.92,
+        paint: { fill: '#a0522d', stroke: '#111111' },
+        flipDirection: true
+      });
+    }
+  }
+
   function appendCenterBrownPair({
     sizeDelta = 0,
     overlap = false,
@@ -5387,6 +5402,9 @@ function renderRoomCards(mission = currentStage){
   if (mission === '6-4') {
     appendPlusMinusCards(1, { sign: '-', centerFill: '#ffffff', centerStroke: '#111111' });
     appendPlusMinusCards(4, { sign: '+', centerFill: '#111111', centerStroke: '#ffffff' });
+  }
+  if (mission === '7-1') {
+    appendGroundBrownDeck(1, 3);
   }
   if (mission === '4-1') {
     appendCenterBrownPair({ halfGapDelta: -2, leftBackCount: 2, centerRightArrow: true, leftSign: '+', rightSign: '-' });
