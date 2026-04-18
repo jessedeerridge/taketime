@@ -4963,11 +4963,12 @@ function renderRoomCards(mission = currentStage){
       arrow.setAttribute('stroke', '#d4af37');
       arrow.setAttribute('stroke-width', '0.5');
       arrow.setAttribute('stroke-linejoin', 'round');
+      arrow.setAttribute('transform', 'translate(2,0)');
       centerG.appendChild(arrow);
 
       if (lockOnArrow){
         const lockG = document.createElementNS('http://www.w3.org/2000/svg','g');
-        lockG.setAttribute('transform', 'translate(0,1.8) scale(0.9)');
+        lockG.setAttribute('transform', 'translate(0,1.8)');
 
         const shackle = document.createElementNS('http://www.w3.org/2000/svg','path');
         shackle.setAttribute('d', 'M -2.8 1.2 A 2.8 2.8 0 0 1 2.8 1.2 L 1.7 1.2 A 1.7 1.7 0 0 0 -1.7 1.2 Z');
