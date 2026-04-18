@@ -5761,19 +5761,11 @@ function renderRoomConditionHints(mission = currentStage){
       });
     }
     if (typeof mission === 'string' && mission.startsWith('6-')){
-      appendHintTable('各エリアにカードを必ず2枚置かなければならない。', 0, 58, {
+      appendHintTable('各エリアにカードを必ず2枚置かなければならない。カードは大きいカードの数値から小さいカードの数値を引いた数がエリアの値となる。', 0, 58, {
         maxCharsPerLine: 11,
-        maxLines: 4,
-        boxW: 124,
-        boxH: 56,
-        lineH: 11,
-        fontSize: 9.5
-      });
-      appendHintTable('カードは大きいカードの数値から小さいカードの数値を引いた数がエリアの値となる。', 0, 116, {
-        maxCharsPerLine: 11,
-        maxLines: 5,
+        maxLines: 7,
         boxW: 132,
-        boxH: 66,
+        boxH: 86,
         lineH: 11,
         fontSize: 9.2
       });
