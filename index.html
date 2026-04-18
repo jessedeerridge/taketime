@@ -1327,6 +1327,42 @@ function canCurrentUserDragCard(){
   return isMyTurnInPlacement();
 }
 
+function isFourXStage(stage = currentStage){
+  return typeof stage === 'string' && stage.startsWith('4-');
+}
+
+function isEditableTarget(target){
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable) return true;
+  const tag = target.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+}
+
+function compareCardsByNumAndColor(a, b, desc = false){
+  const numA = Number(a?.num || 0);
+  const numB = Number(b?.num || 0);
+  if (numA !== numB) return desc ? (numB - numA) : (numA - numB);
+  const colorA = String(a?.color || 'white');
+  const colorB = String(b?.color || 'white');
+  if (colorA === colorB) return 0;
+  const order = { white: 0, black: 1 };
+  const rankA = Object.prototype.hasOwnProperty.call(order, colorA) ? order[colorA] : 99;
+  const rankB = Object.prototype.hasOwnProperty.call(order, colorB) ? order[colorB] : 99;
+  return desc ? (rankB - rankA) : (rankA - rankB);
+}
+
+async function sortMyHandByCurrentStage(){
+  if (!state.roomCode || !state.userId) return;
+  if (currentStage !== '4-1' && currentStage !== '4-2') return;
+  const cardsRef = ref(db, `rooms/${state.roomCode}/hands/${state.userId}/cards`);
+  const isDesc = currentStage === '4-2';
+  await runTransaction(cardsRef, (cards) => {
+    if (!Array.isArray(cards) || cards.length <= 1) return cards;
+    const nextCards = cards.slice().sort((a, b) => compareCardsByNumAndColor(a, b, isDesc));
+    return nextCards;
+  });
+}
+
 function syncMyHandPulseDom(){
   const shouldPulse = canCurrentUserDragCard() && !activeDrag;
   myHandEl.querySelectorAll('.my-card').forEach((cardEl) => {
@@ -1847,10 +1883,14 @@ function renderMyHand(){
     && state.currentPhase !== 'reveal';
   const canDragNow = canCurrentUserDragCard() && !shouldLockHand && !shouldHideInDiscussion;
   const shouldPulse = canDragNow && !activeDrag;
+  const onlyLeftmostPlayable = isFourXStage(currentStage);
+  let hasPlayableCardInHand = false;
 
   handData.cards.forEach((cardData) => {
     const cardId = makeCardId(myId, cardData);
     if (placedCardIds.has(cardId) || pendingPlacedCardIds.has(cardId)) return;
+    const isPlayableCard = !onlyLeftmostPlayable || !hasPlayableCardInHand;
+    if (isPlayableCard) hasPlayableCardInHand = true;
 
     const card = document.createElement('div');
     card.className = 'my-card';
@@ -1874,10 +1914,10 @@ function renderMyHand(){
       card.style.background = color === 'black' ? '#0b1530' : '#fff';
       card.style.color = color === 'black' ? '#fff' : '#111';
       card.style.border = color === 'black' ? '1px solid #0b1530' : '1px solid #ddd';
-      if (canDragNow){
+      if (canDragNow && isPlayableCard){
         card.addEventListener('pointerdown', (ev) => startCardDrag(ev, { ...cardData, id: cardId }));
       } else {
-        card.style.cursor = 'default';
+        card.style.cursor = (canDragNow && !isPlayableCard) ? 'not-allowed' : 'default';
       }
     }
 
@@ -2097,6 +2137,10 @@ function getGuideMetrics(){
 }
 
 function getRoomPlacementRule(stage, room){
+  const browncardsCount = getBrowncardsCountForMission(stage, room);
+  if (browncardsCount > 0){
+    return { maxTotal: browncardsCount };
+  }
   if (stage === '1-1'){
     if (room === 1) return { maxTotal: 1, allowedColors: ['white'], perColorMax: { white: 1 } };
     if (room === 6) return { maxTotal: 3 };
@@ -2697,6 +2741,18 @@ btnJoin.addEventListener('click', async () => {
     joinInProgress = false;
     setJoinButtonBusy(false);
   }
+});
+
+window.addEventListener('keydown', (ev) => {
+  if (ev.repeat) return;
+  if (ev.key !== 's' && ev.key !== 'S') return;
+  if (isEditableTarget(ev.target)) return;
+  if (!state.joined || !state.roomCode) return;
+  if (currentStage !== '4-1' && currentStage !== '4-2') return;
+  ev.preventDefault();
+  sortMyHandByCurrentStage().catch((err) => {
+    console.error('手札ソートに失敗しました', err);
+  });
 });
 
 copyLinkBtn.addEventListener('click', async () => {
