@@ -4305,7 +4305,6 @@ function renderCenterTopDiamond(){
   ring.setAttribute('stroke', ringStroke);
   ring.setAttribute('stroke-width', String(ringW));
   ring.style.cursor = 'grab';
-  g.appendChild(ring);
 
   const pTop =   {x: cx,     y: cy - h};
   const pRight = {x: cx + w, y: cy    };
@@ -4321,6 +4320,7 @@ function renderCenterTopDiamond(){
   path.setAttribute('class', 'center-needle-handle');
   path.style.cursor = 'grab';
   g.appendChild(path);
+  g.appendChild(ring);
 }
 
 function renderRoomCards(mission = currentStage){
@@ -4656,7 +4656,7 @@ function renderRoomCards(mission = currentStage){
     eyeG.setAttribute('transform', 'translate(150,150)');
 
     const eyePath = document.createElementNS('http://www.w3.org/2000/svg','path');
-    eyePath.setAttribute('d', 'M -18,0 Q 0,-11 18,0 Q 0,11 -18,0 Z');
+    eyePath.setAttribute('d', 'M -24 0 Q 0 -22 24 0 Q 0 22 -24 0 Z');
     eyePath.setAttribute('fill', '#0b0b0b');
     eyePath.setAttribute('stroke', '#0b0b0b');
     eyePath.setAttribute('stroke-width', '1.2');
@@ -4665,7 +4665,7 @@ function renderRoomCards(mission = currentStage){
     const pupil = document.createElementNS('http://www.w3.org/2000/svg','circle');
     pupil.setAttribute('cx', '0');
     pupil.setAttribute('cy', '0');
-    pupil.setAttribute('r', '6');
+    pupil.setAttribute('r', '9');
     pupil.setAttribute('fill', '#0b0b0b');
     eyeG.appendChild(pupil);
 
