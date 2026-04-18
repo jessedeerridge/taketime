@@ -5860,10 +5860,8 @@ function renderRoomConditionHints(mission = currentStage){
   const defaultStyle = {
     maxCharsPerLine: 14,
     maxLines: 4,
-    boxW: 140,
-    boxH: 56,
     lineH: 12,
-    fontSize: 10
+    fontSize: 9.5
   };
 
   function appendHintTable(hintText, boxX, boxY, style = defaultStyle){
@@ -5871,8 +5869,6 @@ function renderRoomConditionHints(mission = currentStage){
     const {
       maxCharsPerLine,
       maxLines,
-      boxW,
-      boxH,
       lineH,
       fontSize
     } = style;
@@ -5898,10 +5894,6 @@ function renderRoomConditionHints(mission = currentStage){
     g.appendChild(tableWrap);
 
     const table = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    table.setAttribute('x', String(-boxW / 2));
-    table.setAttribute('y', String(-boxH / 2));
-    table.setAttribute('width', String(boxW));
-    table.setAttribute('height', String(boxH));
     table.setAttribute('rx', '10');
     table.setAttribute('ry', '10');
     table.setAttribute('fill', 'rgba(31, 41, 55, 0.72)');
@@ -5914,10 +5906,24 @@ function renderRoomConditionHints(mission = currentStage){
       const lastIdx = renderLines.length - 1;
       renderLines[lastIdx] = `${renderLines[lastIdx].slice(0, Math.max(0, maxCharsPerLine - 1))}…`;
     }
+    const finalFontSize = Math.min(Number(fontSize) || 9.5, 9.5);
+    const paddingX = 2;
+    const paddingY = 2;
+    const maxLineLen = renderLines.reduce((max, line) => Math.max(max, line.length), 0);
+    const textBlockW = maxLineLen * finalFontSize;
+    const textBlockH = Math.max(1, renderLines.length) * lineH;
+    const tableW = textBlockW + paddingX * 2;
+    const tableH = textBlockH + paddingY * 2;
+
+    table.setAttribute('x', String(-tableW / 2));
+    table.setAttribute('y', String(-tableH / 2));
+    table.setAttribute('width', String(tableW));
+    table.setAttribute('height', String(tableH));
+
     text.setAttribute('x', '0');
     text.setAttribute('y', String(-((renderLines.length - 1) * lineH) / 2));
     text.setAttribute('fill', '#fff');
-    text.setAttribute('font-size', String(fontSize));
+    text.setAttribute('font-size', String(finalFontSize));
     text.setAttribute('font-weight', '700');
     text.setAttribute('text-anchor', 'middle');
     text.setAttribute('dominant-baseline', 'middle');
@@ -5935,8 +5941,6 @@ function renderRoomConditionHints(mission = currentStage){
     appendHintTable('合計値が24を超えてはいけない。', 0, 0, {
       maxCharsPerLine: 10,
       maxLines: 3,
-      boxW: 112,
-      boxH: 48,
       lineH: 11,
       fontSize: 9.5
     });
@@ -5944,8 +5948,6 @@ function renderRoomConditionHints(mission = currentStage){
       appendHintTable('カードをオモテでおくことができない。', 0, 58, {
         maxCharsPerLine: 10,
         maxLines: 3,
-        boxW: 112,
-        boxH: 48,
         lineH: 11,
         fontSize: 9.5
       });
@@ -5954,8 +5956,6 @@ function renderRoomConditionHints(mission = currentStage){
       appendHintTable('手札にある一番大きいカードをプレイしなければならない。', 0, 58, {
         maxCharsPerLine: 11,
         maxLines: 4,
-        boxW: 132,
-        boxH: 56,
         lineH: 11,
         fontSize: 9.4
       });
@@ -5964,8 +5964,6 @@ function renderRoomConditionHints(mission = currentStage){
       appendHintTable('手札にある一番小さいカードをプレイしなければならない。', 0, 58, {
         maxCharsPerLine: 11,
         maxLines: 4,
-        boxW: 132,
-        boxH: 56,
         lineH: 11,
         fontSize: 9.4
       });
@@ -5974,8 +5972,6 @@ function renderRoomConditionHints(mission = currentStage){
       appendHintTable('手札を並び替えてはいけない。手札の左からプレイしなければならない。', 0, 58, {
         maxCharsPerLine: 11,
         maxLines: 5,
-        boxW: 132,
-        boxH: 66,
         lineH: 11,
         fontSize: 9.4
       });
@@ -5984,8 +5980,6 @@ function renderRoomConditionHints(mission = currentStage){
       appendHintTable('各エリアにカードを必ず2枚置かなければならない。', 0, 58, {
         maxCharsPerLine: 11,
         maxLines: 4,
-        boxW: 124,
-        boxH: 56,
         lineH: 11,
         fontSize: 9.5
       });
@@ -5994,8 +5988,6 @@ function renderRoomConditionHints(mission = currentStage){
       appendHintTable('各エリアにカードを必ず2枚置き、大きい値から小さい値を引いた数がエリアの値となる。', 0, 74, {
         maxCharsPerLine: 11,
         maxLines: 7,
-        boxW: 132,
-        boxH: 86,
         lineH: 11,
         fontSize: 9.2
       });
