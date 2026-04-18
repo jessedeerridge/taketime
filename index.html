@@ -5172,6 +5172,12 @@ function renderRoomCards(mission = currentStage){
     });
     appendPlusMinusCards(5, { sign: '-', centerFill: '#ffffff', centerStroke: '#111111' });
   }
+  if (mission === '4-1') {
+    appendLabeledCardAt(5, '', {
+      paint: { fill: '#a0522d', stroke: '#111111' },
+      flipDirection: true
+    });
+  }
   if (mission === '4-2') {
     appendPlusMinusCards(1, { sign: '+' });
     appendClockRoom(6, { text: '1' });
