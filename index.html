@@ -5101,11 +5101,23 @@ function getPlayedCardLayouts(playedList = getPlayedEntriesSorted()){
   const cardW = parseFloat(cs13.getPropertyValue('--cardW')) || 26;
   const step = cardW + 3;
   const layoutMap = new Map();
-  for(let room = 1; room <= 6; room++){
-    const cards = playedList.filter((card) => Number(card.room) === room);
-    if (!cards.length) continue;
+  const locationGroups = new Map();
 
-    const midDeg = (room - 1) * 60 + 30;
+  playedList.forEach((cardData) => {
+    const room = Number(cardData.room);
+    if (!room || room < 1 || room > 6) return;
+    const placementRotationDeg = Number(cardData.boardRotationAtPlacement || 0);
+    const worldMidDeg = normalizeDeg((room - 1) * 60 + 30 + placementRotationDeg);
+    const worldRoomIndex = ((Math.round(worldMidDeg / 60) % 6) + 6) % 6;
+    const key = String(worldRoomIndex);
+    if (!locationGroups.has(key)) locationGroups.set(key, []);
+    locationGroups.get(key).push(cardData);
+  });
+
+  locationGroups.forEach((cards, key) => {
+    if (!cards.length) return;
+    const worldRoomIndex = Number(key);
+    const midDeg = worldRoomIndex * 60 + 30;
     const pOuter = polar(centerR + guideR * 0.5 + outerOffset, midDeg);
     const angleToCenter = Math.atan2(-pOuter.y, -pOuter.x) * 180 / Math.PI;
     const rot = angleToCenter + 90;
@@ -5116,17 +5128,13 @@ function getPlayedCardLayouts(playedList = getPlayedEntriesSorted()){
 
     cards.forEach((cardData, idx) => {
       const offset = (idx - centerOffset) * step;
-      const baseX = 150 + pOuter.x + dirX * offset;
-      const baseY = 150 + pOuter.y + dirY * offset;
-      const placementRotationDeg = Number(cardData.boardRotationAtPlacement || 0);
-      const worldPoint = rotatePointAroundBoardCenter(baseX, baseY, placementRotationDeg);
       layoutMap.set(cardData.key, {
-        x: worldPoint.x,
-        y: worldPoint.y,
-        rot: rot + placementRotationDeg
+        x: 150 + pOuter.x + dirX * offset,
+        y: 150 + pOuter.y + dirY * offset,
+        rot
       });
     });
-  }
+  });
   return layoutMap;
 }
 
