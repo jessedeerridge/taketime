@@ -3934,6 +3934,7 @@ const STAGE_SPEC = {
   '6-2': { specifiedRooms: [1,2] },
   '6-3': { specifiedRooms: [2,5] },
   '6-4': { specifiedRooms: [1,2,4] },
+  '7-1': { specifiedRooms: [1] },
 };
 function getSpecifiedRoomsForMission(mission){
   const rec = STAGE_SPEC[mission];
@@ -3965,7 +3966,8 @@ const STAGE_BROWNCARDS = {
   '1-1': { 6: 3 },
   '1-2': { 4: 3 },
   '3-4': { 3: 2 },
-  '4-1': { 5: 1 }
+  '4-1': { 5: 1 },
+  '7-1': { 1: 3 }
 };
 const STAGE_PROHIBIT_ROOMS = {
   '2-1': [1, 2, 3],
@@ -5384,6 +5386,67 @@ function renderRoomCards(mission = currentStage){
     g.appendChild(markerG);
   }
 
+  function appendRoundedParallelogramDeck(room, {
+    count = 3,
+    width = 14.4,
+    height = 20.2,
+    skewX = 4.2,
+    cornerR = 2.3,
+    offsetX = 1.8,
+    offsetY = -1.3,
+    rotateDeg = -6,
+    fill = '#a0522d',
+    stroke = '#111111',
+    strokeWidth = 0.9
+  } = {}){
+    if (!specifiedRooms.has(room) || count <= 0) return;
+    const midDeg = (room-1)*60 + 30;
+    const tr = [
+      'translate(150,150)',
+      `rotate(${midDeg})`,
+      `translate(${(roomTan[room]||0)}, 0)`,
+      `translate(0, ${-(rBase + (roomRad[room]||0))})`,
+      `rotate(${inwardBase + (roomAdjust[room]||0)})`,
+      `translate(${localX}, ${localY})`
+    ].join(' ');
+
+    const stackG = document.createElementNS('http://www.w3.org/2000/svg','g');
+    stackG.setAttribute('transform', tr);
+
+    const halfW = width / 2;
+    const halfH = height / 2;
+    const safeCorner = Math.max(0, Math.min(cornerR, width * 0.45, height * 0.45));
+    const rectX = -halfW;
+    const rectY = -halfH;
+    const rectW = width;
+    const rectH = height;
+    const skew = skewX;
+    const deckPath = [
+      `M ${rectX + safeCorner + skew} ${rectY}`,
+      `L ${rectX + rectW - safeCorner + skew} ${rectY}`,
+      `Q ${rectX + rectW + skew} ${rectY} ${rectX + rectW + skew} ${rectY + safeCorner}`,
+      `L ${rectX + rectW - skew} ${rectY + rectH - safeCorner}`,
+      `Q ${rectX + rectW - skew} ${rectY + rectH} ${rectX + rectW - safeCorner - skew} ${rectY + rectH}`,
+      `L ${rectX + safeCorner - skew} ${rectY + rectH}`,
+      `Q ${rectX - skew} ${rectY + rectH} ${rectX - skew} ${rectY + rectH - safeCorner}`,
+      `L ${rectX + skew} ${rectY + safeCorner}`,
+      `Q ${rectX + skew} ${rectY} ${rectX + safeCorner + skew} ${rectY}`,
+      'Z'
+    ].join(' ');
+
+    for (let i = count - 1; i >= 0; i -= 1){
+      const deckCard = document.createElementNS('http://www.w3.org/2000/svg','path');
+      deckCard.setAttribute('d', deckPath);
+      deckCard.setAttribute('transform', `translate(${offsetX * i}, ${offsetY * i}) rotate(${rotateDeg})`);
+      deckCard.setAttribute('fill', fill);
+      deckCard.setAttribute('stroke', stroke);
+      deckCard.setAttribute('stroke-width', String(strokeWidth));
+      deckCard.setAttribute('stroke-linejoin', 'round');
+      stackG.appendChild(deckCard);
+    }
+    g.appendChild(stackG);
+  }
+
   if (mission === '2-1') {
     STAGE_PROHIBIT_ROOMS['2-1'].forEach((room) => appendDisallowedCards(room, ['1', '2', '3']));
   }
@@ -5475,6 +5538,9 @@ function renderRoomCards(mission = currentStage){
   if (mission === '6-4') {
     appendPlusMinusCards(1, { sign: '-', centerFill: '#ffffff', centerStroke: '#111111' });
     appendPlusMinusCards(4, { sign: '+', centerFill: '#111111', centerStroke: '#ffffff' });
+  }
+  if (mission === '7-1') {
+    appendRoundedParallelogramDeck(1, { count: 3 });
   }
   if (mission === '4-1') {
     appendCenterBrownPair({ halfGapDelta: -2, leftBackCount: 2, centerRightArrow: true, leftSign: '+', rightSign: '-' });
