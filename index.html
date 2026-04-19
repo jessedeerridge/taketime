@@ -336,9 +336,16 @@
     transform-origin:center;
     will-change:transform;
   }
+  .my-card.reserve-slide-in{
+    animation:reserveSlideIn .42s cubic-bezier(.22,.8,.25,1) both;
+  }
   @keyframes myCardTurnPulse{
     0%,100%{transform:scale(1);}
     50%{transform:scale(1.08);}
+  }
+  @keyframes reserveSlideIn{
+    0%{transform:translateX(84px);opacity:0;}
+    100%{transform:translateX(0);opacity:1;}
   }
 
   .mini-hand.turn-pulse{
@@ -1220,6 +1227,7 @@ let roomTotalsRefreshTimer = null;
 let revealResultDelayTimer = null;
 let lastAutoSortedHandSignature = '';
 let lastPlayedCardKeys = new Set();
+let twoPlayerReservedCardIds = [];
 const inFlightPlayedCardKeys = new Set();
 const placingCardIds = new Set();
 let hasPlayedCardsSnapshot = false;
@@ -1851,10 +1859,42 @@ function renderMyHand(){
   const canDragNow = canCurrentUserDragCard() && !shouldLockHand && !shouldHideInDiscussion;
   const shouldPulse = canDragNow && !activeDrag;
 
+  const seatedPlayerIds = Object.values(state.tables || {})
+    .filter((seat) => seat?.playerId)
+    .map((seat) => seat.playerId);
+  const isTwoPlayerMode = seatedPlayerIds.length === 2;
+  const totalPlacedCount = Object.values(state.playedCards || {})
+    .filter((card) => card?.playerId && seatedPlayerIds.includes(card.playerId))
+    .length;
+  const myPlacedCount = Object.values(state.playedCards || {})
+    .filter((card) => card?.playerId === myId)
+    .length;
+
   let leftmostPlayableFound = false;
+  const candidateCards = [];
   handData.cards.forEach((cardData) => {
     const cardId = makeCardId(myId, cardData);
     if (placedCardIds.has(cardId) || pendingPlacedCardIds.has(cardId)) return;
+    candidateCards.push({ cardData, cardId });
+  });
+
+  const reserveCandidateIds = candidateCards.slice(-2).map((entry) => entry.cardId);
+  const keepReservedHidden = isTwoPlayerMode
+    && reserveCandidateIds.length === 2
+    && (myPlacedCount < 2 || totalPlacedCount < 4);
+  const cardsToRender = keepReservedHidden ? candidateCards.slice(0, -2) : candidateCards;
+  const slideInCardIds = !keepReservedHidden && twoPlayerReservedCardIds.length
+    ? new Set(twoPlayerReservedCardIds)
+    : null;
+  if (keepReservedHidden){
+    twoPlayerReservedCardIds = reserveCandidateIds;
+  } else if (!isTwoPlayerMode){
+    twoPlayerReservedCardIds = [];
+  } else if (twoPlayerReservedCardIds.length){
+    twoPlayerReservedCardIds = [];
+  }
+
+  cardsToRender.forEach(({ cardData, cardId }) => {
     const isLeftmostPlayable = !leftmostPlayableFound;
     leftmostPlayableFound = true;
     const canPlayThisCard = !isLeftmostOnlyStage(currentStage) || isLeftmostPlayable;
@@ -1865,6 +1905,9 @@ function renderMyHand(){
 
     if (shouldPulse){
       card.classList.add('turn-pulse');
+    }
+    if (slideInCardIds?.has(cardId)){
+      card.classList.add('reserve-slide-in');
     }
 
     if (shouldLockHand || shouldHideInDiscussion){
