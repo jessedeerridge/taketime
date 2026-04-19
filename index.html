@@ -1861,16 +1861,9 @@ function renderMyHand(){
   const canDragNow = canCurrentUserDragCard() && !shouldLockHand && !shouldHideInDiscussion;
   const shouldPulse = canDragNow && !activeDrag;
 
-  const seatedPlayerIds = Object.values(state.tables || {})
-    .filter((seat) => seat?.playerId)
-    .map((seat) => seat.playerId);
-  const isTwoPlayerMode = seatedPlayerIds.length === 2;
-  const totalPlacedCount = Object.values(state.playedCards || {})
-    .filter((card) => card?.playerId && seatedPlayerIds.includes(card.playerId))
-    .length;
-  const myPlacedCount = Object.values(state.playedCards || {})
-    .filter((card) => card?.playerId === myId)
-    .length;
+  const isTwoPlayerMode = isTwoPlayerRoom();
+  const totalPlacedCount = getTotalPlacedCountForSeatedPlayers();
+  const myPlacedCount = getPlacedCountByPlayer(myId);
 
   let leftmostPlayableFound = false;
   const candidateCards = [];
@@ -1881,9 +1874,12 @@ function renderMyHand(){
   });
 
   const reserveCandidateIds = candidateCards.slice(-2).map((entry) => entry.cardId);
-  const keepReservedHidden = isTwoPlayerMode
-    && reserveCandidateIds.length === 2
-    && (myPlacedCount < 2 || totalPlacedCount < 4);
+  const keepReservedHidden = shouldHideTwoPlayerReserve({
+    candidateCount: candidateCards.length,
+    playerPlacedCount: myPlacedCount,
+    totalPlacedCount,
+    isTwoPlayerMode
+  });
   const cardsToRender = keepReservedHidden ? candidateCards.slice(0, -2) : candidateCards;
   const slideInCardIds = !keepReservedHidden && twoPlayerReservedCardIds.length
     ? new Set(twoPlayerReservedCardIds)
@@ -1935,6 +1931,52 @@ function renderMyHand(){
 
     myHandEl.appendChild(card);
   });
+}
+
+function getSeatedPlayerIds(){
+  return Object.values(state.tables || {})
+    .filter((seat) => seat?.playerId)
+    .map((seat) => seat.playerId);
+}
+
+function isTwoPlayerRoom(){
+  return getSeatedPlayerIds().length === 2;
+}
+
+function getTotalPlacedCountForSeatedPlayers(){
+  const seatedPlayerIds = getSeatedPlayerIds();
+  if (!seatedPlayerIds.length) return 0;
+  return Object.values(state.playedCards || {})
+    .filter((card) => card?.playerId && seatedPlayerIds.includes(card.playerId))
+    .length;
+}
+
+function getPlacedCountByPlayer(playerId){
+  return Object.values(state.playedCards || {})
+    .filter((card) => card?.playerId === playerId)
+    .length;
+}
+
+function shouldHideTwoPlayerReserve({
+  candidateCount,
+  playerPlacedCount,
+  totalPlacedCount,
+  isTwoPlayerMode = isTwoPlayerRoom()
+} = {}){
+  if (!isTwoPlayerMode) return false;
+  return candidateCount >= 2 && (playerPlacedCount < 2 || totalPlacedCount < 4);
+}
+
+function getVisibleHandCardsForPlayer(playerId){
+  const cards = state.hands?.[playerId]?.cards;
+  if (!Array.isArray(cards)) return [];
+  const remainingCards = cards.filter((cardData) => !placedCardIds.has(makeCardId(playerId, cardData)));
+  const shouldHideReserve = shouldHideTwoPlayerReserve({
+    candidateCount: remainingCards.length,
+    playerPlacedCount: getPlacedCountByPlayer(playerId),
+    totalPlacedCount: getTotalPlacedCountForSeatedPlayers()
+  });
+  return shouldHideReserve ? remainingCards.slice(0, -2) : remainingCards;
 }
 
 function cleanupDroppedCards(){
@@ -2794,19 +2836,19 @@ function renderPlayerCircle(players){
       kickDialog.classList.remove('hidden');
     };
 
-    const handData = state.hands[p.id];
-    if (p.id !== state.userId && handData && Array.isArray(handData.cards) && handData.cards.length){
+    const visibleCards = getVisibleHandCardsForPlayer(p.id);
+    if (p.id !== state.userId && visibleCards.length){
       const miniHand = document.createElement('div');
       miniHand.className = 'mini-hand';
       if (activeTurnPlayers.has(p.id)){
         miniHand.classList.add('turn-pulse');
       }
 
-      const count = handData.cards.length;
+      const count = visibleCards.length;
       const spread = 70;
       const base = (count > 1) ? (-spread/2) : 0;
 
-      handData.cards.forEach((cardData, idx2) => {
+      visibleCards.forEach((cardData, idx2) => {
         const card = document.createElement('div');
         card.className = 'mini-card';
 
