@@ -2466,13 +2466,51 @@ async function placeDroppedCard(cardData, room, face = 'face'){
   lastPlayedCardKeys.add(key);
   renderHands();
   try {
-    if (shouldDrawFromLeftdeck){
-      await drawOneFromLeftdeck(state.userId);
+    const roomRef = ref(db, `rooms/${state.roomCode}`);
+    const tx = await runTransaction(roomRef, (roomData) => {
+      const roomRoot = roomData && typeof roomData === 'object' ? roomData : {};
+      const hands = roomRoot.hands && typeof roomRoot.hands === 'object' ? { ...roomRoot.hands } : {};
+      const playerHand = hands[state.userId] && typeof hands[state.userId] === 'object'
+        ? { ...hands[state.userId] }
+        : {};
+      const cards = Array.isArray(playerHand.cards) ? playerHand.cards.slice() : [];
+
+      let removeIndex = -1;
+      if (cardData?.uid){
+        removeIndex = cards.findIndex((c) => c && c.uid === cardData.uid);
+      }
+      if (removeIndex === -1){
+        removeIndex = cards.findIndex((c) => c && c.num === cardData.num && c.color === cardData.color);
+      }
+      if (removeIndex === -1) return roomRoot;
+      cards.splice(removeIndex, 1);
+
+      if (shouldDrawFromLeftdeck){
+        const leftdeck = Array.isArray(roomRoot.leftdeck) ? roomRoot.leftdeck.slice() : [];
+        if (leftdeck.length){
+          const nextCard = leftdeck.shift();
+          cards.push({
+            ...nextCard,
+            drawnFromLeftdeckAt: Date.now()
+          });
+          roomRoot.leftdeck = leftdeck;
+        }
+      }
+
+      playerHand.cards = cards;
+      hands[state.userId] = playerHand;
+      roomRoot.hands = hands;
+      roomRoot.playedCards = {
+        ...(roomRoot.playedCards && typeof roomRoot.playedCards === 'object' ? roomRoot.playedCards : {}),
+        [key]: localCard
+      };
+      return roomRoot;
+    });
+
+    const placedInDb = !!tx?.snapshot?.child(`playedCards/${key}`).exists();
+    if (!tx?.committed || !placedInDb){
+      throw new Error('card placement transaction did not commit');
     }
-    await Promise.all([
-      set(ref(db, `rooms/${state.roomCode}/playedCards/${key}`), localCard),
-      removeCardFromHandInDb(state.userId, cardData)
-    ]);
   } catch (err){
     delete state.playedCards[key];
     lastPlayedCardKeys.delete(key);
