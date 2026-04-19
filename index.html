@@ -309,6 +309,13 @@
     touch-action:none;
     cursor:grab;
   }
+  .my-card.reserve-slide-in{
+    animation:reserveSlideIn .48s cubic-bezier(.22,.8,.25,1) both;
+  }
+  @keyframes reserveSlideIn{
+    0%{transform:translateX(84px);opacity:0;}
+    100%{transform:translateX(0);opacity:1;}
+  }
   .card-num-underlined{
     display:inline-block;
     border-bottom:2px solid currentColor;
@@ -1222,6 +1229,8 @@ let lastAutoSortedHandSignature = '';
 let lastPlayedCardKeys = new Set();
 const inFlightPlayedCardKeys = new Set();
 const placingCardIds = new Set();
+let twoPlayerHiddenReserveCardIds = new Set();
+const twoPlayerSlideInCardIds = new Set();
 let hasPlayedCardsSnapshot = false;
 let currentSubgearCount = 0;
 let boardRotationDeg = 0;
@@ -1839,6 +1848,26 @@ function subscribePlayers(){
   });
 }
 
+function getSeatedPlayerIds(){
+  return Object.values(state.tables || {})
+    .filter((seat) => seat?.playerId)
+    .map((seat) => seat.playerId);
+}
+
+function getSeatedPlayedCardCount(){
+  const seatedPlayerIds = getSeatedPlayerIds();
+  if (!seatedPlayerIds.length) return 0;
+  return Object.values(state.playedCards || {})
+    .filter((card) => card?.playerId && seatedPlayerIds.includes(card.playerId))
+    .length;
+}
+
+function getMyPlayedCardCount(){
+  return Object.values(state.playedCards || {})
+    .filter((card) => card?.playerId === state.userId)
+    .length;
+}
+
 function renderMyHand(){
   myHandEl.innerHTML = '';
   const myId = state.userId;
@@ -1850,11 +1879,39 @@ function renderMyHand(){
     && state.currentPhase !== 'reveal';
   const canDragNow = canCurrentUserDragCard() && !shouldLockHand && !shouldHideInDiscussion;
   const shouldPulse = canDragNow && !activeDrag;
+  const seatedPlayerIds = getSeatedPlayerIds();
+  const isTwoPlayerGame = seatedPlayerIds.length === 2;
+  const totalSeatedPlayedCount = getSeatedPlayedCardCount();
+  const myPlayedCount = getMyPlayedCardCount();
+  const shouldHideReserveCards =
+    isTwoPlayerGame
+    && myPlayedCount < 2
+    && totalSeatedPlayedCount < 4;
+
+  const drawableCards = handData.cards.filter((cardData) => {
+    const cardId = makeCardId(myId, cardData);
+    return !placedCardIds.has(cardId) && !pendingPlacedCardIds.has(cardId);
+  });
+
+  let visibleCards = drawableCards;
+  if (shouldHideReserveCards && drawableCards.length >= 2){
+    const hiddenReserve = drawableCards.slice(-2);
+    twoPlayerHiddenReserveCardIds = new Set(hiddenReserve.map((cardData) => makeCardId(myId, cardData)));
+    visibleCards = drawableCards.slice(0, -2);
+  } else {
+    if (isTwoPlayerGame && totalSeatedPlayedCount >= 4 && twoPlayerHiddenReserveCardIds.size){
+      twoPlayerHiddenReserveCardIds.forEach((cardId) => {
+        if (!placedCardIds.has(cardId) && !pendingPlacedCardIds.has(cardId)){
+          twoPlayerSlideInCardIds.add(cardId);
+        }
+      });
+    }
+    twoPlayerHiddenReserveCardIds = new Set();
+  }
 
   let leftmostPlayableFound = false;
-  handData.cards.forEach((cardData) => {
+  visibleCards.forEach((cardData) => {
     const cardId = makeCardId(myId, cardData);
-    if (placedCardIds.has(cardId) || pendingPlacedCardIds.has(cardId)) return;
     const isLeftmostPlayable = !leftmostPlayableFound;
     leftmostPlayableFound = true;
     const canPlayThisCard = !isLeftmostOnlyStage(currentStage) || isLeftmostPlayable;
@@ -1862,6 +1919,10 @@ function renderMyHand(){
     const card = document.createElement('div');
     card.className = 'my-card';
     card.dataset.cardId = cardId;
+    if (twoPlayerSlideInCardIds.has(cardId)){
+      card.classList.add('reserve-slide-in');
+      twoPlayerSlideInCardIds.delete(cardId);
+    }
 
     if (shouldPulse){
       card.classList.add('turn-pulse');
