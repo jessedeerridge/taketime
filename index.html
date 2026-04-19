@@ -2446,6 +2446,7 @@ async function placeDroppedCard(cardData, room, face = 'face'){
   if (!state.roomCode) return;
   const placedAt = Date.now();
   const key = `${state.userId}_${cardData.id}_${placedAt}`;
+  const shouldDrawFromLeftdeck = hasBdeckInRoom(currentStage, room);
   const localCard = {
     id: cardData.id,
     num: cardData.num,
@@ -2465,13 +2466,13 @@ async function placeDroppedCard(cardData, room, face = 'face'){
   lastPlayedCardKeys.add(key);
   renderHands();
   try {
+    if (shouldDrawFromLeftdeck){
+      await drawOneFromLeftdeck(state.userId);
+    }
     await Promise.all([
       set(ref(db, `rooms/${state.roomCode}/playedCards/${key}`), localCard),
       removeCardFromHandInDb(state.userId, cardData)
     ]);
-    if (hasBdeckInRoom(currentStage, room)){
-      await drawOneFromLeftdeck(state.userId);
-    }
   } catch (err){
     delete state.playedCards[key];
     lastPlayedCardKeys.delete(key);
