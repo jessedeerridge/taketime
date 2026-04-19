@@ -342,6 +342,9 @@
   .my-card.leftdeck-draw-pop{
     animation:leftdeckDrawPop .36s cubic-bezier(.2,.8,.24,1) both;
   }
+  .my-card.leftdeck-await-landing{
+    opacity:0;
+  }
   .flying-draw-card{
     position:fixed;
     margin:0;
@@ -1938,7 +1941,7 @@ function renderMyHand(){
       card.classList.add('reserve-slide-in');
     }
     if (cardData?.drawnFromLeftdeckAt && cardData?.uid && !leftdeckAnimatedCardIds.has(cardData.uid)){
-      card.classList.add('leftdeck-draw-pop');
+      card.classList.add('leftdeck-await-landing');
       leftdeckAnimatedCardIds.add(cardData.uid);
       requestAnimationFrame(() => {
         animateLeftdeckDrawToHand(card, cardData);
@@ -1999,7 +2002,14 @@ function animateLeftdeckDrawToHand(targetCardEl, cardData){
     flyer.style.transform = `translate(${dx}px, ${dy}px)`;
     flyer.style.opacity = '0.08';
   });
-  setTimeout(() => flyer.remove(), 620);
+  setTimeout(() => {
+    flyer.remove();
+    targetCardEl.classList.remove('leftdeck-await-landing');
+    targetCardEl.classList.add('leftdeck-draw-pop');
+    setTimeout(() => {
+      targetCardEl.classList.remove('leftdeck-draw-pop');
+    }, 380);
+  }, 620);
 }
 
 function shouldKeepTwoPlayerReserveHidden({
@@ -2465,13 +2475,13 @@ async function placeDroppedCard(cardData, room, face = 'face'){
   lastPlayedCardKeys.add(key);
   renderHands();
   try {
-    await Promise.all([
-      set(ref(db, `rooms/${state.roomCode}/playedCards/${key}`), localCard),
-      removeCardFromHandInDb(state.userId, cardData)
-    ]);
-    if (hasBdeckInRoom(currentStage, room)){
-      await drawOneFromLeftdeck(state.userId);
-    }
+    await commitPlacedCardWithOptionalDraw({
+      playerId: state.userId,
+      cardData,
+      key,
+      localCard,
+      shouldDrawFromLeftdeck: hasBdeckInRoom(currentStage, room)
+    });
   } catch (err){
     delete state.playedCards[key];
     lastPlayedCardKeys.delete(key);
@@ -2482,37 +2492,30 @@ async function placeDroppedCard(cardData, room, face = 'face'){
   }
 }
 
-async function drawOneFromLeftdeck(playerId){
-  if (!state.roomCode || !playerId) return null;
+async function commitPlacedCardWithOptionalDraw({
+  playerId,
+  cardData,
+  key,
+  localCard,
+  shouldDrawFromLeftdeck = false
+}){
+  if (!state.roomCode || !playerId || !cardData || !key || !localCard) return null;
   const roomRef = ref(db, `rooms/${state.roomCode}`);
   const tx = await runTransaction(roomRef, (roomData) => {
     const room = roomData && typeof roomData === 'object' ? roomData : {};
-    const leftdeck = Array.isArray(room.leftdeck) ? room.leftdeck.slice() : [];
-    if (!leftdeck.length) return room;
 
-    const nextCard = leftdeck.shift();
+    const playedCards = room.playedCards && typeof room.playedCards === 'object'
+      ? { ...room.playedCards }
+      : {};
+    playedCards[key] = localCard;
+    room.playedCards = playedCards;
+
     const hands = room.hands && typeof room.hands === 'object' ? { ...room.hands } : {};
     const playerHand = hands[playerId] && typeof hands[playerId] === 'object'
       ? { ...hands[playerId] }
       : {};
     const cards = Array.isArray(playerHand.cards) ? playerHand.cards.slice() : [];
-    cards.push({
-      ...nextCard,
-      drawnFromLeftdeckAt: Date.now()
-    });
-    playerHand.cards = cards;
-    hands[playerId] = playerHand;
-    room.leftdeck = leftdeck;
-    room.hands = hands;
-    return room;
-  });
-  return tx?.committed ? (tx.snapshot?.val()?.leftdeck || null) : null;
-}
 
-async function removeCardFromHandInDb(playerId, cardData){
-  const cardsRef = ref(db, `rooms/${state.roomCode}/hands/${playerId}/cards`);
-  await runTransaction(cardsRef, (cards) => {
-    if (!Array.isArray(cards) || !cards.length) return cards;
     let removeIndex = -1;
     if (cardData?.uid){
       removeIndex = cards.findIndex((c) => c && c.uid === cardData.uid);
@@ -2520,11 +2523,28 @@ async function removeCardFromHandInDb(playerId, cardData){
     if (removeIndex === -1){
       removeIndex = cards.findIndex((c) => c && c.num === cardData.num && c.color === cardData.color);
     }
-    if (removeIndex === -1) return cards;
-    const next = cards.slice();
-    next.splice(removeIndex, 1);
-    return next;
+    if (removeIndex >= 0){
+      cards.splice(removeIndex, 1);
+    }
+
+    if (shouldDrawFromLeftdeck){
+      const leftdeck = Array.isArray(room.leftdeck) ? room.leftdeck.slice() : [];
+      if (leftdeck.length){
+        const nextCard = leftdeck.shift();
+        cards.push({
+          ...nextCard,
+          drawnFromLeftdeckAt: Date.now()
+        });
+        room.leftdeck = leftdeck;
+      }
+    }
+
+    playerHand.cards = cards;
+    hands[playerId] = playerHand;
+    room.hands = hands;
+    return room;
   });
+  return tx?.committed ? tx.snapshot?.val() : null;
 }
 
 function makeCardId(playerId, cardData){
