@@ -5395,6 +5395,7 @@ function renderRoomCards(mission = currentStage){
     offsetX = 0.3,
     offsetY = 2.1,
     rotateDeg = 26,
+    deckOuterShiftR = 8,
     fill = '#a0522d',
     stroke = '#111111',
     strokeWidth = 0.9,
@@ -5407,7 +5408,7 @@ function renderRoomCards(mission = currentStage){
       'translate(150,150)',
       `rotate(${midDeg})`,
       `translate(${(roomTan[room]||0)}, 0)`,
-      `translate(0, ${-(rBase + (roomRad[room]||0))})`,
+      `translate(0, ${-(rBase + (roomRad[room]||0) + deckOuterShiftR)})`,
       `rotate(${inwardBase + (roomAdjust[room]||0)})`,
       `translate(${localX}, ${localY})`
     ].join(' ');
