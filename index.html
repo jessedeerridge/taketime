@@ -1881,9 +1881,12 @@ function renderMyHand(){
   });
 
   const reserveCandidateIds = candidateCards.slice(-2).map((entry) => entry.cardId);
-  const keepReservedHidden = isTwoPlayerMode
-    && reserveCandidateIds.length === 2
-    && (myPlacedCount < 2 || totalPlacedCount < 4);
+  const keepReservedHidden = shouldKeepTwoPlayerReserveHidden({
+    isTwoPlayerMode,
+    reserveCount: reserveCandidateIds.length,
+    playerPlacedCount: myPlacedCount,
+    totalPlacedCount
+  });
   const cardsToRender = keepReservedHidden ? candidateCards.slice(0, -2) : candidateCards;
   const slideInCardIds = !keepReservedHidden && twoPlayerReservedCardIds.length
     ? new Set(twoPlayerReservedCardIds)
@@ -1935,6 +1938,46 @@ function renderMyHand(){
 
     myHandEl.appendChild(card);
   });
+}
+
+function shouldKeepTwoPlayerReserveHidden({
+  isTwoPlayerMode,
+  reserveCount,
+  playerPlacedCount,
+  totalPlacedCount
+}){
+  return isTwoPlayerMode
+    && reserveCount === 2
+    && (playerPlacedCount < 2 || totalPlacedCount < 4);
+}
+
+function getDisplayHandCards(playerId){
+  const handCards = state.hands?.[playerId]?.cards;
+  if (!Array.isArray(handCards) || !handCards.length) return [];
+
+  const candidateCards = handCards.filter((cardData) => {
+    const cardId = makeCardId(playerId, cardData);
+    return !placedCardIds.has(cardId) && !pendingPlacedCardIds.has(cardId);
+  });
+
+  const seatedPlayerIds = Object.values(state.tables || {})
+    .filter((seat) => seat?.playerId)
+    .map((seat) => seat.playerId);
+  const isTwoPlayerMode = seatedPlayerIds.length === 2;
+  const totalPlacedCount = Object.values(state.playedCards || {})
+    .filter((card) => card?.playerId && seatedPlayerIds.includes(card.playerId))
+    .length;
+  const playerPlacedCount = Object.values(state.playedCards || {})
+    .filter((card) => card?.playerId === playerId)
+    .length;
+  const reserveCount = candidateCards.slice(-2).length;
+  const keepReservedHidden = shouldKeepTwoPlayerReserveHidden({
+    isTwoPlayerMode,
+    reserveCount,
+    playerPlacedCount,
+    totalPlacedCount
+  });
+  return keepReservedHidden ? candidateCards.slice(0, -2) : candidateCards;
 }
 
 function cleanupDroppedCards(){
@@ -2794,19 +2837,19 @@ function renderPlayerCircle(players){
       kickDialog.classList.remove('hidden');
     };
 
-    const handData = state.hands[p.id];
-    if (p.id !== state.userId && handData && Array.isArray(handData.cards) && handData.cards.length){
+    const displayCards = getDisplayHandCards(p.id);
+    if (p.id !== state.userId && displayCards.length){
       const miniHand = document.createElement('div');
       miniHand.className = 'mini-hand';
       if (activeTurnPlayers.has(p.id)){
         miniHand.classList.add('turn-pulse');
       }
 
-      const count = handData.cards.length;
+      const count = displayCards.length;
       const spread = 70;
       const base = (count > 1) ? (-spread/2) : 0;
 
-      handData.cards.forEach((cardData, idx2) => {
+      displayCards.forEach((cardData, idx2) => {
         const card = document.createElement('div');
         card.className = 'mini-card';
 
