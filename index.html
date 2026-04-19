@@ -3846,6 +3846,7 @@ const STAGE_SPEC = {
   '6-2': { specifiedRooms: [1,2] },
   '6-3': { specifiedRooms: [2,5] },
   '6-4': { specifiedRooms: [1,2,4] },
+  '7-1': { specifiedRooms: [1] },
 };
 function getSpecifiedRoomsForMission(mission){
   const rec = STAGE_SPEC[mission];
@@ -5193,6 +5194,51 @@ function renderRoomCards(mission = currentStage){
     g.appendChild(bgG);
   }
 
+  function appendParallelogramDeckAt(room, {
+    count = 3,
+    width = cardW * 1.35,
+    height = cardH * 0.52,
+    slant = 6,
+    tanStep = 1.8,
+    radStep = -1.5,
+    rotStep = 0.6,
+    paint = { fill: '#a0522d', stroke: '#111111' }
+  } = {}){
+    const midDeg = (room-1)*60 + 30;
+    const deckBase = document.createElementNS('http://www.w3.org/2000/svg','g');
+    deckBase.setAttribute('transform', [
+      'translate(150,150)',
+      `rotate(${midDeg})`,
+      `translate(${(roomTan[room]||0)}, 0)`,
+      `translate(0, ${-(rBase + (roomRad[room]||0))})`,
+      `rotate(${inwardBase + (roomAdjust[room]||0)})`,
+      `translate(${localX}, ${localY})`
+    ].join(' '));
+
+    for (let i = 0; i < count; i += 1){
+      const layer = document.createElementNS('http://www.w3.org/2000/svg','g');
+      const idxFromTop = (count - 1) - i;
+      layer.setAttribute(
+        'transform',
+        `translate(${idxFromTop * tanStep}, ${idxFromTop * radStep}) rotate(${idxFromTop * rotStep})`
+      );
+
+      const poly = document.createElementNS('http://www.w3.org/2000/svg','polygon');
+      const hw = width / 2;
+      const hh = height / 2;
+      poly.setAttribute(
+        'points',
+        `${(-hw + slant).toFixed(2)},${(-hh).toFixed(2)} ${hw.toFixed(2)},${(-hh).toFixed(2)} ${(hw - slant).toFixed(2)},${hh.toFixed(2)} ${(-hw).toFixed(2)},${hh.toFixed(2)}`
+      );
+      poly.setAttribute('fill', paint.fill);
+      poly.setAttribute('stroke', paint.stroke);
+      poly.setAttribute('stroke-width', String(sw));
+      layer.appendChild(poly);
+      deckBase.appendChild(layer);
+    }
+    g.appendChild(deckBase);
+  }
+
   const specifiedRooms = new Set(getSpecifiedRoomsForMission(mission));
 
   if (mission==='1-1'){
@@ -5387,6 +5433,9 @@ function renderRoomCards(mission = currentStage){
   if (mission === '6-4') {
     appendPlusMinusCards(1, { sign: '-', centerFill: '#ffffff', centerStroke: '#111111' });
     appendPlusMinusCards(4, { sign: '+', centerFill: '#111111', centerStroke: '#ffffff' });
+  }
+  if (mission === '7-1') {
+    appendParallelogramDeckAt(1);
   }
   if (mission === '4-1') {
     appendCenterBrownPair({ halfGapDelta: -2, leftBackCount: 2, centerRightArrow: true, leftSign: '+', rightSign: '-' });
