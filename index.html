@@ -5395,10 +5395,11 @@ function renderRoomCards(mission = currentStage){
     offsetX = 0.3,
     offsetY = 2.1,
     rotateDeg = 26,
+    centerShiftR = 8,
     fill = '#a0522d',
     stroke = '#111111',
     strokeWidth = 0.9,
-    topRotateDeltaDeg = -18
+    topRotateDeltaDeg = -22
   } = {}){
     if (!specifiedRooms.has(room) || count <= 0) return;
     const midDeg = (room-1)*60 + 30;
@@ -5406,7 +5407,7 @@ function renderRoomCards(mission = currentStage){
       'translate(150,150)',
       `rotate(${midDeg})`,
       `translate(${(roomTan[room]||0)}, 0)`,
-      `translate(0, ${-(rBase + (roomRad[room]||0))})`,
+      `translate(0, ${-(rBase + (roomRad[room]||0) - centerShiftR)})`,
       `rotate(${inwardBase + (roomAdjust[room]||0)})`,
       `translate(${localX}, ${localY})`
     ].join(' ');
