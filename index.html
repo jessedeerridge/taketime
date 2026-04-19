@@ -339,6 +339,24 @@
   .my-card.reserve-slide-in{
     animation:reserveSlideIn .42s cubic-bezier(.22,.8,.25,1) both;
   }
+  .my-card.leftdeck-draw-pop{
+    animation:leftdeckDrawPop .36s cubic-bezier(.2,.8,.24,1) both;
+  }
+  .flying-draw-card{
+    position:fixed;
+    margin:0;
+    z-index:530;
+    pointer-events:none;
+    transition:transform .56s cubic-bezier(.2,.8,.24,1), opacity .2s linear;
+    will-change:transform, opacity;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:8px;
+    box-sizing:border-box;
+    box-shadow:0 8px 20px rgba(0,0,0,.22);
+    font-weight:700;
+  }
   @keyframes myCardTurnPulse{
     0%,100%{transform:scale(1);}
     50%{transform:scale(1.08);}
@@ -346,6 +364,10 @@
   @keyframes reserveSlideIn{
     0%{transform:translateX(84px);opacity:0;}
     100%{transform:translateX(0);opacity:1;}
+  }
+  @keyframes leftdeckDrawPop{
+    0%{transform:translateX(24px) scale(.94);opacity:0;}
+    100%{transform:translateX(0) scale(1);opacity:1;}
   }
 
   .mini-hand.turn-pulse{
@@ -1249,6 +1271,7 @@ let lastCenterNeedleTs = 0;
 let lastCenterNeedlePublishAt = 0;
 const CENTER_NEEDLE_SYNC_INTERVAL_MS = 16;
 const CENTER_NEEDLE_SNAP_DEG = 12;
+const leftdeckAnimatedCardIds = new Set();
 
 function getBlackBackGradient(){
   return 'repeating-linear-gradient(135deg,var(--black-card) 0px,var(--black-card) 4px,var(--black-card-stripe) 4px,var(--black-card-stripe) 8px)';
@@ -1378,8 +1401,8 @@ function generateRoomCode(length = 5){
 
 function createDeck24(){
   const deck = [];
-  for(let i = 1; i <= 12; i++) deck.push({ num: i, color: 'white' });
-  for(let i = 1; i <= 12; i++) deck.push({ num: i, color: 'black' });
+  for(let i = 1; i <= 12; i++) deck.push({ num: i, color: 'white', uid: crypto.randomUUID() });
+  for(let i = 1; i <= 12; i++) deck.push({ num: i, color: 'black', uid: crypto.randomUUID() });
   return deck;
 }
 
@@ -1914,6 +1937,13 @@ function renderMyHand(){
     if (slideInCardIds?.has(cardId)){
       card.classList.add('reserve-slide-in');
     }
+    if (cardData?.drawnFromLeftdeckAt && cardData?.uid && !leftdeckAnimatedCardIds.has(cardData.uid)){
+      card.classList.add('leftdeck-draw-pop');
+      leftdeckAnimatedCardIds.add(cardData.uid);
+      requestAnimationFrame(() => {
+        animateLeftdeckDrawToHand(card, cardData);
+      });
+    }
 
     if (shouldLockHand || shouldHideInDiscussion){
       card.textContent = '';
@@ -1938,6 +1968,38 @@ function renderMyHand(){
 
     myHandEl.appendChild(card);
   });
+}
+
+function animateLeftdeckDrawToHand(targetCardEl, cardData){
+  if (!(targetCardEl instanceof HTMLElement)) return;
+  const rect = targetCardEl.getBoundingClientRect();
+  if (!rect.width || !rect.height) return;
+
+  const flyer = document.createElement('div');
+  flyer.className = 'flying-draw-card';
+  flyer.style.width = `${rect.width}px`;
+  flyer.style.height = `${rect.height}px`;
+  const isBlack = String(cardData?.color || 'white') === 'black';
+  flyer.style.background = isBlack ? '#0b1530' : '#fff';
+  flyer.style.color = isBlack ? '#fff' : '#111';
+  flyer.style.border = isBlack ? '1px solid #0b1530' : '1px solid #ddd';
+  setCardNumberDom(flyer, Number(cardData?.num || 0));
+
+  const startX = window.innerWidth + 64;
+  const startY = rect.top + Math.max(0, (rect.height - Math.min(rect.height, 90)) / 2);
+  flyer.style.left = `${startX}px`;
+  flyer.style.top = `${startY}px`;
+  flyer.style.transform = 'translate(0, 0)';
+  flyer.style.opacity = '0.98';
+  document.body.appendChild(flyer);
+
+  requestAnimationFrame(() => {
+    const dx = rect.left - startX;
+    const dy = rect.top - startY;
+    flyer.style.transform = `translate(${dx}px, ${dy}px)`;
+    flyer.style.opacity = '0.08';
+  });
+  setTimeout(() => flyer.remove(), 620);
 }
 
 function shouldKeepTwoPlayerReserveHidden({
@@ -2297,6 +2359,9 @@ function getRoomPlacementRule(stage, room){
     if (room === 1) return { maxTotal: 2, allowedColors: ['white'], perColorMax: { white: 2 } };
     if (room === 4) return { maxTotal: 2, allowedColors: ['black'], perColorMax: { black: 2 } };
   }
+  if (stage === '7-1'){
+    if ([3, 4].includes(room)) return { disallowedNums: ['7', '8', '9'] };
+  }
   if (typeof stage === 'string' && stage.startsWith('5-')){
     return { maxTotal: 2 };
   }
@@ -2404,6 +2469,9 @@ async function placeDroppedCard(cardData, room, face = 'face'){
       set(ref(db, `rooms/${state.roomCode}/playedCards/${key}`), localCard),
       removeCardFromHandInDb(state.userId, cardData)
     ]);
+    if (hasBdeckInRoom(currentStage, room)){
+      await drawOneFromLeftdeck(state.userId);
+    }
   } catch (err){
     delete state.playedCards[key];
     lastPlayedCardKeys.delete(key);
@@ -2412,6 +2480,33 @@ async function placeDroppedCard(cardData, room, face = 'face'){
     renderHands();
     throw err;
   }
+}
+
+async function drawOneFromLeftdeck(playerId){
+  if (!state.roomCode || !playerId) return null;
+  const roomRef = ref(db, `rooms/${state.roomCode}`);
+  const tx = await runTransaction(roomRef, (roomData) => {
+    const room = roomData && typeof roomData === 'object' ? roomData : {};
+    const leftdeck = Array.isArray(room.leftdeck) ? room.leftdeck.slice() : [];
+    if (!leftdeck.length) return room;
+
+    const nextCard = leftdeck.shift();
+    const hands = room.hands && typeof room.hands === 'object' ? { ...room.hands } : {};
+    const playerHand = hands[playerId] && typeof hands[playerId] === 'object'
+      ? { ...hands[playerId] }
+      : {};
+    const cards = Array.isArray(playerHand.cards) ? playerHand.cards.slice() : [];
+    cards.push({
+      ...nextCard,
+      drawnFromLeftdeckAt: Date.now()
+    });
+    playerHand.cards = cards;
+    hands[playerId] = playerHand;
+    room.leftdeck = leftdeck;
+    room.hands = hands;
+    return room;
+  });
+  return tx?.committed ? (tx.snapshot?.val()?.leftdeck || null) : null;
 }
 
 async function removeCardFromHandInDb(playerId, cardData){
@@ -3100,6 +3195,7 @@ async function dealInitialHands(){
   const fullDeck = createDeck24();
   const shuffledDeck = shuffleArray(fullDeck);
   const selected12 = shuffledDeck.slice(0, 12);
+  const leftdeck = shuffledDeck.slice(12);
 
   const cardsPerPlayer = 12 / playerCount;
   const hands = {};
@@ -3112,7 +3208,10 @@ async function dealInitialHands(){
     };
   });
 
-  await set(ref(db, `rooms/${state.roomCode}/hands`), hands);
+  await Promise.all([
+    set(ref(db, `rooms/${state.roomCode}/hands`), hands),
+    set(ref(db, `rooms/${state.roomCode}/leftdeck`), leftdeck)
+  ]);
 }
 
 hostSettingsBtn.addEventListener('click', () => {
@@ -3141,7 +3240,8 @@ btnResetRoom.addEventListener('click', async () => {
     remove(ref(db, `${base}/maxPlayers`)),
     remove(ref(db, `${base}/tables`)),
     remove(ref(db, `${base}/hands`)),
-    remove(ref(db, `${base}/playedCards`))
+    remove(ref(db, `${base}/playedCards`)),
+    remove(ref(db, `${base}/leftdeck`))
   ]);
 
   placedCardIds.clear();
@@ -3191,6 +3291,7 @@ async function setStage(code){
     await Promise.all([
       remove(ref(db, `rooms/${state.roomCode}/playedCards`)),
       remove(ref(db, `rooms/${state.roomCode}/hands`)),
+      remove(ref(db, `rooms/${state.roomCode}/leftdeck`)),
       set(ref(db, `rooms/${state.roomCode}/subgearCount`), 0),
       set(ref(db, `rooms/${state.roomCode}/boardRotation`), {
         deg: 0,
@@ -3934,7 +4035,7 @@ const STAGE_SPEC = {
   '6-2': { specifiedRooms: [1,2] },
   '6-3': { specifiedRooms: [2,5] },
   '6-4': { specifiedRooms: [1,2,4] },
-  '7-1': { specifiedRooms: [1] },
+  '7-1': { specifiedRooms: [1,3,4] },
 };
 function getSpecifiedRoomsForMission(mission){
   const rec = STAGE_SPEC[mission];
@@ -3966,8 +4067,10 @@ const STAGE_BROWNCARDS = {
   '1-1': { 6: 3 },
   '1-2': { 4: 3 },
   '3-4': { 3: 2 },
-  '4-1': { 5: 1 },
-  '7-1': { 1: 3 }
+  '4-1': { 5: 1 }
+};
+const STAGE_BDECK_ROOMS = {
+  '7-1': [1]
 };
 const STAGE_PROHIBIT_ROOMS = {
   '2-1': [1, 2, 3],
@@ -4010,6 +4113,10 @@ function getBrowncardsCountForMission(mission, room){
   const rec = STAGE_BROWNCARDS[mission];
   if (!rec) return 0;
   return Number(rec[room]) || 0;
+}
+function hasBdeckInRoom(mission, room){
+  const rooms = STAGE_BDECK_ROOMS[mission] || [];
+  return rooms.includes(Number(room));
 }
 function getClockroomSharedStyle(){
   return {
@@ -5545,6 +5652,8 @@ function renderRoomCards(mission = currentStage){
   }
   if (mission === '7-1') {
     appendBdeck(1, { count: 3 });
+    appendDisallowedCards(3, ['7', '8', '9']);
+    appendDisallowedCards(4, ['7', '8', '9']);
   }
   if (mission === '4-1') {
     appendCenterBrownPair({ halfGapDelta: -2, leftBackCount: 2, centerRightArrow: true, leftSign: '+', rightSign: '-' });
@@ -6008,6 +6117,7 @@ function getStageRoomHintText(stage, room){
   const clockRooms = getClockRoomsForMission(stage);
   const isClockRoom = clockRooms.includes(room);
   const browncardsCount = getBrowncardsCountForMission(stage, room);
+  const hasBdeckRoom = hasBdeckInRoom(stage, room);
   const closecardTarget = getClosecardLabelForMission(stage, room);
   const plusMinusSign = getPlusMinusSignForMission(stage, room);
 
@@ -6028,6 +6138,9 @@ function getStageRoomHintText(stage, room){
   }
   if (closecardTarget){
     return `もっとも${closecardTarget}に近いエリアがこのエリアでなければならない。`;
+  }
+  if (hasBdeckRoom){
+    return 'このエリアにカードを置いたら、余剰山札（leftdeck）から1枚ドローする。';
   }
   if (browncardsCount > 0){
     return `カードを必ず${browncardsCount}枚だけ置かなければならない。`;
