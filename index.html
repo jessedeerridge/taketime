@@ -1241,6 +1241,7 @@ let isStageTagPressed = false;
 let hostHandLockedByStage = false;
 let lastShownPhaseEventTs = 0;
 let revealPhaseAnnouncedForStage = '';
+let revealAnnounceRetryTimer = null;
 let lastSeenPhaseTicks = { discussion: 0, placement: 0, reveal: 0 };
 let revealFlipProcessingKey = '';
 let revealFlipRetryTimer = null;
@@ -1938,7 +1939,6 @@ function renderMyHand(){
       card.classList.add('reserve-slide-in');
     }
     if (cardData?.drawnFromLeftdeckAt && cardData?.uid && !leftdeckAnimatedCardIds.has(cardData.uid)){
-      card.classList.add('leftdeck-draw-pop');
       leftdeckAnimatedCardIds.add(cardData.uid);
       requestAnimationFrame(() => {
         animateLeftdeckDrawToHand(card, cardData);
@@ -1974,6 +1974,7 @@ function animateLeftdeckDrawToHand(targetCardEl, cardData){
   if (!(targetCardEl instanceof HTMLElement)) return;
   const rect = targetCardEl.getBoundingClientRect();
   if (!rect.width || !rect.height) return;
+  targetCardEl.style.opacity = '0';
 
   const flyer = document.createElement('div');
   flyer.className = 'flying-draw-card';
@@ -1999,7 +2000,10 @@ function animateLeftdeckDrawToHand(targetCardEl, cardData){
     flyer.style.transform = `translate(${dx}px, ${dy}px)`;
     flyer.style.opacity = '0.08';
   });
-  setTimeout(() => flyer.remove(), 620);
+  setTimeout(() => {
+    flyer.remove();
+    targetCardEl.style.opacity = '';
+  }, 620);
 }
 
 function shouldKeepTwoPlayerReserveHidden({
@@ -2080,6 +2084,22 @@ function maybeAnnounceRevealPhase(){
     .length;
   const totalExpectedCards = remainingCards + placedCount;
   if (!totalExpectedCards) return;
+
+  const latestBdeckPlacementAt = Object.values(state.playedCards || {})
+    .filter((card) => card?.playerId && seatedPlayerIds.includes(card.playerId) && hasBdeckInRoom(currentStage, Number(card.room)))
+    .reduce((latest, card) => Math.max(latest, Number(card.placedAt || 0)), 0);
+  if (latestBdeckPlacementAt){
+    const guardWindowMs = 1200;
+    const elapsedMs = Date.now() - latestBdeckPlacementAt;
+    if (elapsedMs < guardWindowMs){
+      if (revealAnnounceRetryTimer) clearTimeout(revealAnnounceRetryTimer);
+      revealAnnounceRetryTimer = setTimeout(() => {
+        revealAnnounceRetryTimer = null;
+        maybeAnnounceRevealPhase();
+      }, Math.max(80, guardWindowMs - elapsedMs));
+      return;
+    }
+  }
 
   if (placedCount >= totalExpectedCards){
     const key = `${state.roomCode}:${currentStage}`;
