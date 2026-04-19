@@ -5413,31 +5413,17 @@ function renderRoomCards(mission = currentStage){
     const stackG = document.createElementNS('http://www.w3.org/2000/svg','g');
     stackG.setAttribute('transform', tr);
 
-    const halfW = width / 2;
-    const halfH = height / 2;
     const safeCorner = Math.max(0, Math.min(cornerR, width * 0.45, height * 0.45));
-    const rectX = -halfW;
-    const rectY = -halfH;
-    const rectW = width;
-    const rectH = height;
-    const skew = skewX;
-    const deckPath = [
-      `M ${rectX + safeCorner + skew} ${rectY}`,
-      `L ${rectX + rectW - safeCorner + skew} ${rectY}`,
-      `Q ${rectX + rectW + skew} ${rectY} ${rectX + rectW + skew} ${rectY + safeCorner}`,
-      `L ${rectX + rectW - skew} ${rectY + rectH - safeCorner}`,
-      `Q ${rectX + rectW - skew} ${rectY + rectH} ${rectX + rectW - safeCorner - skew} ${rectY + rectH}`,
-      `L ${rectX + safeCorner - skew} ${rectY + rectH}`,
-      `Q ${rectX - skew} ${rectY + rectH} ${rectX - skew} ${rectY + rectH - safeCorner}`,
-      `L ${rectX + skew} ${rectY + safeCorner}`,
-      `Q ${rectX + skew} ${rectY} ${rectX + safeCorner + skew} ${rectY}`,
-      'Z'
-    ].join(' ');
 
     for (let i = count - 1; i >= 0; i -= 1){
-      const deckCard = document.createElementNS('http://www.w3.org/2000/svg','path');
-      deckCard.setAttribute('d', deckPath);
-      deckCard.setAttribute('transform', `translate(${offsetX * i}, ${offsetY * i}) rotate(${rotateDeg})`);
+      const deckCard = document.createElementNS('http://www.w3.org/2000/svg','rect');
+      deckCard.setAttribute('x', String((-width / 2).toFixed(3)));
+      deckCard.setAttribute('y', String((-height / 2).toFixed(3)));
+      deckCard.setAttribute('width', String(width));
+      deckCard.setAttribute('height', String(height));
+      deckCard.setAttribute('rx', String(safeCorner));
+      deckCard.setAttribute('ry', String(safeCorner));
+      deckCard.setAttribute('transform', `translate(${offsetX * i}, ${offsetY * i}) rotate(${rotateDeg}) skewX(${skewX})`);
       deckCard.setAttribute('fill', fill);
       deckCard.setAttribute('stroke', stroke);
       deckCard.setAttribute('stroke-width', String(strokeWidth));
