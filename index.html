@@ -5198,10 +5198,12 @@ function renderRoomCards(mission = currentStage){
     count = 3,
     width = cardW * 1.35,
     height = cardH * 0.52,
-    slant = 6,
-    tanStep = 1.8,
-    radStep = -1.5,
-    rotStep = 0.6,
+    slant = 7.5,
+    cornerR = 2.3,
+    tanStep = 2.2,
+    radStep = -1.8,
+    rotStep = 2.2,
+    baseRotateDeg = -14,
     paint = { fill: '#a0522d', stroke: '#111111' }
   } = {}){
     const midDeg = (room-1)*60 + 30;
@@ -5212,8 +5214,27 @@ function renderRoomCards(mission = currentStage){
       `translate(${(roomTan[room]||0)}, 0)`,
       `translate(0, ${-(rBase + (roomRad[room]||0))})`,
       `rotate(${inwardBase + (roomAdjust[room]||0)})`,
+      `rotate(${baseRotateDeg})`,
       `translate(${localX}, ${localY})`
     ].join(' '));
+
+    const buildRoundedParallelogramPath = (w, h, s, r) => {
+      const hw = w / 2;
+      const hh = h / 2;
+      const maxR = Math.max(0, Math.min(r, h * 0.45, (w - Math.abs(s)) * 0.2));
+      return [
+        `M ${(-hw + s + maxR).toFixed(2)} ${(-hh).toFixed(2)}`,
+        `L ${(hw - maxR).toFixed(2)} ${(-hh).toFixed(2)}`,
+        `Q ${(hw).toFixed(2)} ${(-hh).toFixed(2)} ${(hw - s * 0.35).toFixed(2)} ${(-hh + maxR).toFixed(2)}`,
+        `L ${(hw - s - maxR).toFixed(2)} ${(hh).toFixed(2)}`,
+        `Q ${(hw - s).toFixed(2)} ${(hh).toFixed(2)} ${(hw - s - maxR - 0.6).toFixed(2)} ${(hh - maxR).toFixed(2)}`,
+        `L ${(-hw + maxR).toFixed(2)} ${(hh).toFixed(2)}`,
+        `Q ${(-hw).toFixed(2)} ${(hh).toFixed(2)} ${(-hw + s * 0.35).toFixed(2)} ${(hh - maxR).toFixed(2)}`,
+        `L ${(-hw + s - maxR).toFixed(2)} ${(-hh).toFixed(2)}`,
+        `Q ${(-hw + s).toFixed(2)} ${(-hh).toFixed(2)} ${(-hw + s + maxR + 0.6).toFixed(2)} ${(-hh + maxR).toFixed(2)}`,
+        'Z'
+      ].join(' ');
+    };
 
     for (let i = 0; i < count; i += 1){
       const layer = document.createElementNS('http://www.w3.org/2000/svg','g');
@@ -5223,17 +5244,13 @@ function renderRoomCards(mission = currentStage){
         `translate(${idxFromTop * tanStep}, ${idxFromTop * radStep}) rotate(${idxFromTop * rotStep})`
       );
 
-      const poly = document.createElementNS('http://www.w3.org/2000/svg','polygon');
-      const hw = width / 2;
-      const hh = height / 2;
-      poly.setAttribute(
-        'points',
-        `${(-hw + slant).toFixed(2)},${(-hh).toFixed(2)} ${hw.toFixed(2)},${(-hh).toFixed(2)} ${(hw - slant).toFixed(2)},${hh.toFixed(2)} ${(-hw).toFixed(2)},${hh.toFixed(2)}`
-      );
-      poly.setAttribute('fill', paint.fill);
-      poly.setAttribute('stroke', paint.stroke);
-      poly.setAttribute('stroke-width', String(sw));
-      layer.appendChild(poly);
+      const cardPath = document.createElementNS('http://www.w3.org/2000/svg','path');
+      cardPath.setAttribute('d', buildRoundedParallelogramPath(width, height, slant, cornerR));
+      cardPath.setAttribute('fill', paint.fill);
+      cardPath.setAttribute('stroke', paint.stroke);
+      cardPath.setAttribute('stroke-width', String(sw));
+      cardPath.setAttribute('stroke-linejoin', 'round');
+      layer.appendChild(cardPath);
       deckBase.appendChild(layer);
     }
     g.appendChild(deckBase);
