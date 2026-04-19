@@ -1247,6 +1247,7 @@ let revealFlipRetryTimer = null;
 let revealResultAnnouncedKey = '';
 let roomTotalsRefreshTimer = null;
 let revealResultDelayTimer = null;
+let revealPhaseAnnounceTimer = null;
 let lastAutoSortedHandSignature = '';
 let lastPlayedCardKeys = new Set();
 let twoPlayerReservedCardIds = [];
@@ -1832,6 +1833,10 @@ function subscribeStage(){
       clearTimeout(revealResultDelayTimer);
       revealResultDelayTimer = null;
     }
+    if (revealPhaseAnnounceTimer){
+      clearTimeout(revealPhaseAnnounceTimer);
+      revealPhaseAnnounceTimer = null;
+    }
 
     renderStageOptions();
     window.dispatchEvent(new CustomEvent('mission:change', { detail:{ value: currentStage }}));
@@ -1991,6 +1996,7 @@ function animateLeftdeckDrawToHand(targetCardEl, cardData){
   flyer.style.top = `${startY}px`;
   flyer.style.transform = 'translate(0, 0)';
   flyer.style.opacity = '0.98';
+  targetCardEl.style.visibility = 'hidden';
   document.body.appendChild(flyer);
 
   requestAnimationFrame(() => {
@@ -1999,7 +2005,12 @@ function animateLeftdeckDrawToHand(targetCardEl, cardData){
     flyer.style.transform = `translate(${dx}px, ${dy}px)`;
     flyer.style.opacity = '0.08';
   });
-  setTimeout(() => flyer.remove(), 620);
+  setTimeout(() => {
+    flyer.remove();
+    if (targetCardEl.isConnected){
+      targetCardEl.style.visibility = '';
+    }
+  }, 620);
 }
 
 function shouldKeepTwoPlayerReserveHidden({
@@ -2082,10 +2093,33 @@ function maybeAnnounceRevealPhase(){
   if (!totalExpectedCards) return;
 
   if (placedCount >= totalExpectedCards){
-    const key = `${state.roomCode}:${currentStage}`;
-    if (revealPhaseAnnouncedForStage === key) return;
-    revealPhaseAnnouncedForStage = key;
-    emitPhaseEvent('reveal');
+    if (revealPhaseAnnounceTimer) clearTimeout(revealPhaseAnnounceTimer);
+    revealPhaseAnnounceTimer = setTimeout(() => {
+      revealPhaseAnnounceTimer = null;
+      const latestTables = state.tables || {};
+      const latestSeatedPlayerIds = Object.values(latestTables)
+        .filter((seat) => seat?.playerId)
+        .map((seat) => seat.playerId);
+      if (!latestSeatedPlayerIds.length) return;
+
+      const latestRemainingCards = latestSeatedPlayerIds.reduce((sum, pid) => {
+        const cards = state.hands[pid]?.cards;
+        return sum + (Array.isArray(cards) ? cards.length : 0);
+      }, 0);
+      const latestPlacedCount = Object.values(state.playedCards || {})
+        .filter((card) => card?.playerId && latestSeatedPlayerIds.includes(card.playerId))
+        .length;
+      const latestTotalExpectedCards = latestRemainingCards + latestPlacedCount;
+      if (!latestTotalExpectedCards || latestPlacedCount < latestTotalExpectedCards) return;
+
+      const key = `${state.roomCode}:${currentStage}`;
+      if (revealPhaseAnnouncedForStage === key) return;
+      revealPhaseAnnouncedForStage = key;
+      emitPhaseEvent('reveal');
+    }, 320);
+  } else if (revealPhaseAnnounceTimer){
+    clearTimeout(revealPhaseAnnounceTimer);
+    revealPhaseAnnounceTimer = null;
   }
 }
 
