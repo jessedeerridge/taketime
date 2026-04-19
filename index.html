@@ -5281,6 +5281,56 @@ function renderRoomCards(mission = currentStage){
     g.appendChild(bgG);
   }
 
+  function appendBrownDeckParallelogram(room, {
+    count = 3,
+    skewDeg = -22,
+    stepX = 2.8,
+    stepY = -2.4,
+    widthScale = 0.92,
+    heightScale = 0.72
+  } = {}){
+    if (!specifiedRooms.has(room)) return;
+
+    const midDeg = (room - 1) * 60 + 30;
+    const trBase = [
+      'translate(150,150)',
+      `rotate(${midDeg})`,
+      `translate(${(roomTan[room] || 0)}, 0)`,
+      `translate(0, ${-(rBase + (roomRad[room] || 0))})`,
+      `rotate(${inwardBase + (roomAdjust[room] || 0)})`,
+      `translate(${localX}, ${localY})`
+    ].join(' ');
+
+    const stackG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    stackG.setAttribute('transform', trBase);
+
+    const width = cardW * Math.max(0.25, widthScale);
+    const height = cardH * Math.max(0.25, heightScale);
+    const radius = Math.max(1.4, cardR * 0.9);
+    const countInt = Math.max(1, Math.round(count));
+
+    for (let i = countInt - 1; i >= 0; i -= 1){
+      const deckCard = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      deckCard.setAttribute('x', String((-width / 2).toFixed(3)));
+      deckCard.setAttribute('y', String((-height / 2).toFixed(3)));
+      deckCard.setAttribute('width', String(width.toFixed(3)));
+      deckCard.setAttribute('height', String(height.toFixed(3)));
+      deckCard.setAttribute('rx', String(radius.toFixed(3)));
+      deckCard.setAttribute('ry', String(radius.toFixed(3)));
+      deckCard.setAttribute('fill', '#a0522d');
+      deckCard.setAttribute('stroke', '#111111');
+      deckCard.setAttribute('stroke-width', String(sw));
+      deckCard.setAttribute('opacity', String(0.88 + ((countInt - 1 - i) * 0.06)));
+      deckCard.setAttribute(
+        'transform',
+        `translate(${(i * stepX).toFixed(3)}, ${(i * stepY).toFixed(3)}) skewX(${skewDeg})`
+      );
+      stackG.appendChild(deckCard);
+    }
+
+    g.appendChild(stackG);
+  }
+
   const specifiedRooms = new Set(getSpecifiedRoomsForMission(mission));
 
   if (mission==='1-1'){
@@ -5475,6 +5525,9 @@ function renderRoomCards(mission = currentStage){
   if (mission === '6-4') {
     appendPlusMinusCards(1, { sign: '-', centerFill: '#ffffff', centerStroke: '#111111' });
     appendPlusMinusCards(4, { sign: '+', centerFill: '#111111', centerStroke: '#ffffff' });
+  }
+  if (mission === '7-1') {
+    appendBrownDeckParallelogram(1, { count: 3 });
   }
   if (mission === '4-1') {
     appendCenterBrownPair({ halfGapDelta: -2, leftBackCount: 2, centerRightArrow: true, leftSign: '+', rightSign: '-' });
