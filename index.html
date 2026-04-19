@@ -2523,6 +2523,9 @@ async function commitPlacedCardWithOptionalDraw({
     if (removeIndex === -1){
       removeIndex = cards.findIndex((c) => c && c.num === cardData.num && c.color === cardData.color);
     }
+    if (removeIndex === -1 && cardData?.id){
+      removeIndex = cards.findIndex((c) => makeCardId(playerId, c) === cardData.id);
+    }
     if (removeIndex >= 0){
       cards.splice(removeIndex, 1);
     }
@@ -2544,7 +2547,10 @@ async function commitPlacedCardWithOptionalDraw({
     room.hands = hands;
     return room;
   });
-  return tx?.committed ? tx.snapshot?.val() : null;
+  if (!tx?.committed){
+    throw new Error('カード配置トランザクションがコミットされませんでした');
+  }
+  return tx.snapshot?.val() || null;
 }
 
 function makeCardId(playerId, cardData){
