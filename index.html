@@ -5397,7 +5397,8 @@ function renderRoomCards(mission = currentStage){
     rotateDeg = 26,
     fill = '#a0522d',
     stroke = '#111111',
-    strokeWidth = 0.9
+    strokeWidth = 0.9,
+    topRotateDeltaDeg = -18
   } = {}){
     if (!specifiedRooms.has(room) || count <= 0) return;
     const midDeg = (room-1)*60 + 30;
@@ -5430,6 +5431,21 @@ function renderRoomCards(mission = currentStage){
       deckCard.setAttribute('stroke-linejoin', 'round');
       stackG.appendChild(deckCard);
     }
+
+    const topCard = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    topCard.setAttribute('x', String((-width / 2).toFixed(3)));
+    topCard.setAttribute('y', String((-height / 2).toFixed(3)));
+    topCard.setAttribute('width', String(width));
+    topCard.setAttribute('height', String(height));
+    topCard.setAttribute('rx', String(safeCorner));
+    topCard.setAttribute('ry', String(safeCorner));
+    topCard.setAttribute('transform', `translate(${offsetX * count}, ${offsetY * count}) rotate(${rotateDeg + topRotateDeltaDeg}) skewX(${skewX})`);
+    topCard.setAttribute('fill', fill);
+    topCard.setAttribute('stroke', stroke);
+    topCard.setAttribute('stroke-width', String(strokeWidth));
+    topCard.setAttribute('stroke-linejoin', 'round');
+    stackG.appendChild(topCard);
+
     g.appendChild(stackG);
   }
 
