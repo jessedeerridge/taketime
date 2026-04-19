@@ -1852,10 +1852,12 @@ function renderMyHand(){
   const myId = state.userId;
   const handData = state.hands[myId];
   if (!handData || !Array.isArray(handData.cards)) return;
+  const phaseStage = typeof state.phaseState?.stage === 'string' ? state.phaseState.stage : '';
+  const isPlacementForCurrentStage = !!currentStage
+    && state.currentPhase === 'placement'
+    && phaseStage === currentStage;
   const shouldLockHand = state.isHost && hostHandLockedByStage && !!currentStage;
-  const shouldHideInDiscussion = !state.isHost && !!currentStage
-    && state.currentPhase !== 'placement'
-    && state.currentPhase !== 'reveal';
+  const shouldHideInDiscussion = !state.isHost && !!currentStage && !isPlacementForCurrentStage;
   const canDragNow = canCurrentUserDragCard() && !shouldLockHand && !shouldHideInDiscussion;
   const shouldPulse = canDragNow && !activeDrag;
 
