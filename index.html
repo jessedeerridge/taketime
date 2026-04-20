@@ -5411,7 +5411,7 @@ function renderRoomCards(mission = currentStage){
     stroke = '#111111',
     strokeWidth = 0.9,
     topRotateDeltaDeg = -22,
-    topCenterNudgeY = -9
+    topCenterNudgeY = -6
   } = {}){
     if (!specifiedRooms.has(room) || count <= 0) return;
     const midDeg = (room-1)*60 + 30;
@@ -5562,7 +5562,7 @@ function renderRoomCards(mission = currentStage){
   if (mission === '7-2') {
     appendBdeck(1, { count: 3 });
     appendBdeck(4, { count: 3 });
-    appendClockRoom(5, { blackclock: true });
+    appendClockRoom(5, { blackclock: true, centerScale: 2.5 });
   }
   if (mission === '7-3') {
     appendBdeck(5, { count: 3 });
