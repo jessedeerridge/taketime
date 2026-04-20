@@ -2315,12 +2315,22 @@ function isWhiteOnlyRoom(stage, room){
   return rule.allowedColors.length === 1 && rule.allowedColors[0] === 'white';
 }
 
+function getCurrentRoomForPlacedCard(cardData, rotationDeg = boardRotationDeg){
+  if (!cardData) return null;
+  const baseRoom = Number(cardData.room);
+  if (!(baseRoom >= 1 && baseRoom <= 6)) return null;
+  const placementRotationDeg = Number(cardData.boardRotationAtPlacement || 0);
+  const worldMidDeg = normalizeDeg((baseRoom - 1) * 60 + 30 + placementRotationDeg);
+  const roomIndex = ((Math.round((worldMidDeg - 30 - Number(rotationDeg || 0)) / 60) % 6) + 6) % 6;
+  return roomIndex + 1;
+}
+
 function getRoomPlacementCounts(room){
   const playedEntries = Object.values(state.playedCards || {});
   let total = 0;
   const perColor = { white: 0, black: 0 };
   for (const card of playedEntries){
-    if (!card || Number(card.room) !== Number(room)) continue;
+    if (!card || getCurrentRoomForPlacedCard(card) !== Number(room)) continue;
     total += 1;
     const color = String(card.color || 'white');
     if (color === 'black') perColor.black += 1;
