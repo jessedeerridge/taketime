@@ -5805,8 +5805,7 @@ function animateRemotePlayedCards(entries){
       renderPlayedCards();
       return;
     }
-    const localTarget = getCounterRotatedLocalPoint(target.x, target.y);
-    const targetClient = svgToClientPointWithBoardRotation(localTarget.x, localTarget.y);
+    const targetClient = svgToClientPointWithBoardRotation(target.x, target.y);
     const flyer = buildFlyingCard(entry, targetCardSize.w, targetCardSize.h);
     flyer.style.left = `${source.x - targetCardSize.w / 2}px`;
     flyer.style.top = `${source.y - targetCardSize.h / 2}px`;
