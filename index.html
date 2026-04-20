@@ -5756,6 +5756,34 @@ function getPlayedCardPixelSize(){
   };
 }
 
+function getPlayedCardTargetClient(layout){
+  const playedLayer = stageSvg.querySelector('#playedCards');
+  if (!playedLayer || !layout) return null;
+
+  const probe = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  probe.setAttribute('transform', getPlayedCardEntryTransform(layout.x, layout.y, layout.rot));
+  probe.setAttribute('pointer-events', 'none');
+  probe.style.visibility = 'hidden';
+
+  const anchor = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  anchor.setAttribute('x', '-0.5');
+  anchor.setAttribute('y', '-0.5');
+  anchor.setAttribute('width', '1');
+  anchor.setAttribute('height', '1');
+  anchor.setAttribute('fill', 'transparent');
+  probe.appendChild(anchor);
+
+  playedLayer.appendChild(probe);
+  const rect = anchor.getBoundingClientRect();
+  probe.remove();
+
+  return {
+    x: rect.left + rect.width / 2,
+    y: rect.top + rect.height / 2,
+    rot: Number(layout.rot) - boardRotationDeg
+  };
+}
+
 function getRemoteCardSourceCenter(playerId){
   const tag = playerCircle.querySelector(`.player-tag[data-player-id="${playerId}"]`);
   if (!tag) return null;
@@ -5791,8 +5819,12 @@ function animateRemotePlayedCards(entries){
       renderPlayedCards();
       return;
     }
-    const localTarget = getCounterRotatedLocalPoint(target.x, target.y);
-    const targetClient = svgToClientPoint(localTarget.x, localTarget.y);
+    const targetClient = getPlayedCardTargetClient(target);
+    if (!targetClient){
+      inFlightPlayedCardKeys.delete(entry.key);
+      renderPlayedCards();
+      return;
+    }
     const flyer = buildFlyingCard(entry, targetCardSize.w, targetCardSize.h);
     flyer.style.left = `${source.x - targetCardSize.w / 2}px`;
     flyer.style.top = `${source.y - targetCardSize.h / 2}px`;
@@ -5802,7 +5834,7 @@ function animateRemotePlayedCards(entries){
     requestAnimationFrame(() => {
       const dx = targetClient.x - source.x;
       const dy = targetClient.y - source.y;
-      flyer.style.transform = `translate(${dx}px, ${dy}px) rotate(${target.rot}deg)`;
+      flyer.style.transform = `translate(${dx}px, ${dy}px) rotate(${targetClient.rot}deg)`;
     });
 
     const cleanup = () => {
