@@ -2243,6 +2243,20 @@ function svgToClientPoint(x, y){
   return pt.matrixTransform(stageSvg.getScreenCTM());
 }
 
+function svgToClientPointWithBoardRotation(x, y){
+  const basePoint = svgToClientPoint(x, y);
+  const rotDeg = Number(boardRotationVisualDeg || 0);
+  if (Math.abs(rotDeg) < 0.001) return basePoint;
+  const center = getBoardCenterClient();
+  const rad = rotDeg * Math.PI / 180;
+  const dx = basePoint.x - center.x;
+  const dy = basePoint.y - center.y;
+  return {
+    x: center.x + dx * Math.cos(rad) - dy * Math.sin(rad),
+    y: center.y + dx * Math.sin(rad) + dy * Math.cos(rad)
+  };
+}
+
 function getGuideMetrics(){
   const csGuide = getComputedStyle(stageSvg);
   const centerR = parseFloat(csGuide.getPropertyValue('--roomGuideCenterR')) || ((innerR + outerR) / 2);
@@ -5791,8 +5805,7 @@ function animateRemotePlayedCards(entries){
       renderPlayedCards();
       return;
     }
-    const localTarget = getCounterRotatedLocalPoint(target.x, target.y);
-    const targetClient = svgToClientPoint(localTarget.x, localTarget.y);
+    const targetClient = svgToClientPointWithBoardRotation(target.x, target.y);
     const flyer = buildFlyingCard(entry, targetCardSize.w, targetCardSize.h);
     flyer.style.left = `${source.x - targetCardSize.w / 2}px`;
     flyer.style.top = `${source.y - targetCardSize.h / 2}px`;
