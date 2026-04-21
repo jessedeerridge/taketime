@@ -5180,6 +5180,7 @@ function renderRoomCards(mission = currentStage){
       extraTan: -4.8,
       extraRad: -0.8,
       extraRot: -6,
+      sizeScale: 0.8,
       paint: { fill: '#ffffff', stroke: '#111111' },
       flipDirection: true,
       textColor: '#d4af37',
@@ -5191,6 +5192,7 @@ function renderRoomCards(mission = currentStage){
       extraTan: 4.8,
       extraRad: -0.8,
       extraRot: 6,
+      sizeScale: 0.8,
       paint: { fill: '#111111', stroke: '#ffffff' },
       flipDirection: true,
       textColor: '#d4af37',
@@ -5203,10 +5205,10 @@ function renderRoomCards(mission = currentStage){
   function appendStage73Room6Cards(room){
     if (!specifiedRooms.has(room)) return;
     const tokens = [
-      { extraTan: -10.5, extraRot: -12, fill: '#ffffff', stroke: '#111111' },
-      { extraTan: -3.2, extraRot: -4, fill: '#ffffff', stroke: '#111111' },
-      { extraTan: 3.2, extraRot: 4, fill: '#0b1530', stroke: '#ffffff' },
-      { extraTan: 10.5, extraRot: 12, fill: '#0b1530', stroke: '#ffffff' }
+      { extraTan: -13.5, extraRot: -10, fill: '#ffffff', stroke: '#111111' },
+      { extraTan: -8.0, extraRot: -3, fill: '#ffffff', stroke: '#111111' },
+      { extraTan: 8.0, extraRot: 3, fill: '#0b1530', stroke: '#ffffff' },
+      { extraTan: 13.5, extraRot: 10, fill: '#0b1530', stroke: '#ffffff' }
     ];
     tokens.forEach(({ extraTan, extraRot, fill, stroke }) => {
       appendLabeledCardAt(room, '', {
