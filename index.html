@@ -5171,6 +5171,7 @@ function renderRoomCards(mission = currentStage){
         extraTan,
         extraRad: -1 - (idx * 0.2),
         extraRot: idx === 1 ? 0 : (idx === 0 ? -12 : 12),
+        sizeScale: 0.8,
         paint: { fill: 'rgba(160, 82, 45, 0.36)', stroke: 'rgba(0, 0, 0, 0.45)' },
         flipDirection: true,
         textRotateDeg: 180
@@ -5213,7 +5214,7 @@ function renderRoomCards(mission = currentStage){
     tokens.forEach(({ extraTan, extraRot, fill, stroke }) => {
       appendLabeledCardAt(room, '', {
         extraTan,
-        extraRad: -0.8,
+        extraRad: 1.2,
         extraRot,
         sizeScale: 0.7,
         paint: { fill, stroke },
