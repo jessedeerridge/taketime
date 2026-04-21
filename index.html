@@ -5206,15 +5206,15 @@ function renderRoomCards(mission = currentStage){
   function appendStage73Room6Cards(room){
     if (!specifiedRooms.has(room)) return;
     const tokens = [
-      { extraTan: -13.5, extraRot: -10, fill: '#ffffff', stroke: '#111111' },
-      { extraTan: -8.0, extraRot: -3, fill: '#ffffff', stroke: '#111111' },
-      { extraTan: 8.0, extraRot: 3, fill: '#0b1530', stroke: '#ffffff' },
-      { extraTan: 13.5, extraRot: 10, fill: '#0b1530', stroke: '#ffffff' }
+      { extraTan: -22.5, extraRot: -6, fill: '#ffffff', stroke: '#111111' },
+      { extraTan: -7.5, extraRot: -2, fill: '#ffffff', stroke: '#111111' },
+      { extraTan: 7.5, extraRot: 2, fill: '#0b1530', stroke: '#ffffff' },
+      { extraTan: 22.5, extraRot: 6, fill: '#0b1530', stroke: '#ffffff' }
     ];
     tokens.forEach(({ extraTan, extraRot, fill, stroke }) => {
       appendLabeledCardAt(room, '', {
         extraTan,
-        extraRad: 1.2,
+        extraRad: 2,
         extraRot,
         sizeScale: 0.7,
         paint: { fill, stroke },
