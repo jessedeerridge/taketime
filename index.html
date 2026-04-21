@@ -2057,17 +2057,28 @@ function getRoomResultValue(stage, cards = []){
 
 function getRevealRoomOrder(stage, entries, backCards){
   const roomCardsMap = getRoomCardsMap(entries);
-  return Array.from({ length: 6 }, (_, idx) => idx + 1)
+  const candidateRooms = Array.from({ length: 6 }, (_, idx) => idx + 1)
     .filter((room) => backCards.some((card) => Number(card.room) === room))
     .map((room) => ({
       room,
       value: getRoomResultValue(stage, roomCardsMap.get(room) || [])
-    }))
+    }));
+
+  if (!candidateRooms.length) return [];
+
+  const startRoom = candidateRooms
+    .slice()
     .sort((a, b) => {
       if (a.value !== b.value) return a.value - b.value;
       return a.room - b.room;
-    })
-    .map((item) => item.room);
+    })[0].room;
+  const roomSet = new Set(candidateRooms.map((item) => item.room));
+  const revealOrder = [];
+  for (let i = 0; i < 6; i++){
+    const room = ((startRoom - 1 + i) % 6) + 1;
+    if (roomSet.has(room)) revealOrder.push(room);
+  }
+  return revealOrder;
 }
 
 function getPlusMinusColorForRoom(stage, room){
