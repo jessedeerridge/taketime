@@ -2055,6 +2055,32 @@ function getRoomResultValue(stage, cards = []){
   return cards.reduce((acc, card) => acc + Number(card.num || 0), 0);
 }
 
+function getRevealRoomOrder(stage, entries, backCards){
+  const roomCardsMap = getRoomCardsMap(entries);
+  const candidateRooms = Array.from({ length: 6 }, (_, idx) => idx + 1)
+    .filter((room) => backCards.some((card) => Number(card.room) === room))
+    .map((room) => ({
+      room,
+      value: getRoomResultValue(stage, roomCardsMap.get(room) || [])
+    }));
+
+  if (!candidateRooms.length) return [];
+
+  const startRoom = candidateRooms
+    .slice()
+    .sort((a, b) => {
+      if (a.value !== b.value) return a.value - b.value;
+      return a.room - b.room;
+    })[0].room;
+  const roomSet = new Set(candidateRooms.map((item) => item.room));
+  const revealOrder = [];
+  for (let i = 0; i < 6; i++){
+    const room = ((startRoom - 1 + i) % 6) + 1;
+    if (roomSet.has(room)) revealOrder.push(room);
+  }
+  return revealOrder;
+}
+
 function getPlusMinusColorForRoom(stage, room){
   const placementRule = getRoomPlacementRule(stage, Number(room));
   if (
@@ -2180,7 +2206,8 @@ async function maybeRunRevealFlipSequence(){
       const latestBackCards = latestEntries.filter((card) => card.face === 'back');
       if (!latestBackCards.length) break;
 
-      for (let room = 1; room <= 6; room++){
+      const revealRoomOrder = getRevealRoomOrder(currentStage, latestEntries, latestBackCards);
+      for (const room of revealRoomOrder){
         const roomBackCards = latestBackCards.filter((card) => Number(card.room) === room);
         if (!roomBackCards.length) continue;
         for (const card of roomBackCards){
