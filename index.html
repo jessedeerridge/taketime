@@ -4102,6 +4102,7 @@ const STAGE_SPEC = {
   '7-2': { specifiedRooms: [1,4,5] },
   '7-3': { specifiedRooms: [4, 5, 6] },
   '7-4': { specifiedRooms: [2,4,6] },
+  '8-1': { specifiedRooms: [6] },
 };
 function getSpecifiedRoomsForMission(mission){
   const rec = STAGE_SPEC[mission];
@@ -5531,6 +5532,59 @@ function renderRoomCards(mission = currentStage){
     g.appendChild(bgG);
   }
 
+  function appendStage81Room6PizzaAndCenterTriangle(room){
+    if (!specifiedRooms.has(room)) return;
+
+    const midDeg = (room - 1) * 60 + 30;
+    const roomTr = [
+      'translate(150,150)',
+      `rotate(${midDeg})`,
+      `translate(${(roomTan[room]||0)}, 0)`,
+      `translate(0, ${-(rBase + (roomRad[room]||0))})`,
+      `rotate(${inwardBase + (roomAdjust[room]||0)})`,
+      `translate(${localX}, ${localY})`
+    ].join(' ');
+
+    const roomG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    roomG.setAttribute('transform', roomTr);
+
+    const outerR = Math.max(16, cardH * 0.76);
+    const keepDeg = 110;
+    const halfKeep = keepDeg / 2;
+    const startDeg = -90 - halfKeep;
+    const endDeg = -90 + halfKeep;
+    const largeArc = keepDeg > 180 ? 1 : 0;
+    const startRad = startDeg * Math.PI / 180;
+    const endRad = endDeg * Math.PI / 180;
+    const x0 = outerR * Math.cos(startRad);
+    const y0 = outerR * Math.sin(startRad);
+    const x1 = outerR * Math.cos(endRad);
+    const y1 = outerR * Math.sin(endRad);
+
+    const pizza = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    pizza.setAttribute('d', `M 0 0 L ${x0.toFixed(2)} ${y0.toFixed(2)} A ${outerR.toFixed(2)} ${outerR.toFixed(2)} 0 ${largeArc} 1 ${x1.toFixed(2)} ${y1.toFixed(2)} Z`);
+    pizza.setAttribute('transform', 'translate(0,5) rotate(180)');
+    pizza.setAttribute('fill', '#a0522d');
+    pizza.setAttribute('stroke', '#111111');
+    pizza.setAttribute('stroke-width', '1');
+    pizza.setAttribute('stroke-linejoin', 'round');
+    roomG.appendChild(pizza);
+    g.appendChild(roomG);
+
+    const centerG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    centerG.setAttribute('transform', 'translate(150,150)');
+
+    const tri = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    tri.setAttribute('d', 'M 0 -10 Q 1.8 -10 2.9 -8.5 L 8 0.4 Q 9 2.2 7.4 3.2 L 1.8 7.2 Q 0 8.2 -1.8 7.2 L -7.4 3.2 Q -9 2.2 -8 0.4 L -2.9 -8.5 Q -1.8 -10 0 -10 Z');
+    tri.setAttribute('fill', '#a0522d');
+    tri.setAttribute('stroke', '#111111');
+    tri.setAttribute('stroke-width', '1');
+    tri.setAttribute('stroke-linejoin', 'round');
+    centerG.appendChild(tri);
+
+    g.appendChild(centerG);
+  }
+
   const specifiedRooms = new Set(getSpecifiedRoomsForMission(mission));
 
   if (mission==='1-1'){
@@ -5810,6 +5864,9 @@ function renderRoomCards(mission = currentStage){
     appendBdeck(2, { count: 3 });
     appendBdeck(4, { count: 3 });
     appendBdeck(6, { count: 3 });
+  }
+  if (mission === '8-1') {
+    appendStage81Room6PizzaAndCenterTriangle(6);
   }
   if (mission === '4-1') {
     appendCenterBrownPair({ halfGapDelta: -2, leftBackCount: 2, centerRightArrow: true, leftSign: '+', rightSign: '-' });
@@ -6369,6 +6426,9 @@ function getStageRoomHintText(stage, room){
   }
   if (stage === '3-4' && room === 5){
     return '最も小さい数値の白カードがこのエリアに置かれていなければならない。';
+  }
+  if (stage === '8-1' && room === 6){
+    return '仮';
   }
   if (sumCondition){
     return `このエリアの合計値が必ず${sumCondition.min}~${sumCondition.max}の数値にならなければならない。`;
