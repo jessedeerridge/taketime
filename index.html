@@ -5548,7 +5548,7 @@ function renderRoomCards(mission = currentStage){
     const roomG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     roomG.setAttribute('transform', roomTr);
 
-    const outerR = Math.max(8, cardH * 0.38);
+    const outerR = Math.max(16, cardH * 0.76);
     const keepDeg = 110;
     const halfKeep = keepDeg / 2;
     const startDeg = -90 - halfKeep;
@@ -5563,6 +5563,7 @@ function renderRoomCards(mission = currentStage){
 
     const pizza = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     pizza.setAttribute('d', `M 0 0 L ${x0.toFixed(2)} ${y0.toFixed(2)} A ${outerR.toFixed(2)} ${outerR.toFixed(2)} 0 ${largeArc} 1 ${x1.toFixed(2)} ${y1.toFixed(2)} Z`);
+    pizza.setAttribute('transform', 'rotate(180)');
     pizza.setAttribute('fill', '#a0522d');
     pizza.setAttribute('stroke', '#111111');
     pizza.setAttribute('stroke-width', '1');
