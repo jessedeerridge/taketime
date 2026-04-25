@@ -2127,13 +2127,11 @@ function evaluatePlacementResult(stage, roomCardsMap){
     }
   }
 
-  const roomSums = [];
-  for (let room = 1; room <= 6; room++){
+  const revealRoomOrder = getOrderedRoomsWithCardsByRevealStart(roomCardsMap, stage);
+  const roomSums = revealRoomOrder.map((room) => {
     const cards = roomCardsMap.get(room) || [];
-    if (!cards.length) continue;
-    const value = getRoomResultValue(stage, cards);
-    roomSums.push({ room, sum: value });
-  }
+    return { room, sum: getRoomResultValue(stage, cards) };
+  });
 
   let isAscending = true;
   for (let i = 1; i < roomSums.length; i++){
@@ -2161,7 +2159,7 @@ function evaluatePlacementResult(stage, roomCardsMap){
   return isAscending && conditionsOk && room6Ok && plusMinusOk;
 }
 
-function getOrderedRoomsWithCardsByRevealStart(roomCardsMap){
+function getOrderedRoomsWithCardsByRevealStart(roomCardsMap, stage = currentStage){
   const roomsWithCards = [];
   for (let room = 1; room <= 6; room++){
     const cards = roomCardsMap.get(room) || [];
@@ -2170,9 +2168,9 @@ function getOrderedRoomsWithCardsByRevealStart(roomCardsMap){
   if (!roomsWithCards.length) return [];
 
   let startRoom = roomsWithCards[0];
-  let minValue = getRoomResultValue(currentStage, roomCardsMap.get(startRoom) || []);
+  let minValue = getRoomResultValue(stage, roomCardsMap.get(startRoom) || []);
   for (const room of roomsWithCards){
-    const value = getRoomResultValue(currentStage, roomCardsMap.get(room) || []);
+    const value = getRoomResultValue(stage, roomCardsMap.get(room) || []);
     if (value < minValue || (value === minValue && room < startRoom)){
       minValue = value;
       startRoom = room;
