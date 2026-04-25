@@ -1393,8 +1393,8 @@ function generateRoomCode(length = 5){
 
 function createDeck24(){
   const deck = [];
-  for(let i = 1; i <= 12; i++) deck.push({ num: i, color: 'white' });
-  for(let i = 1; i <= 12; i++) deck.push({ num: i, color: 'black' });
+  for(let i = 1; i <= 12; i++) deck.push({ uid: `w-${i}`, num: i, color: 'white' });
+  for(let i = 1; i <= 12; i++) deck.push({ uid: `b-${i}`, num: i, color: 'black' });
   return deck;
 }
 
@@ -2528,16 +2528,19 @@ async function placeCardAndMaybeDrawInDb({ playerId, cardData, cardKey, localCar
     }
     if (removeIndex === -1){
       const targetNum = Number(cardData?.num);
-      const targetColor = String(cardData?.color || 'white');
+      const targetColor = String(cardData?.color || 'white').toLowerCase();
       removeIndex = cards.findIndex((c) => (
         c
         && Number(c.num) === targetNum
-        && String(c.color || 'white') === targetColor
+        && String(c.color || 'white').toLowerCase() === targetColor
       ));
     }
     if (removeIndex === -1){
-      const targetCardId = makeCardId(playerId, cardData);
+      const targetCardId = typeof cardData?.id === 'string' ? cardData.id : makeCardId(playerId, cardData);
       removeIndex = cards.findIndex((c) => c && makeCardId(playerId, c) === targetCardId);
+    }
+    if (removeIndex === -1 && cards.length === 1){
+      removeIndex = 0;
     }
     if (removeIndex === -1){
       return;
