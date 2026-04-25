@@ -6255,8 +6255,6 @@ function renderRoomTexts(mission){
   if (mission === '6-4') {
     textSpecs.push(makeClosecardTextSpec(2, '24', (midDeg)=>midDeg + 180));
   }
-  if (textSpecs.length === 0) return;
-
   textSpecs.forEach(({room, label, rotate, color: textColor, bgColor: circleColor, bgOpacity: circleOpacity, underline})=>{
     const midDeg = (room-1)*60 + 30;
     const p = polar(rText, midDeg);
@@ -6295,6 +6293,70 @@ function renderRoomTexts(mission){
       g.appendChild(underlineLine);
     }
   });
+
+  if (mission !== '8-1') return;
+
+  const room = 6;
+  const midDeg = (room - 1) * 60 + 30;
+  const { centerR, guideR } = getGuideMetrics();
+  const roomCenter = polar(centerR, midDeg);
+
+  const pacmanR = Math.max(9, guideR * 0.5);
+  const mouthDeg = 80;
+  const halfMouth = mouthDeg / 2;
+  const startDeg = midDeg + halfMouth;
+  const endDeg = midDeg - halfMouth + 360;
+  const start = polar(pacmanR, startDeg);
+  const end = polar(pacmanR, endDeg);
+  const pizzaCut = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  pizzaCut.setAttribute('d', `M ${roomCenter.x.toFixed(2)} ${roomCenter.y.toFixed(2)} L ${(roomCenter.x + start.x).toFixed(2)} ${(roomCenter.y + start.y).toFixed(2)} A ${pacmanR.toFixed(2)} ${pacmanR.toFixed(2)} 0 1 1 ${(roomCenter.x + end.x).toFixed(2)} ${(roomCenter.y + end.y).toFixed(2)} Z`);
+  pizzaCut.setAttribute('fill', '#a0522d');
+  pizzaCut.setAttribute('stroke', '#5c2f14');
+  pizzaCut.setAttribute('stroke-width', '1');
+  g.appendChild(pizzaCut);
+
+  const triR = Math.max(4, pacmanR * 0.42);
+  const triRound = Math.max(1.5, triR * 0.32);
+  const triRotation = midDeg + 90;
+  const triVerts = [0, 120, 240].map((deg) => {
+    const p = polar(triR, triRotation + deg);
+    return { x: roomCenter.x + p.x, y: roomCenter.y + p.y };
+  });
+  const roundedTri = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  function lerpPoint(a, b, t){
+    return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+  }
+  function edgeLength(a, b){
+    return Math.hypot(b.x - a.x, b.y - a.y);
+  }
+  const len01 = edgeLength(triVerts[0], triVerts[1]);
+  const len12 = edgeLength(triVerts[1], triVerts[2]);
+  const len20 = edgeLength(triVerts[2], triVerts[0]);
+  const t01 = Math.min(0.35, triRound / Math.max(0.0001, len01));
+  const t12 = Math.min(0.35, triRound / Math.max(0.0001, len12));
+  const t20 = Math.min(0.35, triRound / Math.max(0.0001, len20));
+
+  const p0in = lerpPoint(triVerts[0], triVerts[2], t20);
+  const p0out = lerpPoint(triVerts[0], triVerts[1], t01);
+  const p1in = lerpPoint(triVerts[1], triVerts[0], t01);
+  const p1out = lerpPoint(triVerts[1], triVerts[2], t12);
+  const p2in = lerpPoint(triVerts[2], triVerts[1], t12);
+  const p2out = lerpPoint(triVerts[2], triVerts[0], t20);
+
+  roundedTri.setAttribute(
+    'd',
+    `M ${p0out.x.toFixed(2)} ${p0out.y.toFixed(2)} ` +
+    `L ${p1in.x.toFixed(2)} ${p1in.y.toFixed(2)} ` +
+    `Q ${triVerts[1].x.toFixed(2)} ${triVerts[1].y.toFixed(2)} ${p1out.x.toFixed(2)} ${p1out.y.toFixed(2)} ` +
+    `L ${p2in.x.toFixed(2)} ${p2in.y.toFixed(2)} ` +
+    `Q ${triVerts[2].x.toFixed(2)} ${triVerts[2].y.toFixed(2)} ${p2out.x.toFixed(2)} ${p2out.y.toFixed(2)} ` +
+    `L ${p0in.x.toFixed(2)} ${p0in.y.toFixed(2)} ` +
+    `Q ${triVerts[0].x.toFixed(2)} ${triVerts[0].y.toFixed(2)} ${p0out.x.toFixed(2)} ${p0out.y.toFixed(2)} Z`
+  );
+  roundedTri.setAttribute('fill', '#fef3c7');
+  roundedTri.setAttribute('stroke', '#5c2f14');
+  roundedTri.setAttribute('stroke-width', '1');
+  g.appendChild(roundedTri);
 }
 
 function getStageRoomHintText(stage, room){
