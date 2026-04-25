@@ -1222,6 +1222,7 @@ let isStageTagPressed = false;
 let hostHandLockedByStage = false;
 let lastShownPhaseEventTs = 0;
 let revealPhaseAnnouncedForStage = '';
+let revealPhaseEmitInFlightKey = '';
 let lastSeenPhaseTicks = { discussion: 0, placement: 0, reveal: 0 };
 let revealFlipProcessingKey = '';
 let revealFlipRetryTimer = null;
@@ -1810,6 +1811,7 @@ function subscribeStage(){
     if (!currentStage){
       revealPhaseAnnouncedForStage = '';
     }
+    revealPhaseEmitInFlightKey = '';
     revealResultAnnouncedKey = '';
     revealFlipProcessingKey = '';
     if (revealFlipRetryTimer){
@@ -2016,7 +2018,7 @@ function syncPlacedCardIdsFromPlayed(){
   });
 }
 
-function maybeAnnounceRevealPhase(){
+async function maybeAnnounceRevealPhase(){
   if (!state.isHost || !state.roomCode || !currentStage) return;
   const tables = state.tables || {};
   const seatedPlayerIds = Object.values(tables)
@@ -2037,8 +2039,26 @@ function maybeAnnounceRevealPhase(){
   if (placedCount >= totalExpectedCards){
     const key = `${state.roomCode}:${currentStage}`;
     if (revealPhaseAnnouncedForStage === key) return;
-    revealPhaseAnnouncedForStage = key;
-    emitPhaseEvent('reveal');
+    if (state.currentPhase === 'reveal'){
+      revealPhaseAnnouncedForStage = key;
+      return;
+    }
+    if (revealPhaseEmitInFlightKey === key) return;
+
+    revealPhaseEmitInFlightKey = key;
+    try {
+      await emitPhaseEvent('reveal');
+      revealPhaseAnnouncedForStage = key;
+    } catch (err){
+      console.error('公開フェーズ遷移の送信に失敗', err);
+      setTimeout(() => {
+        maybeAnnounceRevealPhase();
+      }, 300);
+    } finally {
+      if (revealPhaseEmitInFlightKey === key){
+        revealPhaseEmitInFlightKey = '';
+      }
+    }
   }
 }
 
@@ -2522,24 +2542,17 @@ async function placeCardAndMaybeDrawInDb({ playerId, cardData, cardKey, localCar
       return;
     }
 
-    let removeIndex = -1;
-    if (cardData?.uid){
-      removeIndex = cards.findIndex((c) => c && c.uid === cardData.uid);
+    let removeIndex = findCardRemovalIndex(cards, playerId, cardData);
+    if (removeIndex === -1 && cards.length === 1){
+      removeIndex = 0;
     }
     if (removeIndex === -1){
-      const targetNum = Number(cardData?.num);
-      const targetColor = String(cardData?.color || 'white');
-      removeIndex = cards.findIndex((c) => (
-        c
-        && Number(c.num) === targetNum
-        && String(c.color || 'white') === targetColor
-      ));
-    }
-    if (removeIndex === -1){
-      const targetCardId = makeCardId(playerId, cardData);
-      removeIndex = cards.findIndex((c) => c && makeCardId(playerId, c) === targetCardId);
-    }
-    if (removeIndex === -1){
+      console.warn('配置カードの手札照合に失敗したためトランザクションを中断', {
+        playerId,
+        cardKey,
+        cardData,
+        handCards: cards
+      });
       return;
     }
     cards.splice(removeIndex, 1);
@@ -2575,6 +2588,31 @@ async function placeCardAndMaybeDrawInDb({ playerId, cardData, cardKey, localCar
   if (!txResult.committed){
     throw new Error('カード配置トランザクションが競合で中断されました');
   }
+}
+
+function findCardRemovalIndex(cards, playerId, cardData){
+  if (!Array.isArray(cards) || !cards.length) return -1;
+
+  if (cardData?.uid){
+    const byUid = cards.findIndex((c) => c && c.uid === cardData.uid);
+    if (byUid !== -1) return byUid;
+  }
+
+  if (cardData?.id){
+    const byId = cards.findIndex((c) => c && makeCardId(playerId, c) === cardData.id);
+    if (byId !== -1) return byId;
+  }
+
+  const targetNum = Number(cardData?.num);
+  const targetColor = String(cardData?.color || 'white');
+  const byNumColor = cards.findIndex((c) => (
+    c
+    && Number(c.num) === targetNum
+    && String(c.color || 'white') === targetColor
+  ));
+  if (byNumColor !== -1) return byNumColor;
+
+  return -1;
 }
 
 function makeCardId(playerId, cardData){
@@ -3300,6 +3338,8 @@ btnResetRoom.addEventListener('click', async () => {
 
   placedCardIds.clear();
   pendingPlacedCardIds.clear();
+  revealPhaseAnnouncedForStage = '';
+  revealPhaseEmitInFlightKey = '';
   state.seatedTable = null;
   startPop.classList.add('hidden');
   renderHands();
@@ -3333,6 +3373,7 @@ async function setStage(code){
     syncHostStageReadyButton();
   }
   revealPhaseAnnouncedForStage = '';
+  revealPhaseEmitInFlightKey = '';
   window.dispatchEvent(new CustomEvent('mission:change', { detail:{ value: currentStage }}));
 
   if (state.isHost && state.roomCode){
