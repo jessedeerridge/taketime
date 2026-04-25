@@ -2161,6 +2161,42 @@ function evaluatePlusMinusSuccess(stage, entries, roomCardsMap){
   return true;
 }
 
+function evaluateTwoBlackWhiteRoomSuccess(stage, roomCardsMap){
+  const rooms = getTwoBlackWhiteRoomsForMission(stage);
+  for (const room of rooms){
+    const cards = roomCardsMap.get(Number(room)) || [];
+    if (cards.length !== 4) return false;
+    const whiteCount = cards.filter((card) => String(card.color || 'white') === 'white').length;
+    const blackCount = cards.filter((card) => String(card.color || 'white') === 'black').length;
+    if (whiteCount !== 2 || blackCount !== 2) return false;
+  }
+  return true;
+}
+
+function evaluateDualColorExtremePlusSuccess(stage, entries, roomCardsMap){
+  const rooms = getDualColorExtremePlusRoomsForMission(stage);
+  if (!rooms.length) return true;
+
+  const blackCards = entries.filter((card) => String(card.color || 'white') === 'black');
+  const whiteCards = entries.filter((card) => String(card.color || 'white') === 'white');
+  if (!blackCards.length || !whiteCards.length) return false;
+
+  const maxBlack = Math.max(...blackCards.map((card) => Number(card.num || 0)));
+  const minWhite = Math.min(...whiteCards.map((card) => Number(card.num || 0)));
+
+  for (const room of rooms){
+    const roomCards = roomCardsMap.get(Number(room)) || [];
+    const hasMaxBlack = roomCards.some((card) =>
+      String(card.color || 'white') === 'black' && Number(card.num || 0) === maxBlack
+    );
+    const hasMinWhite = roomCards.some((card) =>
+      String(card.color || 'white') === 'white' && Number(card.num || 0) === minWhite
+    );
+    if (!hasMaxBlack || !hasMinWhite) return false;
+  }
+  return true;
+}
+
 function evaluatePlacementResult(stage, roomCardsMap){
   if (
     typeof stage === 'string'
@@ -2200,8 +2236,10 @@ function evaluatePlacementResult(stage, roomCardsMap){
   const room6Sum = getRoomResultValue(stage, roomCardsMap.get(6) || []);
   const room6Ok = hasInfinity || room6Sum <= 24;
   const plusMinusOk = evaluatePlusMinusSuccess(stage, getPlayedEntriesSorted(), roomCardsMap);
+  const twoBlackWhiteOk = evaluateTwoBlackWhiteRoomSuccess(stage, roomCardsMap);
+  const dualColorExtremePlusOk = evaluateDualColorExtremePlusSuccess(stage, getPlayedEntriesSorted(), roomCardsMap);
 
-  return isAscending && conditionsOk && room6Ok && plusMinusOk;
+  return isAscending && conditionsOk && room6Ok && plusMinusOk && twoBlackWhiteOk && dualColorExtremePlusOk;
 }
 
 function getOrderedRoomsWithCardsByRevealStart(roomCardsMap, stage = currentStage){
@@ -2373,6 +2411,11 @@ function getRoomPlacementRule(stage, room){
   }
   if (stage === '7-1'){
     if ([3, 4].includes(room)) return { disallowedNums: ['7', '8', '9'] };
+  }
+  if (stage === '7-3'){
+    if (isTwoBlackWhiteRoomForMission(stage, room)){
+      return { maxTotal: 4, allowedColors: ['white', 'black'], perColorMax: { white: 2, black: 2 } };
+    }
   }
   if (typeof stage === 'string' && stage.startsWith('5-')){
     return { maxTotal: 2 };
@@ -4125,10 +4168,25 @@ const STAGE_PLUS_MINUS = {
   '6-1': { 6: '-' },
   '6-4': { 1: '-', 4: '+' }
 };
+const STAGE_TWO_BLACK_WHITE = {
+  '7-3': [6]
+};
+const STAGE_DUAL_COLOR_EXTREME_PLUS = {
+  '7-3': [4]
+};
 const STAGE_DOUBLECLOCK = {
   '3-3': { room: 2, left: '2', right: '1', gap: 12 },
   '6-3': { room: 5, left: '2', right: '3', gap: 12 }
 };
+function getTwoBlackWhiteRoomsForMission(mission){
+  return STAGE_TWO_BLACK_WHITE[mission] || [];
+}
+function isTwoBlackWhiteRoomForMission(mission, room){
+  return getTwoBlackWhiteRoomsForMission(mission).includes(Number(room));
+}
+function getDualColorExtremePlusRoomsForMission(mission){
+  return STAGE_DUAL_COLOR_EXTREME_PLUS[mission] || [];
+}
 function getClockLabelsForMission(mission){
   return STAGE_CLOCK_LABELS[mission] || null;
 }
@@ -6287,6 +6345,9 @@ function getStageRoomHintText(stage, room){
     }
     return `このエリアに数値が最も低い${colorLabel}カードを出していなければならない。`;
   }
+  if (getDualColorExtremePlusRoomsForMission(stage).includes(Number(room))){
+    return 'このエリアに全カード中で最大の黒カードと最小の白カードを出していなければならない。';
+  }
 
   if (stage === '3-1' && room === 4){
     return 'このエリアに最も大きい数値のカードが置かれていなければならない。';
@@ -6334,6 +6395,14 @@ function getStageRoomHintText(stage, room){
     && placementRule.allowedColors[0] === 'black'
   ){
     return '黒カードを必ず1枚だけ置かなければならない。';
+  }
+  if (
+    placementRule.maxTotal === 4
+    && placementRule.perColorMax
+    && Number(placementRule.perColorMax.white) === 2
+    && Number(placementRule.perColorMax.black) === 2
+  ){
+    return '白カード2枚と黒カード2枚の合計4枚を必ず置かなければならない。';
   }
   if (
     placementRule.maxTotal === 2
