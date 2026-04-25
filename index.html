@@ -2481,7 +2481,7 @@ async function placeDroppedCard(cardData, room, face = 'face'){
   renderHands();
   try {
     const roomRef = ref(db, `rooms/${state.roomCode}`);
-    await runTransaction(roomRef, (roomData) => {
+    const txResult = await runTransaction(roomRef, (roomData) => {
       if (!roomData || typeof roomData !== 'object') return roomData;
 
       const hands = roomData.hands && typeof roomData.hands === 'object' ? roomData.hands : {};
@@ -2496,7 +2496,7 @@ async function placeDroppedCard(cardData, room, face = 'face'){
       if (removeIndex === -1){
         removeIndex = handCards.findIndex((c) => c && c.num === cardData.num && c.color === cardData.color);
       }
-      if (removeIndex === -1) return roomData;
+      if (removeIndex === -1) return;
       handCards.splice(removeIndex, 1);
 
       const reserveDeck = Array.isArray(roomData.reserveDeck) ? roomData.reserveDeck.slice() : [];
@@ -2517,6 +2517,13 @@ async function placeDroppedCard(cardData, room, face = 'face'){
       roomData.playedCards = playedCards;
       return roomData;
     });
+    if (!txResult?.committed){
+      throw new Error('カード配置トランザクションが中断されました');
+    }
+    const playedAfter = txResult.snapshot?.child(`playedCards/${key}`).val();
+    if (!playedAfter){
+      throw new Error('カード配置結果が反映されていません');
+    }
   } catch (err){
     delete state.playedCards[key];
     lastPlayedCardKeys.delete(key);
@@ -4072,11 +4079,7 @@ const STAGE_BROWNCARDS = {
   '1-1': { 6: 3 },
   '1-2': { 4: 3 },
   '3-4': { 3: 2 },
-  '4-1': { 5: 1 },
-  '7-1': { 1: 3 },
-  '7-2': { 1: 3, 4: 3 },
-  '7-3': { 5: 3 },
-  '7-4': { 2: 3, 4: 3, 6: 3 }
+  '4-1': { 5: 1 }
 };
 const STAGE_PROHIBIT_ROOMS = {
   '2-1': [1, 2, 3],
