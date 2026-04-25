@@ -2527,11 +2527,11 @@ async function placeCardAndMaybeDrawInDb({ playerId, cardData, cardKey, localCar
       removeIndex = cards.findIndex((c) => c && c.uid === cardData.uid);
     }
     if (removeIndex === -1){
-      const targetNum = Number(cardData?.num);
+      const targetNum = normalizeCardNumberValue(cardData?.num);
       const targetColor = String(cardData?.color || 'white');
       removeIndex = cards.findIndex((c) => (
         c
-        && Number(c.num) === targetNum
+        && normalizeCardNumberValue(c.num) === targetNum
         && String(c.color || 'white') === targetColor
       ));
     }
@@ -2539,7 +2539,15 @@ async function placeCardAndMaybeDrawInDb({ playerId, cardData, cardKey, localCar
       const targetCardId = makeCardId(playerId, cardData);
       removeIndex = cards.findIndex((c) => c && makeCardId(playerId, c) === targetCardId);
     }
+    if (removeIndex === -1 && cards.length === 1){
+      removeIndex = 0;
+    }
     if (removeIndex === -1){
+      console.warn('配置カードが手札から見つからないため配置を中断', {
+        playerId,
+        cardData,
+        cards
+      });
       return;
     }
     cards.splice(removeIndex, 1);
@@ -2579,9 +2587,19 @@ async function placeCardAndMaybeDrawInDb({ playerId, cardData, cardKey, localCar
 
 function makeCardId(playerId, cardData){
   if (cardData?.uid) return `${playerId}-${cardData.uid}`;
-  const num = Number(cardData?.num || 0);
+  const num = normalizeCardNumberValue(cardData?.num || 0);
   const color = String(cardData?.color || 'white');
   return `${playerId}-${color}-${num}`;
+}
+
+function normalizeCardNumberValue(num){
+  if (num == null) return '';
+  const normalized = String(num)
+    .replace(/[０-９]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
+    .trim();
+  const asNumber = Number(normalized);
+  if (Number.isFinite(asNumber)) return String(asNumber);
+  return normalized.toLowerCase();
 }
 
 function isUnderlineTargetNumber(num){
