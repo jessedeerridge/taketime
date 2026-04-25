@@ -2522,24 +2522,17 @@ async function placeCardAndMaybeDrawInDb({ playerId, cardData, cardKey, localCar
       return;
     }
 
-    let removeIndex = -1;
-    if (cardData?.uid){
-      removeIndex = cards.findIndex((c) => c && c.uid === cardData.uid);
+    let removeIndex = findCardRemovalIndex(cards, playerId, cardData);
+    if (removeIndex === -1 && cards.length === 1){
+      removeIndex = 0;
     }
     if (removeIndex === -1){
-      const targetNum = Number(cardData?.num);
-      const targetColor = String(cardData?.color || 'white');
-      removeIndex = cards.findIndex((c) => (
-        c
-        && Number(c.num) === targetNum
-        && String(c.color || 'white') === targetColor
-      ));
-    }
-    if (removeIndex === -1){
-      const targetCardId = makeCardId(playerId, cardData);
-      removeIndex = cards.findIndex((c) => c && makeCardId(playerId, c) === targetCardId);
-    }
-    if (removeIndex === -1){
+      console.warn('配置カードの手札照合に失敗したためトランザクションを中断', {
+        playerId,
+        cardKey,
+        cardData,
+        handCards: cards
+      });
       return;
     }
     cards.splice(removeIndex, 1);
@@ -2575,6 +2568,31 @@ async function placeCardAndMaybeDrawInDb({ playerId, cardData, cardKey, localCar
   if (!txResult.committed){
     throw new Error('カード配置トランザクションが競合で中断されました');
   }
+}
+
+function findCardRemovalIndex(cards, playerId, cardData){
+  if (!Array.isArray(cards) || !cards.length) return -1;
+
+  if (cardData?.uid){
+    const byUid = cards.findIndex((c) => c && c.uid === cardData.uid);
+    if (byUid !== -1) return byUid;
+  }
+
+  if (cardData?.id){
+    const byId = cards.findIndex((c) => c && makeCardId(playerId, c) === cardData.id);
+    if (byId !== -1) return byId;
+  }
+
+  const targetNum = Number(cardData?.num);
+  const targetColor = String(cardData?.color || 'white');
+  const byNumColor = cards.findIndex((c) => (
+    c
+    && Number(c.num) === targetNum
+    && String(c.color || 'white') === targetColor
+  ));
+  if (byNumColor !== -1) return byNumColor;
+
+  return -1;
 }
 
 function makeCardId(playerId, cardData){
