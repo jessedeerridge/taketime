@@ -1393,9 +1393,21 @@ function generateRoomCode(length = 5){
 
 function createDeck24(){
   const deck = [];
-  for(let i = 1; i <= 12; i++) deck.push({ num: i, color: 'white' });
-  for(let i = 1; i <= 12; i++) deck.push({ num: i, color: 'black' });
+  let serial = 1;
+  for (let i = 1; i <= 12; i++){
+    deck.push({ num: i, color: 'white', uid: `card-${serial++}` });
+  }
+  for (let i = 1; i <= 12; i++){
+    deck.push({ num: i, color: 'black', uid: `card-${serial++}` });
+  }
   return deck;
+}
+
+function ensureCardUid(card){
+  if (!card || typeof card !== 'object') return card;
+  if (card.uid) return card;
+  const randomPart = Math.random().toString(36).slice(2, 8);
+  return { ...card, uid: `legacy-${Date.now()}-${randomPart}` };
 }
 
 function shuffleArray(arr){
@@ -2511,7 +2523,9 @@ async function placeCardAndMaybeDrawInDb({ playerId, cardData, cardKey, localCar
     if (!roomData || typeof roomData !== 'object') return roomData;
     const hands = roomData.hands && typeof roomData.hands === 'object' ? roomData.hands : {};
     const playerHand = hands[playerId];
-    const cards = Array.isArray(playerHand?.cards) ? playerHand.cards.slice() : [];
+    const cards = Array.isArray(playerHand?.cards)
+      ? playerHand.cards.map((c) => ensureCardUid(c)).slice()
+      : [];
     const currentPlayedCards = roomData.playedCards && typeof roomData.playedCards === 'object'
       ? roomData.playedCards
       : {};
@@ -2551,10 +2565,12 @@ async function placeCardAndMaybeDrawInDb({ playerId, cardData, cardKey, localCar
     };
 
     const isBdeckRoom = getBrowncardsCountForMission(currentStage, Number(localCard.room)) > 0;
-    const surplusDeck = Array.isArray(roomData.surplusDeck) ? roomData.surplusDeck.slice() : [];
+    const surplusDeck = Array.isArray(roomData.surplusDeck)
+      ? roomData.surplusDeck.map((c) => ensureCardUid(c)).slice()
+      : [];
     let nextSurplusDeck = roomData.surplusDeck;
     if (isBdeckRoom && surplusDeck.length){
-      const drawnCard = surplusDeck.shift();
+      const drawnCard = ensureCardUid(surplusDeck.shift());
       nextPlayerHand.cards = [...nextPlayerHand.cards, drawnCard];
       nextSurplusDeck = surplusDeck;
     }
