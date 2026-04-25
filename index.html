@@ -1398,6 +1398,22 @@ function createDeck24(){
   return deck;
 }
 
+function buildCardUid(seed = ''){
+  const rand = Math.random().toString(36).slice(2, 10);
+  return `${seed ? `${seed}-` : ''}${Date.now().toString(36)}-${rand}`;
+}
+
+function withCardUid(card, seed = ''){
+  if (!card || typeof card !== 'object') return card;
+  if (card.uid) return card;
+  return { ...card, uid: buildCardUid(seed) };
+}
+
+function withCardUidList(cards = [], seed = ''){
+  if (!Array.isArray(cards)) return [];
+  return cards.map((card, idx) => withCardUid(card, seed ? `${seed}-${idx}` : String(idx)));
+}
+
 function shuffleArray(arr){
   const a = [...arr];
   for(let i = a.length - 1; i > 0; i--){
@@ -2511,7 +2527,7 @@ async function placeCardAndMaybeDrawInDb({ playerId, cardData, cardKey, localCar
     if (!roomData || typeof roomData !== 'object') return roomData;
     const hands = roomData.hands && typeof roomData.hands === 'object' ? roomData.hands : {};
     const playerHand = hands[playerId];
-    const cards = Array.isArray(playerHand?.cards) ? playerHand.cards.slice() : [];
+    const cards = withCardUidList(Array.isArray(playerHand?.cards) ? playerHand.cards.slice() : [], `${playerId}-hand`);
     const currentPlayedCards = roomData.playedCards && typeof roomData.playedCards === 'object'
       ? roomData.playedCards
       : {};
@@ -2539,6 +2555,9 @@ async function placeCardAndMaybeDrawInDb({ playerId, cardData, cardKey, localCar
       const targetCardId = makeCardId(playerId, cardData);
       removeIndex = cards.findIndex((c) => c && makeCardId(playerId, c) === targetCardId);
     }
+    if (removeIndex === -1 && cards.length === 1){
+      removeIndex = 0;
+    }
     if (removeIndex === -1){
       return;
     }
@@ -2551,10 +2570,13 @@ async function placeCardAndMaybeDrawInDb({ playerId, cardData, cardKey, localCar
     };
 
     const isBdeckRoom = getBrowncardsCountForMission(currentStage, Number(localCard.room)) > 0;
-    const surplusDeck = Array.isArray(roomData.surplusDeck) ? roomData.surplusDeck.slice() : [];
+    const surplusDeck = withCardUidList(
+      Array.isArray(roomData.surplusDeck) ? roomData.surplusDeck.slice() : [],
+      'surplus'
+    );
     let nextSurplusDeck = roomData.surplusDeck;
     if (isBdeckRoom && surplusDeck.length){
-      const drawnCard = surplusDeck.shift();
+      const drawnCard = withCardUid(surplusDeck.shift(), 'draw');
       nextPlayerHand.cards = [...nextPlayerHand.cards, drawnCard];
       nextSurplusDeck = surplusDeck;
     }
@@ -3248,8 +3270,8 @@ async function dealInitialHands(){
 
   const fullDeck = createDeck24();
   const shuffledDeck = shuffleArray(fullDeck);
-  const selected12 = shuffledDeck.slice(0, 12);
-  const surplusDeck = shuffledDeck.slice(12);
+  const selected12 = withCardUidList(shuffledDeck.slice(0, 12), 'initial');
+  const surplusDeck = withCardUidList(shuffledDeck.slice(12), 'surplus');
 
   const cardsPerPlayer = 12 / playerCount;
   const hands = {};
