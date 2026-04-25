@@ -1231,6 +1231,7 @@ let revealFlipRetryTimer = null;
 let revealResultAnnouncedKey = '';
 let roomTotalsRefreshTimer = null;
 let revealResultDelayTimer = null;
+let revealPhaseCheckTimer = null;
 let lastAutoSortedHandSignature = '';
 let lastPlayedCardKeys = new Set();
 let twoPlayerReservedCardIds = [];
@@ -1346,6 +1347,14 @@ function getActiveTurnPlayerIds(){
     }
   }
   return [];
+}
+
+function scheduleRevealPhaseCheck(delayMs = 120){
+  if (revealPhaseCheckTimer) clearTimeout(revealPhaseCheckTimer);
+  revealPhaseCheckTimer = setTimeout(() => {
+    revealPhaseCheckTimer = null;
+    maybeAnnounceRevealPhase(true);
+  }, Math.max(20, Number(delayMs) || 20));
 }
 
 function isMyTurnInPlacement(){
@@ -1832,6 +1841,10 @@ function subscribeStage(){
       clearTimeout(revealResultDelayTimer);
       revealResultDelayTimer = null;
     }
+    if (revealPhaseCheckTimer){
+      clearTimeout(revealPhaseCheckTimer);
+      revealPhaseCheckTimer = null;
+    }
 
     renderStageOptions();
     window.dispatchEvent(new CustomEvent('mission:change', { detail:{ value: currentStage }}));
@@ -2024,29 +2037,73 @@ function syncPlacedCardIdsFromPlayed(){
   });
 }
 
-function maybeAnnounceRevealPhase(){
-  if (!state.isHost || !state.roomCode || !currentStage) return;
-  const tables = state.tables || {};
-  const seatedPlayerIds = Object.values(tables)
+function getSeatedPlayerIdsFromTables(tables = state.tables || {}){
+  return Object.values(tables)
     .filter((seat) => seat?.playerId)
     .map((seat) => seat.playerId);
-  if (!seatedPlayerIds.length) return;
+}
 
+function countRemainingAndPlaced({ seatedPlayerIds, hands, playedCards }){
   const remainingCards = seatedPlayerIds.reduce((sum, pid) => {
-    const cards = state.hands[pid]?.cards;
+    const cards = hands?.[pid]?.cards;
     return sum + (Array.isArray(cards) ? cards.length : 0);
   }, 0);
-  const placedCount = Object.values(state.playedCards || {})
+  const placedCount = Object.values(playedCards || {})
     .filter((card) => card?.playerId && seatedPlayerIds.includes(card.playerId))
     .length;
+  return { remainingCards, placedCount };
+}
+
+async function maybeAnnounceRevealPhase(forceDbVerify = false){
+  if (!state.isHost || !state.roomCode || !currentStage) return;
+  const seatedPlayerIds = getSeatedPlayerIdsFromTables(state.tables || {});
+  if (!seatedPlayerIds.length) return;
+
+  const { remainingCards, placedCount } = countRemainingAndPlaced({
+    seatedPlayerIds,
+    hands: state.hands,
+    playedCards: state.playedCards
+  });
   const totalExpectedCards = remainingCards + placedCount;
   if (!totalExpectedCards) return;
 
-  if (placedCount >= totalExpectedCards){
+  const shouldReveal = placedCount >= totalExpectedCards;
+  if (!shouldReveal){
+    if (revealPhaseCheckTimer){
+      clearTimeout(revealPhaseCheckTimer);
+      revealPhaseCheckTimer = null;
+    }
+    return;
+  }
+
+  if (!forceDbVerify){
+    scheduleRevealPhaseCheck(120);
+    return;
+  }
+
+  try {
+    const [tablesSnap, handsSnap, playedSnap] = await Promise.all([
+      get(ref(db, `rooms/${state.roomCode}/tables`)),
+      get(ref(db, `rooms/${state.roomCode}/hands`)),
+      get(ref(db, `rooms/${state.roomCode}/playedCards`))
+    ]);
+    const latestSeated = getSeatedPlayerIdsFromTables(tablesSnap.val() || {});
+    if (!latestSeated.length) return;
+    const verified = countRemainingAndPlaced({
+      seatedPlayerIds: latestSeated,
+      hands: handsSnap.val() || {},
+      playedCards: playedSnap.val() || {}
+    });
+    const verifiedTotal = verified.remainingCards + verified.placedCount;
+    if (!verifiedTotal) return;
+    if (verified.placedCount < verifiedTotal) return;
+
     const key = `${state.roomCode}:${currentStage}`;
     if (revealPhaseAnnouncedForStage === key) return;
     revealPhaseAnnouncedForStage = key;
-    emitPhaseEvent('reveal');
+    await emitPhaseEvent('reveal');
+  } catch (err){
+    console.error('公開フェーズ遷移の検証に失敗しました', err);
   }
 }
 
@@ -2471,7 +2528,6 @@ async function placeDroppedCard(cardData, room, face = 'face'){
     placedAt,
     boardRotationAtPlacement: boardRotationDeg
   };
-  pendingPlacedCardIds.delete(cardData.id);
   placedCardIds.add(cardData.id);
   state.playedCards = {
     ...(state.playedCards || {}),
