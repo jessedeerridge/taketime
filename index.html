@@ -1393,8 +1393,13 @@ function generateRoomCode(length = 5){
 
 function createDeck24(){
   const deck = [];
-  for(let i = 1; i <= 12; i++) deck.push({ num: i, color: 'white' });
-  for(let i = 1; i <= 12; i++) deck.push({ num: i, color: 'black' });
+  let uidSeed = 1;
+  for(let i = 1; i <= 12; i++){
+    deck.push({ num: i, color: 'white', uid: `c${uidSeed++}` });
+  }
+  for(let i = 1; i <= 12; i++){
+    deck.push({ num: i, color: 'black', uid: `c${uidSeed++}` });
+  }
   return deck;
 }
 
@@ -2536,8 +2541,11 @@ async function placeCardAndMaybeDrawInDb({ playerId, cardData, cardKey, localCar
       ));
     }
     if (removeIndex === -1){
-      const targetCardId = makeCardId(playerId, cardData);
+      const targetCardId = cardData?.id || localCard?.id || makeCardId(playerId, cardData);
       removeIndex = cards.findIndex((c) => c && makeCardId(playerId, c) === targetCardId);
+    }
+    if (removeIndex === -1 && cards.length === 1){
+      removeIndex = 0;
     }
     if (removeIndex === -1){
       return;
