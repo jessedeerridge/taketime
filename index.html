@@ -2518,9 +2518,6 @@ async function placeCardAndMaybeDrawInDb({ playerId, cardData, cardKey, localCar
     if (currentPlayedCards[cardKey]){
       return roomData;
     }
-    if (!cards.length){
-      return;
-    }
 
     let removeIndex = -1;
     if (cardData?.uid){
@@ -2539,8 +2536,25 @@ async function placeCardAndMaybeDrawInDb({ playerId, cardData, cardKey, localCar
       const targetCardId = makeCardId(playerId, cardData);
       removeIndex = cards.findIndex((c) => c && makeCardId(playerId, c) === targetCardId);
     }
+    const alreadyPlayedSameCard = Object.values(currentPlayedCards).some((card) => (
+      card
+      && card.playerId === playerId
+      && card.id === localCard.id
+    ));
     if (removeIndex === -1){
-      return;
+      if (alreadyPlayedSameCard){
+        return roomData;
+      }
+      if (!cards.length){
+        return {
+          ...roomData,
+          playedCards: {
+            ...currentPlayedCards,
+            [cardKey]: localCard
+          }
+        };
+      }
+      return roomData;
     }
     cards.splice(removeIndex, 1);
 
