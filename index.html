@@ -2161,6 +2161,32 @@ function evaluatePlacementResult(stage, roomCardsMap){
   return isAscending && conditionsOk && room6Ok && plusMinusOk;
 }
 
+function getOrderedRoomsWithCardsByRevealStart(roomCardsMap){
+  const roomsWithCards = [];
+  for (let room = 1; room <= 6; room++){
+    const cards = roomCardsMap.get(room) || [];
+    if (cards.length) roomsWithCards.push(room);
+  }
+  if (!roomsWithCards.length) return [];
+
+  let startRoom = roomsWithCards[0];
+  let minValue = getRoomResultValue(currentStage, roomCardsMap.get(startRoom) || []);
+  for (const room of roomsWithCards){
+    const value = getRoomResultValue(currentStage, roomCardsMap.get(room) || []);
+    if (value < minValue || (value === minValue && room < startRoom)){
+      minValue = value;
+      startRoom = room;
+    }
+  }
+
+  const rotatedRooms = [];
+  for (let offset = 0; offset < 6; offset++){
+    const room = ((startRoom - 1 + offset) % 6) + 1;
+    if (roomsWithCards.includes(room)) rotatedRooms.push(room);
+  }
+  return rotatedRooms;
+}
+
 async function maybeRunRevealFlipSequence(){
   if (!state.isHost || !state.roomCode || !currentStage) return;
   if (state.currentPhase !== 'reveal') return;
@@ -2179,8 +2205,11 @@ async function maybeRunRevealFlipSequence(){
       const latestEntries = getPlayedEntriesSorted();
       const latestBackCards = latestEntries.filter((card) => card.face === 'back');
       if (!latestBackCards.length) break;
+      const latestRoomCardsMap = getRoomCardsMap(latestEntries);
+      const revealRoomOrder = getOrderedRoomsWithCardsByRevealStart(latestRoomCardsMap);
+      if (!revealRoomOrder.length) break;
 
-      for (let room = 1; room <= 6; room++){
+      for (const room of revealRoomOrder){
         const roomBackCards = latestBackCards.filter((card) => Number(card.room) === room);
         if (!roomBackCards.length) continue;
         for (const card of roomBackCards){
@@ -2215,15 +2244,17 @@ function maybeAnnounceRevealResult(){
   if (!allFaceUp) return;
 
   const roomCardsMap = getRoomCardsMap(entries);
-  const room6Cards = roomCardsMap.get(6) || [];
+  const revealRoomOrder = getOrderedRoomsWithCardsByRevealStart(roomCardsMap);
+  const lastRevealRoom = revealRoomOrder.length ? revealRoomOrder[revealRoomOrder.length - 1] : null;
+  const lastRevealRoomCards = lastRevealRoom ? (roomCardsMap.get(lastRevealRoom) || []) : [];
   const revealTickTs = Number(state.phaseState?.revealTick || 0);
-  if (room6Cards.length){
-    const latestRoom6RevealTs = room6Cards.reduce((latestTs, card) => {
+  if (lastRevealRoomCards.length){
+    const latestRoomRevealTs = lastRevealRoomCards.reduce((latestTs, card) => {
       const ts = Number(card.revealedAt || 0);
       return ts > latestTs ? ts : latestTs;
     }, 0);
-    const room6TotalShownAt = Math.max(revealTickTs, latestRoom6RevealTs) + ROOM_TOTAL_DISPLAY_DELAY_MS;
-    const resultPopAt = room6TotalShownAt + RESULT_POP_DELAY_AFTER_ROOM6_TOTAL_MS;
+    const roomTotalShownAt = Math.max(revealTickTs, latestRoomRevealTs) + ROOM_TOTAL_DISPLAY_DELAY_MS;
+    const resultPopAt = roomTotalShownAt + RESULT_POP_DELAY_AFTER_ROOM6_TOTAL_MS;
     const waitMs = resultPopAt - Date.now();
     if (waitMs > 0){
       scheduleRevealResultRetry(waitMs);
@@ -5936,12 +5967,12 @@ function renderRoomTotals(){
 
   const { centerR, outerOffset, guideR } = getGuideMetrics();
   const roomCardsMap = getRoomCardsMap();
+  const revealRoomOrder = getOrderedRoomsWithCardsByRevealStart(roomCardsMap);
   const revealTick = Number(state.phaseState?.revealTick || 0);
   let canShowNextRoom = true;
-  for (let room = 1; room <= 6; room++){
+  for (const room of revealRoomOrder){
     if (!canShowNextRoom) break;
     const cards = roomCardsMap.get(room) || [];
-    if (!cards.length) continue;
     const roomFullyRevealed = cards.every((card) => card.face !== 'back');
     if (!roomFullyRevealed){
       canShowNextRoom = false;
