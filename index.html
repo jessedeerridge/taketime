@@ -4102,6 +4102,7 @@ const STAGE_SPEC = {
   '7-2': { specifiedRooms: [1,4,5] },
   '7-3': { specifiedRooms: [4, 5, 6] },
   '7-4': { specifiedRooms: [2,4,6] },
+  '8-1': { specifiedRooms: [6] },
 };
 function getSpecifiedRoomsForMission(mission){
   const rec = STAGE_SPEC[mission];
@@ -5699,6 +5700,55 @@ function renderRoomCards(mission = currentStage){
     g.appendChild(stackG);
   }
 
+  function appendBrownPizzaMarker(room, {
+    radius = 7.2,
+    remainDeg = 110,
+    outerShiftR = 3,
+    fill = '#8b5a2b',
+    stroke = '#5f3b1a',
+    strokeWidth = 0.9
+  } = {}){
+    if (!specifiedRooms.has(room)) return;
+    const midDeg = (room - 1) * 60 + 30;
+    const tr = [
+      'translate(150,150)',
+      `rotate(${midDeg})`,
+      `translate(${(roomTan[room]||0)}, 0)`,
+      `translate(0, ${-(rBase + (roomRad[room]||0) + outerShiftR)})`,
+      `rotate(${inwardBase + (roomAdjust[room]||0)})`,
+      `translate(${localX}, ${localY})`
+    ].join(' ');
+
+    const pizzaG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    pizzaG.setAttribute('transform', tr);
+
+    const halfRemain = Math.max(1, Math.min(179, remainDeg)) / 2;
+    const startDeg = -90 - halfRemain;
+    const endDeg = -90 + halfRemain;
+    const startRad = (Math.PI / 180) * startDeg;
+    const endRad = (Math.PI / 180) * endDeg;
+    const sx = radius * Math.cos(startRad);
+    const sy = radius * Math.sin(startRad);
+    const ex = radius * Math.cos(endRad);
+    const ey = radius * Math.sin(endRad);
+    const largeArc = (endDeg - startDeg) > 180 ? 1 : 0;
+    const d = [
+      `M ${sx.toFixed(3)} ${sy.toFixed(3)}`,
+      `A ${radius} ${radius} 0 ${largeArc} 1 ${ex.toFixed(3)} ${ey.toFixed(3)}`,
+      'L 0 0 Z'
+    ].join(' ');
+
+    const pizzaPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    pizzaPath.setAttribute('d', d);
+    pizzaPath.setAttribute('fill', fill);
+    pizzaPath.setAttribute('stroke', stroke);
+    pizzaPath.setAttribute('stroke-width', String(strokeWidth));
+    pizzaPath.setAttribute('stroke-linejoin', 'round');
+    pizzaG.appendChild(pizzaPath);
+
+    g.appendChild(pizzaG);
+  }
+
   if (mission === '2-1') {
     STAGE_PROHIBIT_ROOMS['2-1'].forEach((room) => appendDisallowedCards(room, ['1', '2', '3']));
   }
@@ -5810,6 +5860,9 @@ function renderRoomCards(mission = currentStage){
     appendBdeck(2, { count: 3 });
     appendBdeck(4, { count: 3 });
     appendBdeck(6, { count: 3 });
+  }
+  if (mission === '8-1') {
+    appendBrownPizzaMarker(6, { remainDeg: 110 });
   }
   if (mission === '4-1') {
     appendCenterBrownPair({ halfGapDelta: -2, leftBackCount: 2, centerRightArrow: true, leftSign: '+', rightSign: '-' });
