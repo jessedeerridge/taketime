@@ -1200,6 +1200,9 @@ const STAGE_ROOM_SUCCESS_CONDITIONS = {
   '1-3': [{ room: 6, min: 20, max: 30, label: '20-30エリア' }],
   '3-1': [{ room: 6, min: 20, max: 20, label: '20固定エリア' }]
 };
+const STAGE_ROOM_COLOR_REQUIREMENTS = {
+  '7-3': [{ room: 6, total: 4, perColor: { white: 2, black: 2 }, label: 'twoblackwhite' }]
+};
 const REVEAL_ROOM_INTERVAL_MS = 1200;
 const ROOM_TOTAL_DISPLAY_DELAY_MS = 1200;
 const RESULT_POP_DELAY_AFTER_ROOM6_TOTAL_MS = 2000;
@@ -2150,6 +2153,27 @@ function evaluatePlacementResult(stage, roomCardsMap){
       conditionsOk = false;
     }
   });
+  const colorRequirements = STAGE_ROOM_COLOR_REQUIREMENTS[stage] || [];
+  colorRequirements.forEach((req) => {
+    const cards = roomCardsMap.get(Number(req.room)) || [];
+    if (typeof req.total === 'number' && cards.length !== Number(req.total)){
+      conditionsOk = false;
+      return;
+    }
+    const perColor = { white: 0, black: 0 };
+    cards.forEach((card) => {
+      const color = String(card?.color || 'white');
+      if (color === 'black') perColor.black += 1;
+      else perColor.white += 1;
+    });
+    if (req.perColor){
+      const needWhite = Number(req.perColor.white ?? perColor.white);
+      const needBlack = Number(req.perColor.black ?? perColor.black);
+      if (perColor.white !== needWhite || perColor.black !== needBlack){
+        conditionsOk = false;
+      }
+    }
+  });
 
   const hasInfinity = stage === '1-1';
   const room6Sum = getRoomResultValue(stage, roomCardsMap.get(6) || []);
@@ -2328,6 +2352,9 @@ function getRoomPlacementRule(stage, room){
   }
   if (stage === '7-1'){
     if ([3, 4].includes(room)) return { disallowedNums: ['7', '8', '9'] };
+  }
+  if (stage === '7-3'){
+    if (room === 6) return { maxTotal: 4, allowedColors: ['white', 'black'], perColorMax: { white: 2, black: 2 } };
   }
   if (typeof stage === 'string' && stage.startsWith('5-')){
     return { maxTotal: 2 };
@@ -6270,6 +6297,14 @@ function getStageRoomHintText(stage, room){
     && Number(placementRule.perColorMax.black) === 1
   ){
     return '白カード、黒カードを必ず１枚ずつだけ置かなければならない。';
+  }
+  if (
+    placementRule.maxTotal === 4
+    && placementRule.perColorMax
+    && Number(placementRule.perColorMax.white) === 2
+    && Number(placementRule.perColorMax.black) === 2
+  ){
+    return '白カード2枚、黒カード2枚の合計4枚だけ置かなければならない。';
   }
   return '';
 }
