@@ -2507,6 +2507,7 @@ async function placeDroppedCard(cardData, room, face = 'face'){
 
 async function placeCardAndMaybeDrawInDb({ playerId, cardData, cardKey, localCard }){
   const roomRef = ref(db, `rooms/${state.roomCode}`);
+  let transactionAbortReason = '';
   const txResult = await runTransaction(roomRef, (roomData) => {
     if (!roomData || typeof roomData !== 'object') return roomData;
     const hands = roomData.hands && typeof roomData.hands === 'object' ? roomData.hands : {};
@@ -2519,6 +2520,7 @@ async function placeCardAndMaybeDrawInDb({ playerId, cardData, cardKey, localCar
       return roomData;
     }
     if (!cards.length){
+      transactionAbortReason = 'empty-hand';
       return;
     }
 
@@ -2539,7 +2541,13 @@ async function placeCardAndMaybeDrawInDb({ playerId, cardData, cardKey, localCar
       const targetCardId = makeCardId(playerId, cardData);
       removeIndex = cards.findIndex((c) => c && makeCardId(playerId, c) === targetCardId);
     }
+    if (removeIndex === -1 && cards.length === 1){
+      // 最後の1枚だけが残っているのに一致判定に失敗した場合でも、
+      // ここで確実に消費して公開フェーズへ進めるようにする。
+      removeIndex = 0;
+    }
     if (removeIndex === -1){
+      transactionAbortReason = 'card-not-found';
       return;
     }
     cards.splice(removeIndex, 1);
@@ -2573,7 +2581,8 @@ async function placeCardAndMaybeDrawInDb({ playerId, cardData, cardKey, localCar
   });
 
   if (!txResult.committed){
-    throw new Error('カード配置トランザクションが競合で中断されました');
+    const reason = transactionAbortReason ? `(${transactionAbortReason})` : '';
+    throw new Error(`カード配置トランザクションが競合で中断されました${reason}`);
   }
 }
 
