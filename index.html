@@ -2518,10 +2518,6 @@ async function placeCardAndMaybeDrawInDb({ playerId, cardData, cardKey, localCar
     if (currentPlayedCards[cardKey]){
       return roomData;
     }
-    if (!cards.length){
-      return;
-    }
-
     let removeIndex = -1;
     if (cardData?.uid){
       removeIndex = cards.findIndex((c) => c && c.uid === cardData.uid);
@@ -2540,9 +2536,13 @@ async function placeCardAndMaybeDrawInDb({ playerId, cardData, cardKey, localCar
       removeIndex = cards.findIndex((c) => c && makeCardId(playerId, c) === targetCardId);
     }
     if (removeIndex === -1){
-      return;
+      // 最後の1枚を直前に別トランザクションで消費済みでも、配置自体は確定させる。
+      if (cards.length > 0){
+        return;
+      }
+    } else {
+      cards.splice(removeIndex, 1);
     }
-    cards.splice(removeIndex, 1);
 
     const nextHands = { ...hands };
     const nextPlayerHand = {
