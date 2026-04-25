@@ -1200,6 +1200,12 @@ const STAGE_ROOM_SUCCESS_CONDITIONS = {
   '1-3': [{ room: 6, min: 20, max: 30, label: '20-30エリア' }],
   '3-1': [{ room: 6, min: 20, max: 20, label: '20固定エリア' }]
 };
+const STAGE_BDECK_ROOMS = {
+  '7-1': [1],
+  '7-2': [1, 4],
+  '7-3': [5],
+  '7-4': [2, 4, 6]
+};
 const REVEAL_ROOM_INTERVAL_MS = 1200;
 const ROOM_TOTAL_DISPLAY_DELAY_MS = 1200;
 const RESULT_POP_DELAY_AFTER_ROOM6_TOTAL_MS = 2000;
@@ -1225,6 +1231,7 @@ let revealFlipRetryTimer = null;
 let revealResultAnnouncedKey = '';
 let roomTotalsRefreshTimer = null;
 let revealResultDelayTimer = null;
+let revealPhaseCheckTimer = null;
 let lastAutoSortedHandSignature = '';
 let lastPlayedCardKeys = new Set();
 let twoPlayerReservedCardIds = [];
@@ -1312,17 +1319,42 @@ function getActiveTurnPlayerIds(){
     .map((p) => p.id);
   if (!players.length) return [];
 
+  const handCountMap = new Map(
+    players.map((pid) => {
+      const cards = state.hands?.[pid]?.cards;
+      return [pid, Array.isArray(cards) ? cards.length : 0];
+    })
+  );
+  const activePlayers = players.filter((pid) => (handCountMap.get(pid) || 0) > 0);
+  if (!activePlayers.length) return [];
+
   const playedList = Object.values(state.playedCards || {})
     .filter((card) => card?.playerId && players.includes(card.playerId))
     .sort((a, b) => Number(a.placedAt || 0) - Number(b.placedAt || 0));
 
-  if (!playedList.length) return players;
+  if (!playedList.length){
+    return [activePlayers[0]];
+  }
 
-  const firstPlayerId = playedList[0].playerId;
-  const firstIndex = players.indexOf(firstPlayerId);
-  if (firstIndex === -1) return [players[0]];
-  const turnIndex = (firstIndex + playedList.length) % players.length;
-  return [players[turnIndex]];
+  const lastPlayerId = playedList[playedList.length - 1]?.playerId;
+  const lastIndex = players.indexOf(lastPlayerId);
+  const startIndex = lastIndex >= 0 ? lastIndex : 0;
+  for (let step = 1; step <= players.length; step += 1){
+    const idx = (startIndex + step) % players.length;
+    const candidateId = players[idx];
+    if ((handCountMap.get(candidateId) || 0) > 0){
+      return [candidateId];
+    }
+  }
+  return [];
+}
+
+function scheduleRevealPhaseCheck(delayMs = 120){
+  if (revealPhaseCheckTimer) clearTimeout(revealPhaseCheckTimer);
+  revealPhaseCheckTimer = setTimeout(() => {
+    revealPhaseCheckTimer = null;
+    maybeAnnounceRevealPhase(true);
+  }, Math.max(20, Number(delayMs) || 20));
 }
 
 function isMyTurnInPlacement(){
@@ -1809,6 +1841,10 @@ function subscribeStage(){
       clearTimeout(revealResultDelayTimer);
       revealResultDelayTimer = null;
     }
+    if (revealPhaseCheckTimer){
+      clearTimeout(revealPhaseCheckTimer);
+      revealPhaseCheckTimer = null;
+    }
 
     renderStageOptions();
     window.dispatchEvent(new CustomEvent('mission:change', { detail:{ value: currentStage }}));
@@ -2001,29 +2037,73 @@ function syncPlacedCardIdsFromPlayed(){
   });
 }
 
-function maybeAnnounceRevealPhase(){
-  if (!state.isHost || !state.roomCode || !currentStage) return;
-  const tables = state.tables || {};
-  const seatedPlayerIds = Object.values(tables)
+function getSeatedPlayerIdsFromTables(tables = state.tables || {}){
+  return Object.values(tables)
     .filter((seat) => seat?.playerId)
     .map((seat) => seat.playerId);
-  if (!seatedPlayerIds.length) return;
+}
 
+function countRemainingAndPlaced({ seatedPlayerIds, hands, playedCards }){
   const remainingCards = seatedPlayerIds.reduce((sum, pid) => {
-    const cards = state.hands[pid]?.cards;
+    const cards = hands?.[pid]?.cards;
     return sum + (Array.isArray(cards) ? cards.length : 0);
   }, 0);
-  const placedCount = Object.values(state.playedCards || {})
+  const placedCount = Object.values(playedCards || {})
     .filter((card) => card?.playerId && seatedPlayerIds.includes(card.playerId))
     .length;
+  return { remainingCards, placedCount };
+}
+
+async function maybeAnnounceRevealPhase(forceDbVerify = false){
+  if (!state.isHost || !state.roomCode || !currentStage) return;
+  const seatedPlayerIds = getSeatedPlayerIdsFromTables(state.tables || {});
+  if (!seatedPlayerIds.length) return;
+
+  const { remainingCards, placedCount } = countRemainingAndPlaced({
+    seatedPlayerIds,
+    hands: state.hands,
+    playedCards: state.playedCards
+  });
   const totalExpectedCards = remainingCards + placedCount;
   if (!totalExpectedCards) return;
 
-  if (placedCount >= totalExpectedCards){
+  const shouldReveal = placedCount >= totalExpectedCards;
+  if (!shouldReveal){
+    if (revealPhaseCheckTimer){
+      clearTimeout(revealPhaseCheckTimer);
+      revealPhaseCheckTimer = null;
+    }
+    return;
+  }
+
+  if (!forceDbVerify){
+    scheduleRevealPhaseCheck(120);
+    return;
+  }
+
+  try {
+    const [tablesSnap, handsSnap, playedSnap] = await Promise.all([
+      get(ref(db, `rooms/${state.roomCode}/tables`)),
+      get(ref(db, `rooms/${state.roomCode}/hands`)),
+      get(ref(db, `rooms/${state.roomCode}/playedCards`))
+    ]);
+    const latestSeated = getSeatedPlayerIdsFromTables(tablesSnap.val() || {});
+    if (!latestSeated.length) return;
+    const verified = countRemainingAndPlaced({
+      seatedPlayerIds: latestSeated,
+      hands: handsSnap.val() || {},
+      playedCards: playedSnap.val() || {}
+    });
+    const verifiedTotal = verified.remainingCards + verified.placedCount;
+    if (!verifiedTotal) return;
+    if (verified.placedCount < verifiedTotal) return;
+
     const key = `${state.roomCode}:${currentStage}`;
     if (revealPhaseAnnouncedForStage === key) return;
     revealPhaseAnnouncedForStage = key;
-    emitPhaseEvent('reveal');
+    await emitPhaseEvent('reveal');
+  } catch (err){
+    console.error('公開フェーズ遷移の検証に失敗しました', err);
   }
 }
 
@@ -2407,6 +2487,12 @@ function canPlaceCardInRoom(cardData, room, stage = currentStage){
   return true;
 }
 
+function isBdeckRoom(stage, room){
+  const rooms = STAGE_BDECK_ROOMS[stage];
+  if (!Array.isArray(rooms)) return false;
+  return rooms.includes(Number(room));
+}
+
 function findDropRoom(clientX, clientY, cardData = activeDrag?.cardData){
   const { centerR, guideR } = getGuideMetrics();
   const { x: centerX, y: centerY, rect } = getBoardCenterClient();
@@ -2431,6 +2517,7 @@ async function placeDroppedCard(cardData, room, face = 'face'){
   if (!state.roomCode) return;
   const placedAt = Date.now();
   const key = `${state.userId}_${cardData.id}_${placedAt}`;
+  const shouldDrawFromReserve = isBdeckRoom(currentStage, room);
   const localCard = {
     id: cardData.id,
     num: cardData.num,
@@ -2441,7 +2528,6 @@ async function placeDroppedCard(cardData, room, face = 'face'){
     placedAt,
     boardRotationAtPlacement: boardRotationDeg
   };
-  pendingPlacedCardIds.delete(cardData.id);
   placedCardIds.add(cardData.id);
   state.playedCards = {
     ...(state.playedCards || {}),
@@ -2450,10 +2536,50 @@ async function placeDroppedCard(cardData, room, face = 'face'){
   lastPlayedCardKeys.add(key);
   renderHands();
   try {
-    await Promise.all([
-      set(ref(db, `rooms/${state.roomCode}/playedCards/${key}`), localCard),
-      removeCardFromHandInDb(state.userId, cardData)
-    ]);
+    const roomRef = ref(db, `rooms/${state.roomCode}`);
+    const txResult = await runTransaction(roomRef, (roomData) => {
+      if (!roomData || typeof roomData !== 'object') return roomData;
+
+      const hands = roomData.hands && typeof roomData.hands === 'object' ? roomData.hands : {};
+      const myHandEntry = hands[state.userId] && typeof hands[state.userId] === 'object'
+        ? hands[state.userId]
+        : { cards: [] };
+      const handCards = Array.isArray(myHandEntry.cards) ? myHandEntry.cards.slice() : [];
+      let removeIndex = -1;
+      if (cardData?.uid){
+        removeIndex = handCards.findIndex((c) => c && c.uid === cardData.uid);
+      }
+      if (removeIndex === -1){
+        removeIndex = handCards.findIndex((c) => c && c.num === cardData.num && c.color === cardData.color);
+      }
+      if (removeIndex === -1) return;
+      handCards.splice(removeIndex, 1);
+
+      const reserveDeck = Array.isArray(roomData.reserveDeck) ? roomData.reserveDeck.slice() : [];
+      if (shouldDrawFromReserve && reserveDeck.length){
+        const drawnCard = reserveDeck.shift();
+        if (drawnCard) handCards.push(drawnCard);
+      }
+
+      myHandEntry.cards = handCards;
+      hands[state.userId] = myHandEntry;
+      roomData.hands = hands;
+      roomData.reserveDeck = reserveDeck;
+
+      const playedCards = roomData.playedCards && typeof roomData.playedCards === 'object'
+        ? roomData.playedCards
+        : {};
+      playedCards[key] = localCard;
+      roomData.playedCards = playedCards;
+      return roomData;
+    });
+    if (!txResult?.committed){
+      throw new Error('カード配置トランザクションが中断されました');
+    }
+    const playedAfter = txResult.snapshot?.child(`playedCards/${key}`).val();
+    if (!playedAfter){
+      throw new Error('カード配置結果が反映されていません');
+    }
   } catch (err){
     delete state.playedCards[key];
     lastPlayedCardKeys.delete(key);
@@ -2462,24 +2588,6 @@ async function placeDroppedCard(cardData, room, face = 'face'){
     renderHands();
     throw err;
   }
-}
-
-async function removeCardFromHandInDb(playerId, cardData){
-  const cardsRef = ref(db, `rooms/${state.roomCode}/hands/${playerId}/cards`);
-  await runTransaction(cardsRef, (cards) => {
-    if (!Array.isArray(cards) || !cards.length) return cards;
-    let removeIndex = -1;
-    if (cardData?.uid){
-      removeIndex = cards.findIndex((c) => c && c.uid === cardData.uid);
-    }
-    if (removeIndex === -1){
-      removeIndex = cards.findIndex((c) => c && c.num === cardData.num && c.color === cardData.color);
-    }
-    if (removeIndex === -1) return cards;
-    const next = cards.slice();
-    next.splice(removeIndex, 1);
-    return next;
-  });
 }
 
 function makeCardId(playerId, cardData){
@@ -3150,6 +3258,7 @@ async function dealInitialHands(){
   const fullDeck = createDeck24();
   const shuffledDeck = shuffleArray(fullDeck);
   const selected12 = shuffledDeck.slice(0, 12);
+  const reserveDeck = shuffledDeck.slice(12);
 
   const cardsPerPlayer = 12 / playerCount;
   const hands = {};
@@ -3162,7 +3271,10 @@ async function dealInitialHands(){
     };
   });
 
-  await set(ref(db, `rooms/${state.roomCode}/hands`), hands);
+  await Promise.all([
+    set(ref(db, `rooms/${state.roomCode}/hands`), hands),
+    set(ref(db, `rooms/${state.roomCode}/reserveDeck`), reserveDeck)
+  ]);
 }
 
 hostSettingsBtn.addEventListener('click', () => {
@@ -3191,7 +3303,8 @@ btnResetRoom.addEventListener('click', async () => {
     remove(ref(db, `${base}/maxPlayers`)),
     remove(ref(db, `${base}/tables`)),
     remove(ref(db, `${base}/hands`)),
-    remove(ref(db, `${base}/playedCards`))
+    remove(ref(db, `${base}/playedCards`)),
+    remove(ref(db, `${base}/reserveDeck`))
   ]);
 
   placedCardIds.clear();
@@ -3241,6 +3354,7 @@ async function setStage(code){
     await Promise.all([
       remove(ref(db, `rooms/${state.roomCode}/playedCards`)),
       remove(ref(db, `rooms/${state.roomCode}/hands`)),
+      remove(ref(db, `rooms/${state.roomCode}/reserveDeck`)),
       set(ref(db, `rooms/${state.roomCode}/subgearCount`), 0),
       set(ref(db, `rooms/${state.roomCode}/boardRotation`), {
         deg: 0,
@@ -4021,11 +4135,7 @@ const STAGE_BROWNCARDS = {
   '1-1': { 6: 3 },
   '1-2': { 4: 3 },
   '3-4': { 3: 2 },
-  '4-1': { 5: 1 },
-  '7-1': { 1: 3 },
-  '7-2': { 1: 3, 4: 3 },
-  '7-3': { 5: 3 },
-  '7-4': { 2: 3, 4: 3, 6: 3 }
+  '4-1': { 5: 1 }
 };
 const STAGE_PROHIBIT_ROOMS = {
   '2-1': [1, 2, 3],
