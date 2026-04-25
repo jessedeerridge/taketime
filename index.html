@@ -2539,6 +2539,22 @@ async function placeCardAndMaybeDrawInDb({ playerId, cardData, cardKey, localCar
       const targetCardId = makeCardId(playerId, cardData);
       removeIndex = cards.findIndex((c) => c && makeCardId(playerId, c) === targetCardId);
     }
+    if (removeIndex === -1 && cards.length === 1){
+      const onlyCard = cards[0];
+      const onlyCardNum = Number(onlyCard?.num);
+      const onlyCardColor = String(onlyCard?.color || 'white');
+      const targetNum = Number(cardData?.num);
+      const targetColor = String(cardData?.color || 'white');
+      if (Number.isFinite(targetNum) && onlyCardNum === targetNum && onlyCardColor === targetColor){
+        console.warn('最後の1枚の同定に失敗したため、唯一の手札をプレイ対象として扱います', {
+          playerId,
+          cardKey,
+          cardData,
+          onlyCard
+        });
+        removeIndex = 0;
+      }
+    }
     if (removeIndex === -1){
       return;
     }
