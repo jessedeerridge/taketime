@@ -2485,16 +2485,36 @@ async function placeCardAndMaybeDrawInDb({ playerId, cardData, cardKey, localCar
     const hands = roomData.hands && typeof roomData.hands === 'object' ? roomData.hands : {};
     const playerHand = hands[playerId];
     const cards = Array.isArray(playerHand?.cards) ? playerHand.cards.slice() : [];
-    if (!cards.length) return roomData;
+    const currentPlayedCards = roomData.playedCards && typeof roomData.playedCards === 'object'
+      ? roomData.playedCards
+      : {};
+    if (currentPlayedCards[cardKey]){
+      return roomData;
+    }
+    if (!cards.length){
+      return;
+    }
 
     let removeIndex = -1;
     if (cardData?.uid){
       removeIndex = cards.findIndex((c) => c && c.uid === cardData.uid);
     }
     if (removeIndex === -1){
-      removeIndex = cards.findIndex((c) => c && c.num === cardData.num && c.color === cardData.color);
+      const targetNum = Number(cardData?.num);
+      const targetColor = String(cardData?.color || 'white');
+      removeIndex = cards.findIndex((c) => (
+        c
+        && Number(c.num) === targetNum
+        && String(c.color || 'white') === targetColor
+      ));
     }
-    if (removeIndex === -1) return roomData;
+    if (removeIndex === -1){
+      const targetCardId = makeCardId(playerId, cardData);
+      removeIndex = cards.findIndex((c) => c && makeCardId(playerId, c) === targetCardId);
+    }
+    if (removeIndex === -1){
+      return;
+    }
     cards.splice(removeIndex, 1);
 
     const nextHands = { ...hands };
@@ -2514,16 +2534,12 @@ async function placeCardAndMaybeDrawInDb({ playerId, cardData, cardKey, localCar
 
     nextHands[playerId] = nextPlayerHand;
 
-    const playedCards = roomData.playedCards && typeof roomData.playedCards === 'object'
-      ? roomData.playedCards
-      : {};
-
     return {
       ...roomData,
       hands: nextHands,
       surplusDeck: nextSurplusDeck,
       playedCards: {
-        ...playedCards,
+        ...currentPlayedCards,
         [cardKey]: localCard
       }
     };
@@ -3191,6 +3207,10 @@ async function dealInitialHands(){
 
   if (playerCount === 0){
     alert('着席している参加者がいません。');
+    return;
+  }
+  if (playerCount < 2){
+    alert('1人では開始できません。2人以上で開始してください。');
     return;
   }
 
