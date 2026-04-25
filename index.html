@@ -1200,9 +1200,6 @@ const STAGE_ROOM_SUCCESS_CONDITIONS = {
   '1-3': [{ room: 6, min: 20, max: 30, label: '20-30エリア' }],
   '3-1': [{ room: 6, min: 20, max: 20, label: '20固定エリア' }]
 };
-const STAGE_ROOM_COLOR_REQUIREMENTS = {
-  '7-3': [{ room: 6, total: 4, perColor: { white: 2, black: 2 }, label: 'twoblackwhite' }]
-};
 const REVEAL_ROOM_INTERVAL_MS = 1200;
 const ROOM_TOTAL_DISPLAY_DELAY_MS = 1200;
 const RESULT_POP_DELAY_AFTER_ROOM6_TOTAL_MS = 2000;
@@ -1315,29 +1312,17 @@ function getActiveTurnPlayerIds(){
     .map((p) => p.id);
   if (!players.length) return [];
 
-  const playersWithCards = players.filter((playerId) => {
-    const cards = state.hands?.[playerId]?.cards;
-    return Array.isArray(cards) && cards.length > 0;
-  });
-  if (!playersWithCards.length) return [];
-
   const playedList = Object.values(state.playedCards || {})
     .filter((card) => card?.playerId && players.includes(card.playerId))
     .sort((a, b) => Number(a.placedAt || 0) - Number(b.placedAt || 0));
 
-  if (!playedList.length) return playersWithCards;
+  if (!playedList.length) return players;
 
-  const lastPlayerId = playedList[playedList.length - 1]?.playerId;
-  const lastIndex = players.indexOf(lastPlayerId);
-  if (lastIndex === -1) return [playersWithCards[0]];
-
-  for (let offset = 1; offset <= players.length; offset++){
-    const nextPlayerId = players[(lastIndex + offset) % players.length];
-    if (playersWithCards.includes(nextPlayerId)){
-      return [nextPlayerId];
-    }
-  }
-  return [];
+  const firstPlayerId = playedList[0].playerId;
+  const firstIndex = players.indexOf(firstPlayerId);
+  if (firstIndex === -1) return [players[0]];
+  const turnIndex = (firstIndex + playedList.length) % players.length;
+  return [players[turnIndex]];
 }
 
 function isMyTurnInPlacement(){
@@ -2165,27 +2150,6 @@ function evaluatePlacementResult(stage, roomCardsMap){
       conditionsOk = false;
     }
   });
-  const colorRequirements = STAGE_ROOM_COLOR_REQUIREMENTS[stage] || [];
-  colorRequirements.forEach((req) => {
-    const cards = roomCardsMap.get(Number(req.room)) || [];
-    if (typeof req.total === 'number' && cards.length !== Number(req.total)){
-      conditionsOk = false;
-      return;
-    }
-    const perColor = { white: 0, black: 0 };
-    cards.forEach((card) => {
-      const color = String(card?.color || 'white');
-      if (color === 'black') perColor.black += 1;
-      else perColor.white += 1;
-    });
-    if (req.perColor){
-      const needWhite = Number(req.perColor.white ?? perColor.white);
-      const needBlack = Number(req.perColor.black ?? perColor.black);
-      if (perColor.white !== needWhite || perColor.black !== needBlack){
-        conditionsOk = false;
-      }
-    }
-  });
 
   const hasInfinity = stage === '1-1';
   const room6Sum = getRoomResultValue(stage, roomCardsMap.get(6) || []);
@@ -2321,7 +2285,7 @@ function getGuideMetrics(){
 function getRoomPlacementRule(stage, room){
   const browncardsCount = getBrowncardsCountForMission(stage, room);
   if (browncardsCount > 0){
-    return null;
+    return { maxTotal: browncardsCount };
   }
 
   if (stage === '1-1'){
@@ -2364,9 +2328,6 @@ function getRoomPlacementRule(stage, room){
   }
   if (stage === '7-1'){
     if ([3, 4].includes(room)) return { disallowedNums: ['7', '8', '9'] };
-  }
-  if (stage === '7-3'){
-    if (room === 6) return { maxTotal: 4, allowedColors: ['white', 'black'], perColorMax: { white: 2, black: 2 } };
   }
   if (typeof stage === 'string' && stage.startsWith('5-')){
     return { maxTotal: 2 };
@@ -2489,12 +2450,10 @@ async function placeDroppedCard(cardData, room, face = 'face'){
   lastPlayedCardKeys.add(key);
   renderHands();
   try {
-    await placeCardAndMaybeDrawInDb({
-      playerId: state.userId,
-      cardData,
-      cardKey: key,
-      localCard
-    });
+    await Promise.all([
+      set(ref(db, `rooms/${state.roomCode}/playedCards/${key}`), localCard),
+      removeCardFromHandInDb(state.userId, cardData)
+    ]);
   } catch (err){
     delete state.playedCards[key];
     lastPlayedCardKeys.delete(key);
@@ -2505,76 +2464,22 @@ async function placeDroppedCard(cardData, room, face = 'face'){
   }
 }
 
-async function placeCardAndMaybeDrawInDb({ playerId, cardData, cardKey, localCard }){
-  const roomRef = ref(db, `rooms/${state.roomCode}`);
-  const txResult = await runTransaction(roomRef, (roomData) => {
-    if (!roomData || typeof roomData !== 'object') return roomData;
-    const hands = roomData.hands && typeof roomData.hands === 'object' ? roomData.hands : {};
-    const playerHand = hands[playerId];
-    const cards = Array.isArray(playerHand?.cards) ? playerHand.cards.slice() : [];
-    const currentPlayedCards = roomData.playedCards && typeof roomData.playedCards === 'object'
-      ? roomData.playedCards
-      : {};
-    if (currentPlayedCards[cardKey]){
-      return roomData;
-    }
-    if (!cards.length){
-      return;
-    }
-
+async function removeCardFromHandInDb(playerId, cardData){
+  const cardsRef = ref(db, `rooms/${state.roomCode}/hands/${playerId}/cards`);
+  await runTransaction(cardsRef, (cards) => {
+    if (!Array.isArray(cards) || !cards.length) return cards;
     let removeIndex = -1;
     if (cardData?.uid){
       removeIndex = cards.findIndex((c) => c && c.uid === cardData.uid);
     }
     if (removeIndex === -1){
-      const targetNum = Number(cardData?.num);
-      const targetColor = String(cardData?.color || 'white');
-      removeIndex = cards.findIndex((c) => (
-        c
-        && Number(c.num) === targetNum
-        && String(c.color || 'white') === targetColor
-      ));
+      removeIndex = cards.findIndex((c) => c && c.num === cardData.num && c.color === cardData.color);
     }
-    if (removeIndex === -1){
-      const targetCardId = makeCardId(playerId, cardData);
-      removeIndex = cards.findIndex((c) => c && makeCardId(playerId, c) === targetCardId);
-    }
-    if (removeIndex === -1){
-      return;
-    }
-    cards.splice(removeIndex, 1);
-
-    const nextHands = { ...hands };
-    const nextPlayerHand = {
-      ...(playerHand || {}),
-      cards
-    };
-
-    const isBdeckRoom = getBrowncardsCountForMission(currentStage, Number(localCard.room)) > 0;
-    const surplusDeck = Array.isArray(roomData.surplusDeck) ? roomData.surplusDeck.slice() : [];
-    let nextSurplusDeck = roomData.surplusDeck;
-    if (isBdeckRoom && surplusDeck.length){
-      const drawnCard = surplusDeck.shift();
-      nextPlayerHand.cards = [...nextPlayerHand.cards, drawnCard];
-      nextSurplusDeck = surplusDeck;
-    }
-
-    nextHands[playerId] = nextPlayerHand;
-
-    return {
-      ...roomData,
-      hands: nextHands,
-      surplusDeck: nextSurplusDeck,
-      playedCards: {
-        ...currentPlayedCards,
-        [cardKey]: localCard
-      }
-    };
+    if (removeIndex === -1) return cards;
+    const next = cards.slice();
+    next.splice(removeIndex, 1);
+    return next;
   });
-
-  if (!txResult.committed){
-    throw new Error('カード配置トランザクションが競合で中断されました');
-  }
 }
 
 function makeCardId(playerId, cardData){
@@ -3236,10 +3141,6 @@ async function dealInitialHands(){
     alert('着席している参加者がいません。');
     return;
   }
-  if (playerCount < 2){
-    alert('1人では開始できません。2人以上で開始してください。');
-    return;
-  }
 
   if (12 % playerCount !== 0){
     alert(`参加者${playerCount}人には12枚を均等に配れません。2人・3人・4人・6人で開始してください。`);
@@ -3249,7 +3150,6 @@ async function dealInitialHands(){
   const fullDeck = createDeck24();
   const shuffledDeck = shuffleArray(fullDeck);
   const selected12 = shuffledDeck.slice(0, 12);
-  const surplusDeck = shuffledDeck.slice(12);
 
   const cardsPerPlayer = 12 / playerCount;
   const hands = {};
@@ -3262,10 +3162,7 @@ async function dealInitialHands(){
     };
   });
 
-  await update(ref(db, `rooms/${state.roomCode}`), {
-    hands,
-    surplusDeck
-  });
+  await set(ref(db, `rooms/${state.roomCode}/hands`), hands);
 }
 
 hostSettingsBtn.addEventListener('click', () => {
@@ -3294,8 +3191,7 @@ btnResetRoom.addEventListener('click', async () => {
     remove(ref(db, `${base}/maxPlayers`)),
     remove(ref(db, `${base}/tables`)),
     remove(ref(db, `${base}/hands`)),
-    remove(ref(db, `${base}/playedCards`)),
-    remove(ref(db, `${base}/surplusDeck`))
+    remove(ref(db, `${base}/playedCards`))
   ]);
 
   placedCardIds.clear();
@@ -3345,7 +3241,6 @@ async function setStage(code){
     await Promise.all([
       remove(ref(db, `rooms/${state.roomCode}/playedCards`)),
       remove(ref(db, `rooms/${state.roomCode}/hands`)),
-      remove(ref(db, `rooms/${state.roomCode}/surplusDeck`)),
       set(ref(db, `rooms/${state.roomCode}/subgearCount`), 0),
       set(ref(db, `rooms/${state.roomCode}/boardRotation`), {
         deg: 0,
@@ -6375,14 +6270,6 @@ function getStageRoomHintText(stage, room){
     && Number(placementRule.perColorMax.black) === 1
   ){
     return '白カード、黒カードを必ず１枚ずつだけ置かなければならない。';
-  }
-  if (
-    placementRule.maxTotal === 4
-    && placementRule.perColorMax
-    && Number(placementRule.perColorMax.white) === 2
-    && Number(placementRule.perColorMax.black) === 2
-  ){
-    return '白カード2枚、黒カード2枚の合計4枚だけ置かなければならない。';
   }
   return '';
 }
