@@ -1305,24 +1305,69 @@ function deriveCurrentPhase(phaseState){
   return 'discussion';
 }
 
-function getActiveTurnPlayerIds(){
-  if (state.currentPhase !== 'placement') return [];
-  const players = latestPlayers
-    .filter((p) => p?.id)
-    .map((p) => p.id);
-  if (!players.length) return [];
+function computeNextTurnPlayerId({
+  playerIds = [],
+  hands = {},
+  playedCards = {}
+} = {}){
+  if (!Array.isArray(playerIds) || !playerIds.length) return null;
+  const playablePlayerIds = playerIds.filter((playerId) => {
+    const cards = hands?.[playerId]?.cards;
+    return Array.isArray(cards) && cards.length > 0;
+  });
+  if (!playablePlayerIds.length) return null;
 
-  const playedList = Object.values(state.playedCards || {})
-    .filter((card) => card?.playerId && players.includes(card.playerId))
+  const playedList = Object.values(playedCards || {})
+    .filter((card) => card?.playerId && playerIds.includes(card.playerId))
     .sort((a, b) => Number(a.placedAt || 0) - Number(b.placedAt || 0));
 
-  if (!playedList.length) return players;
+  if (!playedList.length) return playablePlayerIds[0];
 
-  const firstPlayerId = playedList[0].playerId;
-  const firstIndex = players.indexOf(firstPlayerId);
-  if (firstIndex === -1) return [players[0]];
-  const turnIndex = (firstIndex + playedList.length) % players.length;
-  return [players[turnIndex]];
+  const lastPlayerId = playedList[playedList.length - 1].playerId;
+  const lastIndex = playerIds.indexOf(lastPlayerId);
+  if (lastIndex === -1) return playablePlayerIds[0];
+  for (let i = 1; i <= playerIds.length; i++){
+    const candidate = playerIds[(lastIndex + i) % playerIds.length];
+    if (playablePlayerIds.includes(candidate)) return candidate;
+  }
+  return playablePlayerIds[0];
+}
+
+function getActiveTurnPlayerIds(){
+  if (state.currentPhase !== 'placement') return [];
+  const playerIds = latestPlayers
+    .filter((p) => p?.id)
+    .map((p) => p.id);
+  if (!playerIds.length) return [];
+  const nextPlayerId = computeNextTurnPlayerId({
+    playerIds,
+    hands: state.hands,
+    playedCards: state.playedCards
+  });
+  return nextPlayerId ? [nextPlayerId] : [];
+}
+
+function getSeatedPlayerIdsFromTables(tables = state.tables || {}){
+  return Object.keys(tables)
+    .sort((a, b) => Number(a) - Number(b))
+    .map((seatIndex) => tables[seatIndex]?.playerId)
+    .filter(Boolean);
+}
+
+function getSeatedPlayerIds(){
+  return getSeatedPlayerIdsFromTables(state.tables || {});
+}
+
+function getActiveTurnPlayerIdFromRoomData(roomData){
+  const phase = deriveCurrentPhase(roomData?.phaseState || {});
+  if (phase !== 'placement') return null;
+  const playerIds = getSeatedPlayerIdsFromTables(roomData?.tables || {});
+  if (!playerIds.length) return null;
+  return computeNextTurnPlayerId({
+    playerIds,
+    hands: roomData?.hands || {},
+    playedCards: roomData?.playedCards || {}
+  });
 }
 
 function isMyTurnInPlacement(){
@@ -1378,8 +1423,8 @@ function generateRoomCode(length = 5){
 
 function createDeck24(){
   const deck = [];
-  for(let i = 1; i <= 12; i++) deck.push({ num: i, color: 'white' });
-  for(let i = 1; i <= 12; i++) deck.push({ num: i, color: 'black' });
+  for(let i = 1; i <= 12; i++) deck.push({ num: i, color: 'white', uid: `w-${i}` });
+  for(let i = 1; i <= 12; i++) deck.push({ num: i, color: 'black', uid: `b-${i}` });
   return deck;
 }
 
@@ -2284,7 +2329,7 @@ function getGuideMetrics(){
 
 function getRoomPlacementRule(stage, room){
   const browncardsCount = getBrowncardsCountForMission(stage, room);
-  if (browncardsCount > 0){
+  if (browncardsCount > 0 && !isBDeckRoomForMission(stage, room)){
     return { maxTotal: browncardsCount };
   }
 
@@ -2429,57 +2474,79 @@ function findDropRoom(clientX, clientY, cardData = activeDrag?.cardData){
 
 async function placeDroppedCard(cardData, room, face = 'face'){
   if (!state.roomCode) return;
+  if (!(room >= 1 && room <= 6)) return;
   const placedAt = Date.now();
   const key = `${state.userId}_${cardData.id}_${placedAt}`;
-  const localCard = {
-    id: cardData.id,
-    num: cardData.num,
-    color: cardData.color,
-    face,
-    room,
-    playerId: state.userId,
-    placedAt,
-    boardRotationAtPlacement: boardRotationDeg
-  };
-  pendingPlacedCardIds.delete(cardData.id);
-  placedCardIds.add(cardData.id);
-  state.playedCards = {
-    ...(state.playedCards || {}),
-    [key]: localCard
-  };
-  lastPlayedCardKeys.add(key);
-  renderHands();
+  const roomRef = ref(db, `rooms/${state.roomCode}`);
   try {
-    await Promise.all([
-      set(ref(db, `rooms/${state.roomCode}/playedCards/${key}`), localCard),
-      removeCardFromHandInDb(state.userId, cardData)
-    ]);
+    const txResult = await runTransaction(roomRef, (roomData) => {
+      if (!roomData || typeof roomData !== 'object') return roomData;
+      if (deriveCurrentPhase(roomData?.phaseState || {}) !== 'placement') return;
+      const activeTurnPlayerId = getActiveTurnPlayerIdFromRoomData(roomData);
+      if (activeTurnPlayerId && activeTurnPlayerId !== state.userId) return;
+
+      const hands = (roomData.hands && typeof roomData.hands === 'object') ? roomData.hands : {};
+      const myHand = (hands[state.userId] && Array.isArray(hands[state.userId].cards))
+        ? hands[state.userId].cards.slice()
+        : [];
+      if (!myHand.length) return;
+
+      let removeIndex = -1;
+      if (cardData?.uid){
+        removeIndex = myHand.findIndex((c) => c && c.uid === cardData.uid);
+      }
+      if (removeIndex === -1){
+        removeIndex = myHand.findIndex((c) => c && c.num === cardData.num && c.color === cardData.color);
+      }
+      if (removeIndex === -1) return;
+
+      myHand.splice(removeIndex, 1);
+      const stageCode = String(roomData.stageCode || currentStage || '');
+      if (isBDeckRoomForMission(stageCode, room)){
+        const extraCards = Array.isArray(roomData?.extraDeck?.cards)
+          ? roomData.extraDeck.cards.slice()
+          : [];
+        if (extraCards.length > 0){
+          const drawn = extraCards.shift();
+          myHand.push(drawn);
+          roomData.extraDeck = { cards: extraCards };
+        }
+      }
+
+      const playedCard = {
+        id: cardData.id,
+        num: cardData.num,
+        color: cardData.color,
+        face,
+        room,
+        playerId: state.userId,
+        placedAt,
+        boardRotationAtPlacement: boardRotationDeg
+      };
+      roomData.playedCards = {
+        ...(roomData.playedCards || {}),
+        [key]: playedCard
+      };
+      roomData.hands = {
+        ...hands,
+        [state.userId]: {
+          cards: myHand
+        }
+      };
+      return roomData;
+    }, { applyLocally: false });
+
+    if (!txResult.committed){
+      throw new Error('カード配置トランザクションがコミットされませんでした');
+    }
+    placedCardIds.add(cardData.id);
   } catch (err){
-    delete state.playedCards[key];
-    lastPlayedCardKeys.delete(key);
     placedCardIds.delete(cardData.id);
+    throw err;
+  } finally {
     pendingPlacedCardIds.delete(cardData.id);
     renderHands();
-    throw err;
   }
-}
-
-async function removeCardFromHandInDb(playerId, cardData){
-  const cardsRef = ref(db, `rooms/${state.roomCode}/hands/${playerId}/cards`);
-  await runTransaction(cardsRef, (cards) => {
-    if (!Array.isArray(cards) || !cards.length) return cards;
-    let removeIndex = -1;
-    if (cardData?.uid){
-      removeIndex = cards.findIndex((c) => c && c.uid === cardData.uid);
-    }
-    if (removeIndex === -1){
-      removeIndex = cards.findIndex((c) => c && c.num === cardData.num && c.color === cardData.color);
-    }
-    if (removeIndex === -1) return cards;
-    const next = cards.slice();
-    next.splice(removeIndex, 1);
-    return next;
-  });
 }
 
 function makeCardId(playerId, cardData){
@@ -3150,6 +3217,7 @@ async function dealInitialHands(){
   const fullDeck = createDeck24();
   const shuffledDeck = shuffleArray(fullDeck);
   const selected12 = shuffledDeck.slice(0, 12);
+  const extraDeckCards = shuffledDeck.slice(12);
 
   const cardsPerPlayer = 12 / playerCount;
   const hands = {};
@@ -3163,6 +3231,7 @@ async function dealInitialHands(){
   });
 
   await set(ref(db, `rooms/${state.roomCode}/hands`), hands);
+  await set(ref(db, `rooms/${state.roomCode}/extraDeck`), { cards: extraDeckCards });
 }
 
 hostSettingsBtn.addEventListener('click', () => {
@@ -3191,7 +3260,8 @@ btnResetRoom.addEventListener('click', async () => {
     remove(ref(db, `${base}/maxPlayers`)),
     remove(ref(db, `${base}/tables`)),
     remove(ref(db, `${base}/hands`)),
-    remove(ref(db, `${base}/playedCards`))
+    remove(ref(db, `${base}/playedCards`)),
+    remove(ref(db, `${base}/extraDeck`))
   ]);
 
   placedCardIds.clear();
@@ -3241,6 +3311,7 @@ async function setStage(code){
     await Promise.all([
       remove(ref(db, `rooms/${state.roomCode}/playedCards`)),
       remove(ref(db, `rooms/${state.roomCode}/hands`)),
+      remove(ref(db, `rooms/${state.roomCode}/extraDeck`)),
       set(ref(db, `rooms/${state.roomCode}/subgearCount`), 0),
       set(ref(db, `rooms/${state.roomCode}/boardRotation`), {
         deg: 0,
@@ -4069,6 +4140,13 @@ function getBrowncardsCountForMission(mission, room){
   if (!rec) return 0;
   return Number(rec[room]) || 0;
 }
+function isBDeckStage(mission){
+  return typeof mission === 'string' && mission.startsWith('7-');
+}
+function isBDeckRoomForMission(mission, room){
+  if (!isBDeckStage(mission)) return false;
+  return getBrowncardsCountForMission(mission, room) > 0;
+}
 function getClockroomSharedStyle(){
   return {
     stroke: '#b5753f'
@@ -4098,12 +4176,6 @@ function normalizeOrderLabel(value){
 function parseOrderNumber(value){
   const n = Number(normalizeOrderLabel(value));
   return Number.isFinite(n) ? n : null;
-}
-
-function getSeatedPlayerIds(){
-  return Object.values(state.tables || {})
-    .filter((seat) => seat?.playerId)
-    .map((seat) => seat.playerId);
 }
 
 function getGlobalPlacementProgress(){
@@ -6196,7 +6268,7 @@ function getStageRoomHintText(stage, room){
   if (closecardTarget){
     return `もっとも${closecardTarget}に近いエリアがこのエリアでなければならない。`;
   }
-  if (browncardsCount > 0){
+  if (browncardsCount > 0 && !isBDeckRoomForMission(stage, room)){
     return `カードを必ず${browncardsCount}枚だけ置かなければならない。`;
   }
   if (plusMinusSign === '+' || plusMinusSign === '-'){
