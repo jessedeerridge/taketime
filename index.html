@@ -1222,6 +1222,7 @@ let isStageTagPressed = false;
 let hostHandLockedByStage = false;
 let lastShownPhaseEventTs = 0;
 let revealPhaseAnnouncedForStage = '';
+let revealPhaseVerificationKey = '';
 let lastSeenPhaseTicks = { discussion: 0, placement: 0, reveal: 0 };
 let revealFlipProcessingKey = '';
 let revealFlipRetryTimer = null;
@@ -2016,7 +2017,7 @@ function syncPlacedCardIdsFromPlayed(){
   });
 }
 
-function maybeAnnounceRevealPhase(){
+async function maybeAnnounceRevealPhase(){
   if (!state.isHost || !state.roomCode || !currentStage) return;
   const tables = state.tables || {};
   const seatedPlayerIds = Object.values(tables)
@@ -2033,12 +2034,43 @@ function maybeAnnounceRevealPhase(){
     .length;
   const totalExpectedCards = remainingCards + placedCount;
   if (!totalExpectedCards) return;
+  if (placedCount < totalExpectedCards) return;
 
-  if (placedCount >= totalExpectedCards){
-    const key = `${state.roomCode}:${currentStage}`;
-    if (revealPhaseAnnouncedForStage === key) return;
-    revealPhaseAnnouncedForStage = key;
-    emitPhaseEvent('reveal');
+  const key = `${state.roomCode}:${currentStage}`;
+  if (revealPhaseAnnouncedForStage === key) return;
+  if (revealPhaseVerificationKey === key) return;
+  revealPhaseVerificationKey = key;
+
+  try {
+    const roomSnap = await get(ref(db, `rooms/${state.roomCode}`));
+    const roomData = roomSnap.val() || {};
+    const roomTables = roomData.tables || {};
+    const roomSeatedPlayerIds = Object.values(roomTables)
+      .filter((seat) => seat?.playerId)
+      .map((seat) => seat.playerId);
+    if (!roomSeatedPlayerIds.length) return;
+
+    const roomHands = roomData.hands || {};
+    const serverRemainingCards = roomSeatedPlayerIds.reduce((sum, pid) => {
+      const cards = roomHands[pid]?.cards;
+      return sum + (Array.isArray(cards) ? cards.length : 0);
+    }, 0);
+    const roomPlayedCards = roomData.playedCards || {};
+    const serverPlacedCount = Object.values(roomPlayedCards)
+      .filter((card) => card?.playerId && roomSeatedPlayerIds.includes(card.playerId))
+      .length;
+    const serverTotalExpectedCards = serverRemainingCards + serverPlacedCount;
+    if (!serverTotalExpectedCards) return;
+    if (serverPlacedCount < serverTotalExpectedCards) return;
+
+    if (state.roomCode && currentStage && key === `${state.roomCode}:${currentStage}`){
+      revealPhaseAnnouncedForStage = key;
+      emitPhaseEvent('reveal');
+    }
+  } finally {
+    if (revealPhaseVerificationKey === key){
+      revealPhaseVerificationKey = '';
+    }
   }
 }
 
