@@ -1393,8 +1393,8 @@ function generateRoomCode(length = 5){
 
 function createDeck24(){
   const deck = [];
-  for(let i = 1; i <= 12; i++) deck.push({ num: i, color: 'white' });
-  for(let i = 1; i <= 12; i++) deck.push({ num: i, color: 'black' });
+  for(let i = 1; i <= 12; i++) deck.push({ num: i, color: 'white', uid: `w${i}-${randomCode(6)}` });
+  for(let i = 1; i <= 12; i++) deck.push({ num: i, color: 'black', uid: `b${i}-${randomCode(6)}` });
   return deck;
 }
 
@@ -2527,13 +2527,29 @@ async function placeCardAndMaybeDrawInDb({ playerId, cardData, cardKey, localCar
       removeIndex = cards.findIndex((c) => c && c.uid === cardData.uid);
     }
     if (removeIndex === -1){
-      const targetNum = Number(cardData?.num);
-      const targetColor = String(cardData?.color || 'white');
-      removeIndex = cards.findIndex((c) => (
-        c
-        && Number(c.num) === targetNum
-        && String(c.color || 'white') === targetColor
-      ));
+      const normalizeNum = (value) => String(value ?? '')
+        .replace(/[０-９]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
+        .trim()
+        .toLowerCase();
+      const targetNumRaw = normalizeNum(cardData?.num);
+      const targetNumAsNumber = Number(targetNumRaw);
+      const targetColor = String(cardData?.color || 'white').trim().toLowerCase();
+      const matchedIndexes = cards
+        .map((c, idx) => ({ c, idx }))
+        .filter(({ c }) => {
+          if (!c) return false;
+          const cardColor = String(c.color || 'white').trim().toLowerCase();
+          if (cardColor !== targetColor) return false;
+          const cardNumRaw = normalizeNum(c.num);
+          if (!targetNumRaw) return false;
+          if (cardNumRaw === targetNumRaw) return true;
+          if (Number.isFinite(targetNumAsNumber) && Number(c.num) === targetNumAsNumber) return true;
+          return false;
+        })
+        .map(({ idx }) => idx);
+      if (matchedIndexes.length === 1){
+        removeIndex = matchedIndexes[0];
+      }
     }
     if (removeIndex === -1){
       const targetCardId = makeCardId(playerId, cardData);
@@ -2546,12 +2562,6 @@ async function placeCardAndMaybeDrawInDb({ playerId, cardData, cardKey, localCar
       const targetNum = Number(cardData?.num);
       const targetColor = String(cardData?.color || 'white');
       if (Number.isFinite(targetNum) && onlyCardNum === targetNum && onlyCardColor === targetColor){
-        console.warn('最後の1枚の同定に失敗したため、唯一の手札をプレイ対象として扱います', {
-          playerId,
-          cardKey,
-          cardData,
-          onlyCard
-        });
         removeIndex = 0;
       }
     }
@@ -2571,6 +2581,9 @@ async function placeCardAndMaybeDrawInDb({ playerId, cardData, cardKey, localCar
     let nextSurplusDeck = roomData.surplusDeck;
     if (isBdeckRoom && surplusDeck.length){
       const drawnCard = surplusDeck.shift();
+      if (drawnCard && !drawnCard.uid){
+        drawnCard.uid = `d-${randomCode(10)}`;
+      }
       nextPlayerHand.cards = [...nextPlayerHand.cards, drawnCard];
       nextSurplusDeck = surplusDeck;
     }
