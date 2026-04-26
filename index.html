@@ -6360,7 +6360,7 @@ function renderRoomTexts(mission){
       g.appendChild(combinedShape);
 
       const outerOutline = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      outerOutline.setAttribute('d', pizzaPathD);
+      outerOutline.setAttribute('d', `${pizzaPathD} ${triPathD}`);
       outerOutline.setAttribute('fill', 'none');
       outerOutline.setAttribute('stroke', '#7dd3fc');
       outerOutline.setAttribute('stroke-width', '2');
