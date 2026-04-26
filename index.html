@@ -5703,7 +5703,7 @@ function renderRoomCards(mission = currentStage){
   function appendBrownPizzaMarker(room, {
     radius = 28.8,
     remainDeg = 110,
-    outerShiftR = 3,
+    outerShiftR = -18,
     fill = '#8b5a2b',
     stroke = '#5f3b1a',
     strokeWidth = 0.9
@@ -5747,6 +5747,28 @@ function renderRoomCards(mission = currentStage){
     pizzaG.appendChild(pizzaPath);
 
     g.appendChild(pizzaG);
+  }
+
+  function appendBrownOutwardTriangle(room, {
+    tipOffset = 20,
+    baseOffset = -6,
+    halfWidthDeg = 10,
+    fill = '#8b5a2b',
+    stroke = '#5f3b1a',
+    strokeWidth = 1
+  } = {}){
+    if (!specifiedRooms.has(room)) return;
+    const midDeg = (room - 1) * 60 + 30;
+    const pTip = polar(rBase + tipOffset, midDeg);
+    const pLeft = polar(rBase + baseOffset, midDeg - halfWidthDeg);
+    const pRight = polar(rBase + baseOffset, midDeg + halfWidthDeg);
+    const tri = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    tri.setAttribute('d', `M ${pTip.x.toFixed(2)} ${pTip.y.toFixed(2)} L ${pLeft.x.toFixed(2)} ${pLeft.y.toFixed(2)} L ${pRight.x.toFixed(2)} ${pRight.y.toFixed(2)} Z`);
+    tri.setAttribute('fill', fill);
+    tri.setAttribute('stroke', stroke);
+    tri.setAttribute('stroke-width', String(strokeWidth));
+    tri.setAttribute('stroke-linejoin', 'round');
+    g.appendChild(tri);
   }
 
   if (mission === '2-1') {
@@ -5863,6 +5885,7 @@ function renderRoomCards(mission = currentStage){
   }
   if (mission === '8-1') {
     appendBrownPizzaMarker(6, { remainDeg: 110 });
+    appendBrownOutwardTriangle(6);
   }
   if (mission === '4-1') {
     appendCenterBrownPair({ halfGapDelta: -2, leftBackCount: 2, centerRightArrow: true, leftSign: '+', rightSign: '-' });
