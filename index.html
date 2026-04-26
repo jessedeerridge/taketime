@@ -6296,16 +6296,12 @@ function renderRoomTexts(mission){
         x: markerCenter.x + endOffset.x,
         y: markerCenter.y + endOffset.y
       };
-      const pizzaPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      pizzaPath.setAttribute('d', [
+      const pizzaPathD = [
         `M ${markerCenter.x.toFixed(2)} ${markerCenter.y.toFixed(2)}`,
         `L ${start.x.toFixed(2)} ${start.y.toFixed(2)}`,
         `A ${pizzaR.toFixed(2)} ${pizzaR.toFixed(2)} 0 0 1 ${end.x.toFixed(2)} ${end.y.toFixed(2)}`,
         'Z'
-      ].join(' '));
-      pizzaPath.setAttribute('fill', circleColor || bgColor);
-      pizzaPath.setAttribute('fill-opacity', String(circleOpacity ?? bgOpacity));
-      g.appendChild(pizzaPath);
+      ].join(' ');
 
       const triCenterOffset = polar(pizzaR * 0.75, midDeg);
       const triCenter = {
@@ -6327,7 +6323,6 @@ function renderRoomTexts(mission){
         x: triCenter.x + polar(triSize, midDeg - triangleVertexStepDeg).x,
         y: triCenter.y + polar(triSize, midDeg - triangleVertexStepDeg).y
       };
-      const outTri = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       const cornerR = Math.max(1.2, triSize * 0.26);
       const roundPointFromVertex = (prev, vertex, next, radius) => {
         const toPrev = { x: prev.x - vertex.x, y: prev.y - vertex.y };
@@ -6347,7 +6342,7 @@ function renderRoomTexts(mission){
       const c1 = roundPointFromVertex(triP3, triP1, triP2, cornerR);
       const c2 = roundPointFromVertex(triP1, triP2, triP3, cornerR);
       const c3 = roundPointFromVertex(triP2, triP3, triP1, cornerR);
-      outTri.setAttribute('d', [
+      const triPathD = [
         `M ${c1.p2.x.toFixed(2)} ${c1.p2.y.toFixed(2)}`,
         `L ${c2.p1.x.toFixed(2)} ${c2.p1.y.toFixed(2)}`,
         `Q ${triP2.x.toFixed(2)} ${triP2.y.toFixed(2)} ${c2.p2.x.toFixed(2)} ${c2.p2.y.toFixed(2)}`,
@@ -6356,10 +6351,31 @@ function renderRoomTexts(mission){
         `L ${c1.p1.x.toFixed(2)} ${c1.p1.y.toFixed(2)}`,
         `Q ${triP1.x.toFixed(2)} ${triP1.y.toFixed(2)} ${c1.p2.x.toFixed(2)} ${c1.p2.y.toFixed(2)}`,
         'Z'
-      ].join(' '));
-      outTri.setAttribute('fill', circleColor || bgColor);
-      outTri.setAttribute('fill-opacity', String(circleOpacity ?? bgOpacity));
-      g.appendChild(outTri);
+      ].join(' ');
+
+      const combinedShape = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      combinedShape.setAttribute('d', `${pizzaPathD} ${triPathD}`);
+      combinedShape.setAttribute('fill', circleColor || bgColor);
+      combinedShape.setAttribute('fill-opacity', String(circleOpacity ?? bgOpacity));
+      g.appendChild(combinedShape);
+
+      const points = [markerCenter, start, end, triP1, triP2, triP3];
+      const minX = Math.min(...points.map((pt) => pt.x));
+      const maxX = Math.max(...points.map((pt) => pt.x));
+      const minY = Math.min(...points.map((pt) => pt.y));
+      const maxY = Math.max(...points.map((pt) => pt.y));
+      const framePad = 3;
+      const frame = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      frame.setAttribute('x', (minX - framePad).toFixed(2));
+      frame.setAttribute('y', (minY - framePad).toFixed(2));
+      frame.setAttribute('width', (maxX - minX + framePad * 2).toFixed(2));
+      frame.setAttribute('height', (maxY - minY + framePad * 2).toFixed(2));
+      frame.setAttribute('rx', '6');
+      frame.setAttribute('ry', '6');
+      frame.setAttribute('fill', 'none');
+      frame.setAttribute('stroke', '#7dd3fc');
+      frame.setAttribute('stroke-width', '2');
+      g.appendChild(frame);
     } else {
       const bgCircle = document.createElementNS('http://www.w3.org/2000/svg','circle');
       bgCircle.setAttribute('cx', p.x.toFixed(2));
