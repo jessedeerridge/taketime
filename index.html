@@ -6296,90 +6296,39 @@ function renderRoomTexts(mission){
         x: markerCenter.x + endOffset.x,
         y: markerCenter.y + endOffset.y
       };
-      const pizzaPathD = [
+      const triBaseSpreadDeg = 20;
+      const triBaseL = {
+        x: markerCenter.x + polar(pizzaR, midDeg - triBaseSpreadDeg).x,
+        y: markerCenter.y + polar(pizzaR, midDeg - triBaseSpreadDeg).y
+      };
+      const triBaseR = {
+        x: markerCenter.x + polar(pizzaR, midDeg + triBaseSpreadDeg).x,
+        y: markerCenter.y + polar(pizzaR, midDeg + triBaseSpreadDeg).y
+      };
+      const triTip = {
+        x: markerCenter.x + polar(pizzaR + Math.max(8, rBg * 0.9), midDeg).x,
+        y: markerCenter.y + polar(pizzaR + Math.max(8, rBg * 0.9), midDeg).y
+      };
+
+      const unifiedPathD = [
         `M ${markerCenter.x.toFixed(2)} ${markerCenter.y.toFixed(2)}`,
         `L ${start.x.toFixed(2)} ${start.y.toFixed(2)}`,
+        `A ${pizzaR.toFixed(2)} ${pizzaR.toFixed(2)} 0 0 1 ${triBaseL.x.toFixed(2)} ${triBaseL.y.toFixed(2)}`,
+        `Q ${triTip.x.toFixed(2)} ${triTip.y.toFixed(2)} ${triBaseR.x.toFixed(2)} ${triBaseR.y.toFixed(2)}`,
         `A ${pizzaR.toFixed(2)} ${pizzaR.toFixed(2)} 0 0 1 ${end.x.toFixed(2)} ${end.y.toFixed(2)}`,
+        `L ${markerCenter.x.toFixed(2)} ${markerCenter.y.toFixed(2)}`,
         'Z'
       ].join(' ');
 
-      const triCenterOffset = polar(pizzaR * 1.02, midDeg);
-      const triCenter = {
-        x: markerCenter.x + triCenterOffset.x,
-        y: markerCenter.y + triCenterOffset.y
-      };
-      const triSize = Math.max(6, rBg * 0.9);
-      const triangleInteriorDeg = 60;
-      const triangleVertexStepDeg = 180 - triangleInteriorDeg;
-      const triP1 = {
-        x: triCenter.x + polar(triSize, midDeg).x,
-        y: triCenter.y + polar(triSize, midDeg).y
-      };
-      const triP2 = {
-        x: triCenter.x + polar(triSize, midDeg + triangleVertexStepDeg).x,
-        y: triCenter.y + polar(triSize, midDeg + triangleVertexStepDeg).y
-      };
-      const triP3 = {
-        x: triCenter.x + polar(triSize, midDeg - triangleVertexStepDeg).x,
-        y: triCenter.y + polar(triSize, midDeg - triangleVertexStepDeg).y
-      };
-      const cornerR = Math.max(1.2, triSize * 0.26);
-      const roundPointFromVertex = (prev, vertex, next, radius) => {
-        const toPrev = { x: prev.x - vertex.x, y: prev.y - vertex.y };
-        const toNext = { x: next.x - vertex.x, y: next.y - vertex.y };
-        const lenPrev = Math.hypot(toPrev.x, toPrev.y) || 1;
-        const lenNext = Math.hypot(toNext.x, toNext.y) || 1;
-        const p1 = {
-          x: vertex.x + (toPrev.x / lenPrev) * radius,
-          y: vertex.y + (toPrev.y / lenPrev) * radius
-        };
-        const p2 = {
-          x: vertex.x + (toNext.x / lenNext) * radius,
-          y: vertex.y + (toNext.y / lenNext) * radius
-        };
-        return { p1, p2 };
-      };
-      const c1 = roundPointFromVertex(triP3, triP1, triP2, cornerR);
-      const c2 = roundPointFromVertex(triP1, triP2, triP3, cornerR);
-      const c3 = roundPointFromVertex(triP2, triP3, triP1, cornerR);
-      const triPathD = [
-        `M ${c1.p2.x.toFixed(2)} ${c1.p2.y.toFixed(2)}`,
-        `L ${c2.p1.x.toFixed(2)} ${c2.p1.y.toFixed(2)}`,
-        `Q ${triP2.x.toFixed(2)} ${triP2.y.toFixed(2)} ${c2.p2.x.toFixed(2)} ${c2.p2.y.toFixed(2)}`,
-        `L ${c3.p1.x.toFixed(2)} ${c3.p1.y.toFixed(2)}`,
-        `Q ${triP3.x.toFixed(2)} ${triP3.y.toFixed(2)} ${c3.p2.x.toFixed(2)} ${c3.p2.y.toFixed(2)}`,
-        `L ${c1.p1.x.toFixed(2)} ${c1.p1.y.toFixed(2)}`,
-        `Q ${triP1.x.toFixed(2)} ${triP1.y.toFixed(2)} ${c1.p2.x.toFixed(2)} ${c1.p2.y.toFixed(2)}`,
-        'Z'
-      ].join(' ');
-
-      const combinedShape = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      combinedShape.setAttribute('d', `${pizzaPathD} ${triPathD}`);
-      combinedShape.setAttribute('fill', circleColor || bgColor);
-      combinedShape.setAttribute('fill-opacity', String(circleOpacity ?? bgOpacity));
-      g.appendChild(combinedShape);
-
-      const outerOutline = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      const outlinePathD = [
-        `M ${start.x.toFixed(2)} ${start.y.toFixed(2)}`,
-        `A ${pizzaR.toFixed(2)} ${pizzaR.toFixed(2)} 0 0 1 ${end.x.toFixed(2)} ${end.y.toFixed(2)}`,
-        `L ${c1.p2.x.toFixed(2)} ${c1.p2.y.toFixed(2)}`,
-        `L ${c2.p1.x.toFixed(2)} ${c2.p1.y.toFixed(2)}`,
-        `Q ${triP2.x.toFixed(2)} ${triP2.y.toFixed(2)} ${c2.p2.x.toFixed(2)} ${c2.p2.y.toFixed(2)}`,
-        `L ${c3.p1.x.toFixed(2)} ${c3.p1.y.toFixed(2)}`,
-        `Q ${triP3.x.toFixed(2)} ${triP3.y.toFixed(2)} ${c3.p2.x.toFixed(2)} ${c3.p2.y.toFixed(2)}`,
-        `L ${c1.p1.x.toFixed(2)} ${c1.p1.y.toFixed(2)}`,
-        `Q ${triP1.x.toFixed(2)} ${triP1.y.toFixed(2)} ${c1.p2.x.toFixed(2)} ${c1.p2.y.toFixed(2)}`,
-        `L ${start.x.toFixed(2)} ${start.y.toFixed(2)}`,
-        'Z'
-      ].join(' ');
-      outerOutline.setAttribute('d', outlinePathD);
-      outerOutline.setAttribute('fill', 'none');
-      outerOutline.setAttribute('stroke', '#7dd3fc');
-      outerOutline.setAttribute('stroke-width', '2');
-      outerOutline.setAttribute('stroke-linejoin', 'round');
-      outerOutline.setAttribute('stroke-linecap', 'round');
-      g.appendChild(outerOutline);
+      const unifiedShape = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      unifiedShape.setAttribute('d', unifiedPathD);
+      unifiedShape.setAttribute('fill', circleColor || bgColor);
+      unifiedShape.setAttribute('fill-opacity', String(circleOpacity ?? bgOpacity));
+      unifiedShape.setAttribute('stroke', '#7dd3fc');
+      unifiedShape.setAttribute('stroke-width', '2');
+      unifiedShape.setAttribute('stroke-linejoin', 'round');
+      unifiedShape.setAttribute('stroke-linecap', 'round');
+      g.appendChild(unifiedShape);
     } else {
       const bgCircle = document.createElementNS('http://www.w3.org/2000/svg','circle');
       bgCircle.setAttribute('cx', p.x.toFixed(2));
