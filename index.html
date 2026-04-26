@@ -6310,7 +6310,8 @@ function renderRoomTexts(mission){
         y: (triBaseL.y + triBaseR.y) / 2
       };
       const triBaseSide = Math.hypot(triBaseR.x - triBaseL.x, triBaseR.y - triBaseL.y);
-      const triHeight = triBaseSide * Math.sqrt(3) / 2;
+      const triTipAngleDeg = 40;
+      const triHeight = (triBaseSide / 2) / Math.tan((triTipAngleDeg / 2) * Math.PI / 180);
       const outwardVec = {
         x: triBaseMid.x - markerCenter.x,
         y: triBaseMid.y - markerCenter.y
