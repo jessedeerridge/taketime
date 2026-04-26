@@ -6272,6 +6272,12 @@ function renderRoomTexts(mission){
   textSpecs.forEach(({room, label, rotate, color: textColor, bgColor: circleColor, bgOpacity: circleOpacity, underline, markerType})=>{
     const midDeg = (room-1)*60 + 30;
     const p = polar(rText, midDeg);
+    const pizzaCenterInset = 4;
+    const pizzaInsetOffset = (markerType === 'pizza250') ? polar(pizzaCenterInset, midDeg + 180) : { x: 0, y: 0 };
+    const markerCenter = {
+      x: p.x + pizzaInsetOffset.x,
+      y: p.y + pizzaInsetOffset.y
+    };
 
     if (markerType === 'pizza250'){
       const pizzaR = rBg * 2;
@@ -6283,16 +6289,16 @@ function renderRoomTexts(mission){
       const startOffset = polar(pizzaR, startDeg);
       const endOffset = polar(pizzaR, endDeg);
       const start = {
-        x: p.x + startOffset.x,
-        y: p.y + startOffset.y
+        x: markerCenter.x + startOffset.x,
+        y: markerCenter.y + startOffset.y
       };
       const end = {
-        x: p.x + endOffset.x,
-        y: p.y + endOffset.y
+        x: markerCenter.x + endOffset.x,
+        y: markerCenter.y + endOffset.y
       };
       const pizzaPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       pizzaPath.setAttribute('d', [
-        `M ${p.x.toFixed(2)} ${p.y.toFixed(2)}`,
+        `M ${markerCenter.x.toFixed(2)} ${markerCenter.y.toFixed(2)}`,
         `L ${start.x.toFixed(2)} ${start.y.toFixed(2)}`,
         `A ${pizzaR.toFixed(2)} ${pizzaR.toFixed(2)} 0 0 1 ${end.x.toFixed(2)} ${end.y.toFixed(2)}`,
         'Z'
