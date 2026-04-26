@@ -6357,25 +6357,11 @@ function renderRoomTexts(mission){
       combinedShape.setAttribute('d', `${pizzaPathD} ${triPathD}`);
       combinedShape.setAttribute('fill', circleColor || bgColor);
       combinedShape.setAttribute('fill-opacity', String(circleOpacity ?? bgOpacity));
+      combinedShape.setAttribute('stroke', '#7dd3fc');
+      combinedShape.setAttribute('stroke-width', '2');
+      combinedShape.setAttribute('stroke-linejoin', 'round');
+      combinedShape.setAttribute('stroke-linecap', 'round');
       g.appendChild(combinedShape);
-
-      const points = [markerCenter, start, end, triP1, triP2, triP3];
-      const minX = Math.min(...points.map((pt) => pt.x));
-      const maxX = Math.max(...points.map((pt) => pt.x));
-      const minY = Math.min(...points.map((pt) => pt.y));
-      const maxY = Math.max(...points.map((pt) => pt.y));
-      const framePad = 3;
-      const frame = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-      frame.setAttribute('x', (minX - framePad).toFixed(2));
-      frame.setAttribute('y', (minY - framePad).toFixed(2));
-      frame.setAttribute('width', (maxX - minX + framePad * 2).toFixed(2));
-      frame.setAttribute('height', (maxY - minY + framePad * 2).toFixed(2));
-      frame.setAttribute('rx', '6');
-      frame.setAttribute('ry', '6');
-      frame.setAttribute('fill', 'none');
-      frame.setAttribute('stroke', '#7dd3fc');
-      frame.setAttribute('stroke-width', '2');
-      g.appendChild(frame);
     } else {
       const bgCircle = document.createElementNS('http://www.w3.org/2000/svg','circle');
       bgCircle.setAttribute('cx', p.x.toFixed(2));
