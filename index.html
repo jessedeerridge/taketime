@@ -6305,9 +6305,20 @@ function renderRoomTexts(mission){
         x: markerCenter.x + polar(pizzaR, midDeg + triBaseSpreadDeg).x,
         y: markerCenter.y + polar(pizzaR, midDeg + triBaseSpreadDeg).y
       };
+      const triBaseMid = {
+        x: (triBaseL.x + triBaseR.x) / 2,
+        y: (triBaseL.y + triBaseR.y) / 2
+      };
+      const triBaseSide = Math.hypot(triBaseR.x - triBaseL.x, triBaseR.y - triBaseL.y);
+      const triHeight = triBaseSide * Math.sqrt(3) / 2;
+      const outwardVec = {
+        x: triBaseMid.x - markerCenter.x,
+        y: triBaseMid.y - markerCenter.y
+      };
+      const outwardLen = Math.hypot(outwardVec.x, outwardVec.y) || 1;
       const triTip = {
-        x: markerCenter.x + polar(pizzaR + Math.max(8, rBg * 0.9), midDeg).x,
-        y: markerCenter.y + polar(pizzaR + Math.max(8, rBg * 0.9), midDeg).y
+        x: triBaseMid.x + (outwardVec.x / outwardLen) * triHeight,
+        y: triBaseMid.y + (outwardVec.y / outwardLen) * triHeight
       };
 
       const unifiedPathD = [
