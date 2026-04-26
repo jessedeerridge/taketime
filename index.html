@@ -6306,6 +6306,39 @@ function renderRoomTexts(mission){
       pizzaPath.setAttribute('fill', circleColor || bgColor);
       pizzaPath.setAttribute('fill-opacity', String(circleOpacity ?? bgOpacity));
       g.appendChild(pizzaPath);
+
+      const triCenterOffset = polar(pizzaR * 0.85, midDeg);
+      const triCenter = {
+        x: markerCenter.x + triCenterOffset.x,
+        y: markerCenter.y + triCenterOffset.y
+      };
+      const triSize = Math.max(6, rBg * 0.9);
+      const triP1 = {
+        x: triCenter.x + polar(triSize, midDeg).x,
+        y: triCenter.y + polar(triSize, midDeg).y
+      };
+      const triP2 = {
+        x: triCenter.x + polar(triSize, midDeg + 140).x,
+        y: triCenter.y + polar(triSize, midDeg + 140).y
+      };
+      const triP3 = {
+        x: triCenter.x + polar(triSize, midDeg - 140).x,
+        y: triCenter.y + polar(triSize, midDeg - 140).y
+      };
+      const outTri = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      outTri.setAttribute('d', [
+        `M ${triP1.x.toFixed(2)} ${triP1.y.toFixed(2)}`,
+        `L ${triP2.x.toFixed(2)} ${triP2.y.toFixed(2)}`,
+        `L ${triP3.x.toFixed(2)} ${triP3.y.toFixed(2)}`,
+        'Z'
+      ].join(' '));
+      outTri.setAttribute('fill', 'none');
+      outTri.setAttribute('stroke', circleColor || bgColor);
+      outTri.setAttribute('stroke-width', '2.6');
+      outTri.setAttribute('stroke-linejoin', 'round');
+      outTri.setAttribute('stroke-linecap', 'round');
+      outTri.setAttribute('stroke-opacity', String(circleOpacity ?? bgOpacity));
+      g.appendChild(outTri);
     } else {
       const bgCircle = document.createElementNS('http://www.w3.org/2000/svg','circle');
       bgCircle.setAttribute('cx', p.x.toFixed(2));
