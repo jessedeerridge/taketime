@@ -6357,11 +6357,16 @@ function renderRoomTexts(mission){
       combinedShape.setAttribute('d', `${pizzaPathD} ${triPathD}`);
       combinedShape.setAttribute('fill', circleColor || bgColor);
       combinedShape.setAttribute('fill-opacity', String(circleOpacity ?? bgOpacity));
-      combinedShape.setAttribute('stroke', '#7dd3fc');
-      combinedShape.setAttribute('stroke-width', '2');
-      combinedShape.setAttribute('stroke-linejoin', 'round');
-      combinedShape.setAttribute('stroke-linecap', 'round');
       g.appendChild(combinedShape);
+
+      const outerOutline = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      outerOutline.setAttribute('d', pizzaPathD);
+      outerOutline.setAttribute('fill', 'none');
+      outerOutline.setAttribute('stroke', '#7dd3fc');
+      outerOutline.setAttribute('stroke-width', '2');
+      outerOutline.setAttribute('stroke-linejoin', 'round');
+      outerOutline.setAttribute('stroke-linecap', 'round');
+      g.appendChild(outerOutline);
     } else {
       const bgCircle = document.createElementNS('http://www.w3.org/2000/svg','circle');
       bgCircle.setAttribute('cx', p.x.toFixed(2));
