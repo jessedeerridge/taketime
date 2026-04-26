@@ -6260,7 +6260,7 @@ function renderRoomTexts(mission){
     textSpecs.push({
       room: 6,
       label: '',
-      rotate: (midDeg)=>midDeg + 180,
+      rotate: (midDeg)=>midDeg,
       color: '#111',
       bgColor: '#8b5a2b',
       bgOpacity: 1,
@@ -6277,7 +6277,7 @@ function renderRoomTexts(mission){
       const pizzaR = rBg * 2;
       const sectorDeg = 110;
       const halfDeg = sectorDeg / 2;
-      const tipDeg = midDeg + 180;
+      const tipDeg = midDeg;
       const startDeg = tipDeg - halfDeg;
       const endDeg = tipDeg + halfDeg;
       const startOffset = polar(pizzaR, startDeg);
