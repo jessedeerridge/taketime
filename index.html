@@ -6280,13 +6280,15 @@ function renderRoomTexts(mission){
       const tipDeg = midDeg + 180;
       const startDeg = tipDeg - halfDeg;
       const endDeg = tipDeg + halfDeg;
+      const startOffset = polar(pizzaR, startDeg);
+      const endOffset = polar(pizzaR, endDeg);
       const start = {
-        x: p.x + pizzaR * Math.cos(startDeg * Math.PI / 180),
-        y: p.y + pizzaR * Math.sin(startDeg * Math.PI / 180)
+        x: p.x + startOffset.x,
+        y: p.y + startOffset.y
       };
       const end = {
-        x: p.x + pizzaR * Math.cos(endDeg * Math.PI / 180),
-        y: p.y + pizzaR * Math.sin(endDeg * Math.PI / 180)
+        x: p.x + endOffset.x,
+        y: p.y + endOffset.y
       };
       const pizzaPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       pizzaPath.setAttribute('d', [
