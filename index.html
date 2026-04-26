@@ -4102,6 +4102,7 @@ const STAGE_SPEC = {
   '7-2': { specifiedRooms: [1,4,5] },
   '7-3': { specifiedRooms: [4, 5, 6] },
   '7-4': { specifiedRooms: [2,4,6] },
+  '8-1': { specifiedRooms: [6] },
 };
 function getSpecifiedRoomsForMission(mission){
   const rec = STAGE_SPEC[mission];
@@ -6255,19 +6256,65 @@ function renderRoomTexts(mission){
   if (mission === '6-4') {
     textSpecs.push(makeClosecardTextSpec(2, '24', (midDeg)=>midDeg + 180));
   }
+  if (mission === '8-1') {
+    textSpecs.push({
+      room: 6,
+      label: '',
+      rotate: (midDeg)=>midDeg,
+      color: '#111',
+      bgColor: '#8b5a2b',
+      bgOpacity: 1,
+      markerType: 'pizza250'
+    });
+  }
   if (textSpecs.length === 0) return;
 
-  textSpecs.forEach(({room, label, rotate, color: textColor, bgColor: circleColor, bgOpacity: circleOpacity, underline})=>{
+  textSpecs.forEach(({room, label, rotate, color: textColor, bgColor: circleColor, bgOpacity: circleOpacity, underline, markerType})=>{
     const midDeg = (room-1)*60 + 30;
     const p = polar(rText, midDeg);
+    const pizzaCenterInset = 12;
+    const pizzaInsetOffset = (markerType === 'pizza250') ? polar(pizzaCenterInset, midDeg + 180) : { x: 0, y: 0 };
+    const markerCenter = {
+      x: p.x + pizzaInsetOffset.x,
+      y: p.y + pizzaInsetOffset.y
+    };
 
-    const bgCircle = document.createElementNS('http://www.w3.org/2000/svg','circle');
-    bgCircle.setAttribute('cx', p.x.toFixed(2));
-    bgCircle.setAttribute('cy', p.y.toFixed(2));
-    bgCircle.setAttribute('r',  rBg.toFixed(2));
-    bgCircle.setAttribute('fill', circleColor || bgColor);
-    bgCircle.setAttribute('fill-opacity', String(circleOpacity ?? bgOpacity));
-    g.appendChild(bgCircle);
+    if (markerType === 'pizza250'){
+      const pizzaR = rBg * 2;
+      const sectorDeg = 110;
+      const halfDeg = sectorDeg / 2;
+      const tipDeg = midDeg;
+      const startDeg = tipDeg - halfDeg;
+      const endDeg = tipDeg + halfDeg;
+      const startOffset = polar(pizzaR, startDeg);
+      const endOffset = polar(pizzaR, endDeg);
+      const start = {
+        x: markerCenter.x + startOffset.x,
+        y: markerCenter.y + startOffset.y
+      };
+      const end = {
+        x: markerCenter.x + endOffset.x,
+        y: markerCenter.y + endOffset.y
+      };
+      const pizzaPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      pizzaPath.setAttribute('d', [
+        `M ${markerCenter.x.toFixed(2)} ${markerCenter.y.toFixed(2)}`,
+        `L ${start.x.toFixed(2)} ${start.y.toFixed(2)}`,
+        `A ${pizzaR.toFixed(2)} ${pizzaR.toFixed(2)} 0 0 1 ${end.x.toFixed(2)} ${end.y.toFixed(2)}`,
+        'Z'
+      ].join(' '));
+      pizzaPath.setAttribute('fill', circleColor || bgColor);
+      pizzaPath.setAttribute('fill-opacity', String(circleOpacity ?? bgOpacity));
+      g.appendChild(pizzaPath);
+    } else {
+      const bgCircle = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      bgCircle.setAttribute('cx', p.x.toFixed(2));
+      bgCircle.setAttribute('cy', p.y.toFixed(2));
+      bgCircle.setAttribute('r',  rBg.toFixed(2));
+      bgCircle.setAttribute('fill', circleColor || bgColor);
+      bgCircle.setAttribute('fill-opacity', String(circleOpacity ?? bgOpacity));
+      g.appendChild(bgCircle);
+    }
 
     const text = document.createElementNS('http://www.w3.org/2000/svg','text');
     text.textContent = label;
