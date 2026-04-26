@@ -5701,9 +5701,10 @@ function renderRoomCards(mission = currentStage){
   }
 
   function appendBrownPizzaMarker(room, {
-    radius = 28.8,
+    radius = 25.92,
     remainDeg = 110,
     outerShiftR = -18,
+    circleGap = 5,
     fill = '#8b5a2b',
     stroke = '#5f3b1a',
     strokeWidth = 0.9
@@ -5714,7 +5715,7 @@ function renderRoomCards(mission = currentStage){
       'translate(150,150)',
       `rotate(${midDeg})`,
       `translate(${(roomTan[room]||0)}, 0)`,
-      `translate(0, ${-(rBase + (roomRad[room]||0) + outerShiftR)})`,
+      `translate(0, ${-(rBase + (roomRad[room]||0) + outerShiftR - circleGap)})`,
       `rotate(${inwardBase + (roomAdjust[room]||0)})`,
       `translate(${localX}, ${localY})`
     ].join(' ');
@@ -5750,8 +5751,8 @@ function renderRoomCards(mission = currentStage){
   }
 
   function appendBrownOutwardTriangle(room, {
-    tipOffset = 20,
-    baseOffset = -6,
+    tipOffset = 6,
+    baseOffset = -16,
     halfWidthDeg = 10,
     fill = '#8b5a2b',
     stroke = '#5f3b1a',
