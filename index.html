@@ -5701,7 +5701,7 @@ function renderRoomCards(mission = currentStage){
   }
 
   function appendBrownPizzaMarker(room, {
-    radius = 7.2,
+    radius = 28.8,
     remainDeg = 110,
     outerShiftR = 3,
     fill = '#8b5a2b',
@@ -5723,8 +5723,8 @@ function renderRoomCards(mission = currentStage){
     pizzaG.setAttribute('transform', tr);
 
     const halfRemain = Math.max(1, Math.min(179, remainDeg)) / 2;
-    const startDeg = -90 - halfRemain;
-    const endDeg = -90 + halfRemain;
+    const startDeg = 90 - halfRemain;
+    const endDeg = 90 + halfRemain;
     const startRad = (Math.PI / 180) * startDeg;
     const endRad = (Math.PI / 180) * endDeg;
     const sx = radius * Math.cos(startRad);
