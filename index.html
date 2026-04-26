@@ -6313,17 +6313,19 @@ function renderRoomTexts(mission){
         y: markerCenter.y + triCenterOffset.y
       };
       const triSize = Math.max(6, rBg * 0.9);
+      const triangleInteriorDeg = 60;
+      const triangleVertexStepDeg = 180 - triangleInteriorDeg;
       const triP1 = {
         x: triCenter.x + polar(triSize, midDeg).x,
         y: triCenter.y + polar(triSize, midDeg).y
       };
       const triP2 = {
-        x: triCenter.x + polar(triSize, midDeg + 120).x,
-        y: triCenter.y + polar(triSize, midDeg + 120).y
+        x: triCenter.x + polar(triSize, midDeg + triangleVertexStepDeg).x,
+        y: triCenter.y + polar(triSize, midDeg + triangleVertexStepDeg).y
       };
       const triP3 = {
-        x: triCenter.x + polar(triSize, midDeg - 120).x,
-        y: triCenter.y + polar(triSize, midDeg - 120).y
+        x: triCenter.x + polar(triSize, midDeg - triangleVertexStepDeg).x,
+        y: triCenter.y + polar(triSize, midDeg - triangleVertexStepDeg).y
       };
       const outTri = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       const cornerR = Math.max(1.2, triSize * 0.26);
