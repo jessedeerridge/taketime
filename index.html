@@ -6260,7 +6260,7 @@ function renderRoomTexts(mission){
     textSpecs.push({
       room: 6,
       label: '',
-      rotate: (midDeg)=>midDeg,
+      rotate: (midDeg)=>midDeg + 180,
       color: '#111',
       bgColor: '#8b5a2b',
       bgOpacity: 1,
@@ -6274,23 +6274,25 @@ function renderRoomTexts(mission){
     const p = polar(rText, midDeg);
 
     if (markerType === 'pizza250'){
+      const pizzaR = rBg * 2;
       const sectorDeg = 110;
       const halfDeg = sectorDeg / 2;
-      const startDeg = midDeg - halfDeg;
-      const endDeg = midDeg + halfDeg;
+      const tipDeg = midDeg + 180;
+      const startDeg = tipDeg - halfDeg;
+      const endDeg = tipDeg + halfDeg;
       const start = {
-        x: p.x + rBg * Math.cos(startDeg * Math.PI / 180),
-        y: p.y + rBg * Math.sin(startDeg * Math.PI / 180)
+        x: p.x + pizzaR * Math.cos(startDeg * Math.PI / 180),
+        y: p.y + pizzaR * Math.sin(startDeg * Math.PI / 180)
       };
       const end = {
-        x: p.x + rBg * Math.cos(endDeg * Math.PI / 180),
-        y: p.y + rBg * Math.sin(endDeg * Math.PI / 180)
+        x: p.x + pizzaR * Math.cos(endDeg * Math.PI / 180),
+        y: p.y + pizzaR * Math.sin(endDeg * Math.PI / 180)
       };
       const pizzaPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       pizzaPath.setAttribute('d', [
         `M ${p.x.toFixed(2)} ${p.y.toFixed(2)}`,
         `L ${start.x.toFixed(2)} ${start.y.toFixed(2)}`,
-        `A ${rBg.toFixed(2)} ${rBg.toFixed(2)} 0 0 1 ${end.x.toFixed(2)} ${end.y.toFixed(2)}`,
+        `A ${pizzaR.toFixed(2)} ${pizzaR.toFixed(2)} 0 0 1 ${end.x.toFixed(2)} ${end.y.toFixed(2)}`,
         'Z'
       ].join(' '));
       pizzaPath.setAttribute('fill', circleColor || bgColor);
