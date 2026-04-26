@@ -6303,7 +6303,7 @@ function renderRoomTexts(mission){
         'Z'
       ].join(' ');
 
-      const triCenterOffset = polar(pizzaR * 0.75, midDeg);
+      const triCenterOffset = polar(pizzaR * 1.02, midDeg);
       const triCenter = {
         x: markerCenter.x + triCenterOffset.x,
         y: markerCenter.y + triCenterOffset.y
@@ -6360,7 +6360,20 @@ function renderRoomTexts(mission){
       g.appendChild(combinedShape);
 
       const outerOutline = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      outerOutline.setAttribute('d', `${pizzaPathD} ${triPathD}`);
+      const outlinePathD = [
+        `M ${start.x.toFixed(2)} ${start.y.toFixed(2)}`,
+        `A ${pizzaR.toFixed(2)} ${pizzaR.toFixed(2)} 0 0 1 ${end.x.toFixed(2)} ${end.y.toFixed(2)}`,
+        `L ${c1.p2.x.toFixed(2)} ${c1.p2.y.toFixed(2)}`,
+        `L ${c2.p1.x.toFixed(2)} ${c2.p1.y.toFixed(2)}`,
+        `Q ${triP2.x.toFixed(2)} ${triP2.y.toFixed(2)} ${c2.p2.x.toFixed(2)} ${c2.p2.y.toFixed(2)}`,
+        `L ${c3.p1.x.toFixed(2)} ${c3.p1.y.toFixed(2)}`,
+        `Q ${triP3.x.toFixed(2)} ${triP3.y.toFixed(2)} ${c3.p2.x.toFixed(2)} ${c3.p2.y.toFixed(2)}`,
+        `L ${c1.p1.x.toFixed(2)} ${c1.p1.y.toFixed(2)}`,
+        `Q ${triP1.x.toFixed(2)} ${triP1.y.toFixed(2)} ${c1.p2.x.toFixed(2)} ${c1.p2.y.toFixed(2)}`,
+        `L ${start.x.toFixed(2)} ${start.y.toFixed(2)}`,
+        'Z'
+      ].join(' ');
+      outerOutline.setAttribute('d', outlinePathD);
       outerOutline.setAttribute('fill', 'none');
       outerOutline.setAttribute('stroke', '#7dd3fc');
       outerOutline.setAttribute('stroke-width', '2');
