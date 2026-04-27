@@ -3717,7 +3717,6 @@ function applyBoardRotation(deg, { animate = false, useShortestPath = false, all
   stageSvg.style.transition = shouldAnimate ? `transform ${transitionDurationMs}ms ease-out` : 'none';
   stageSvg.style.transformOrigin = '50% 50%';
   stageSvg.style.transform = `rotate(${boardRotationVisualDeg}deg)`;
-  syncPlayedCardsLayerOrientation({ animate: shouldAnimate, transitionMs: transitionDurationMs });
   syncRoomHintTableOrientation();
 }
 
@@ -5924,21 +5923,25 @@ function renderPlayedCards(){
 
     g.appendChild(cardG);
   });
-  syncPlayedCardsLayerOrientation({ animate: false });
 }
 
-function syncPlayedCardsLayerOrientation({ animate = false, transitionMs = 220 } = {}){
-  const g = stageSvg.querySelector('#playedCards');
-  if (!g) return;
-  const duration = Math.max(120, Number(transitionMs) || 220);
-  g.style.transformBox = 'fill-box';
-  g.style.transformOrigin = 'center';
-  g.style.transition = animate ? `transform ${duration}ms ease-out` : 'none';
-  g.style.transform = `translate(150px, 150px) rotate(${-boardRotationVisualDeg}deg) translate(-150px, -150px)`;
+function rotatePointAroundBoardCenter(x, y, deg){
+  const rad = Number(deg) * Math.PI / 180;
+  const dx = Number(x) - 150;
+  const dy = Number(y) - 150;
+  return {
+    x: 150 + dx * Math.cos(rad) - dy * Math.sin(rad),
+    y: 150 + dx * Math.sin(rad) + dy * Math.cos(rad)
+  };
+}
+
+function getCounterRotatedLocalPoint(baseX, baseY){
+  return rotatePointAroundBoardCenter(baseX, baseY, -boardRotationDeg);
 }
 
 function getPlayedCardEntryTransform(baseX, baseY, baseRot){
-  return `translate(${Number(baseX)},${Number(baseY)}) rotate(${Number(baseRot)})`;
+  const p = getCounterRotatedLocalPoint(baseX, baseY);
+  return `translate(${p.x},${p.y}) rotate(${Number(baseRot) - boardRotationDeg})`;
 }
 
 function getPlayedCardLayouts(playedList = getPlayedEntriesSorted()){
