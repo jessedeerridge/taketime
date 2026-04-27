@@ -6296,8 +6296,8 @@ function renderRoomTexts(mission){
         x: markerCenter.x + endOffset.x,
         y: markerCenter.y + endOffset.y
       };
-      const triScale = 0.67;
-      const triBaseSpreadDeg = 10 * triScale;
+      const protrusionSizeScale = 0.33;
+      const triBaseSpreadDeg = 20 * protrusionSizeScale;
       const triBaseL = {
         x: markerCenter.x + polar(pizzaR, midDeg - triBaseSpreadDeg).x,
         y: markerCenter.y + polar(pizzaR, midDeg - triBaseSpreadDeg).y
@@ -6310,18 +6310,15 @@ function renderRoomTexts(mission){
         x: (triBaseL.x + triBaseR.x) / 2,
         y: (triBaseL.y + triBaseR.y) / 2
       };
-      const triBaseSide = Math.hypot(triBaseR.x - triBaseL.x, triBaseR.y - triBaseL.y);
-      const triTipAngleDeg = 65;
-      const triHeightRaw = (triBaseSide / 2) / Math.tan((triTipAngleDeg / 2) * Math.PI / 180);
-      const triHeight = Math.min(triHeightRaw, Math.max(3, rBg * 0.38)) * triScale;
+      const triTipLen = Math.max(2.4, pizzaR * 0.22 * protrusionSizeScale);
       const outwardVec = {
         x: triBaseMid.x - markerCenter.x,
         y: triBaseMid.y - markerCenter.y
       };
       const outwardLen = Math.hypot(outwardVec.x, outwardVec.y) || 1;
       const triTip = {
-        x: triBaseMid.x + (outwardVec.x / outwardLen) * triHeight,
-        y: triBaseMid.y + (outwardVec.y / outwardLen) * triHeight
+        x: triBaseMid.x + (outwardVec.x / outwardLen) * triTipLen,
+        y: triBaseMid.y + (outwardVec.y / outwardLen) * triTipLen
       };
 
       const unifiedPathD = [
