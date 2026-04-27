@@ -6280,7 +6280,8 @@ function renderRoomTexts(mission){
     };
 
     if (markerType === 'pizza250'){
-      const pizzaR = rBg * 1.6;
+      const pizzaNormalScale = 1.3;
+      const pizzaR = rBg * 1.6 * pizzaNormalScale;
       const sectorDeg = 110;
       const halfDeg = sectorDeg / 2;
       const tipDeg = midDeg;
@@ -6297,7 +6298,7 @@ function renderRoomTexts(mission){
         y: markerCenter.y + endOffset.y
       };
       const protrusionSpreadDeg = 8;
-      const protrusionLen = Math.max(1.8, rBg * 0.22);
+      const protrusionLen = Math.max(1.8, rBg * 0.22 * pizzaNormalScale);
       const protrusionLeft = {
         x: markerCenter.x + polar(pizzaR, midDeg - protrusionSpreadDeg).x,
         y: markerCenter.y + polar(pizzaR, midDeg - protrusionSpreadDeg).y
@@ -6310,12 +6311,22 @@ function renderRoomTexts(mission){
         x: markerCenter.x + polar(pizzaR + protrusionLen, midDeg).x,
         y: markerCenter.y + polar(pizzaR + protrusionLen, midDeg).y
       };
+      const tipRoundRatio = 0.38;
+      const tipLeft = {
+        x: protrusionTip.x + (protrusionLeft.x - protrusionTip.x) * tipRoundRatio,
+        y: protrusionTip.y + (protrusionLeft.y - protrusionTip.y) * tipRoundRatio
+      };
+      const tipRight = {
+        x: protrusionTip.x + (protrusionRight.x - protrusionTip.x) * tipRoundRatio,
+        y: protrusionTip.y + (protrusionRight.y - protrusionTip.y) * tipRoundRatio
+      };
 
       const unifiedPathD = [
         `M ${markerCenter.x.toFixed(2)} ${markerCenter.y.toFixed(2)}`,
         `L ${start.x.toFixed(2)} ${start.y.toFixed(2)}`,
         `A ${pizzaR.toFixed(2)} ${pizzaR.toFixed(2)} 0 0 1 ${protrusionLeft.x.toFixed(2)} ${protrusionLeft.y.toFixed(2)}`,
-        `L ${protrusionTip.x.toFixed(2)} ${protrusionTip.y.toFixed(2)}`,
+        `L ${tipLeft.x.toFixed(2)} ${tipLeft.y.toFixed(2)}`,
+        `Q ${protrusionTip.x.toFixed(2)} ${protrusionTip.y.toFixed(2)} ${tipRight.x.toFixed(2)} ${tipRight.y.toFixed(2)}`,
         `L ${protrusionRight.x.toFixed(2)} ${protrusionRight.y.toFixed(2)}`,
         `A ${pizzaR.toFixed(2)} ${pizzaR.toFixed(2)} 0 0 1 ${end.x.toFixed(2)} ${end.y.toFixed(2)}`,
         `L ${markerCenter.x.toFixed(2)} ${markerCenter.y.toFixed(2)}`,
@@ -6331,6 +6342,55 @@ function renderRoomTexts(mission){
       unifiedShape.setAttribute('stroke-linejoin', 'round');
       unifiedShape.setAttribute('stroke-linecap', 'round');
       g.appendChild(unifiedShape);
+
+      const arrowColor = '#7dd3fc';
+      const arrowR = pizzaR * 0.55 + 4;
+      const arrowStartDeg = midDeg - 36;
+      const arrowEndDeg = midDeg + 36;
+      const arrowStart = {
+        x: markerCenter.x + polar(arrowR, arrowStartDeg).x,
+        y: markerCenter.y + polar(arrowR, arrowStartDeg).y
+      };
+      const arrowEnd = {
+        x: markerCenter.x + polar(arrowR, arrowEndDeg).x,
+        y: markerCenter.y + polar(arrowR, arrowEndDeg).y
+      };
+      const arrowEndPrev = {
+        x: markerCenter.x + polar(arrowR, arrowEndDeg - 1.2).x,
+        y: markerCenter.y + polar(arrowR, arrowEndDeg - 1.2).y
+      };
+
+      const arrowBody = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      arrowBody.setAttribute('d', `M ${arrowStart.x.toFixed(2)} ${arrowStart.y.toFixed(2)} A ${arrowR.toFixed(2)} ${arrowR.toFixed(2)} 0 0 1 ${arrowEnd.x.toFixed(2)} ${arrowEnd.y.toFixed(2)}`);
+      arrowBody.setAttribute('fill', 'none');
+      arrowBody.setAttribute('stroke', arrowColor);
+      arrowBody.setAttribute('stroke-width', '2.2');
+      arrowBody.setAttribute('stroke-linecap', 'round');
+      g.appendChild(arrowBody);
+
+      const headLen = Math.max(3, pizzaR * 0.16);
+      const tangentRad = Math.atan2(arrowEnd.y - arrowEndPrev.y, arrowEnd.x - arrowEndPrev.x) - (10 * Math.PI / 180);
+      const headDeg = 24;
+      const headLeft = {
+        x: arrowEnd.x - headLen * Math.cos(tangentRad - (headDeg * Math.PI / 180)),
+        y: arrowEnd.y - headLen * Math.sin(tangentRad - (headDeg * Math.PI / 180))
+      };
+      const headRight = {
+        x: arrowEnd.x - headLen * Math.cos(tangentRad + (headDeg * Math.PI / 180)),
+        y: arrowEnd.y - headLen * Math.sin(tangentRad + (headDeg * Math.PI / 180))
+      };
+      const arrowHead = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      arrowHead.setAttribute('d', [
+        `M ${headLeft.x.toFixed(2)} ${headLeft.y.toFixed(2)}`,
+        `L ${arrowEnd.x.toFixed(2)} ${arrowEnd.y.toFixed(2)}`,
+        `L ${headRight.x.toFixed(2)} ${headRight.y.toFixed(2)}`
+      ].join(' '));
+      arrowHead.setAttribute('fill', 'none');
+      arrowHead.setAttribute('stroke', arrowColor);
+      arrowHead.setAttribute('stroke-width', '2.2');
+      arrowHead.setAttribute('stroke-linecap', 'round');
+      arrowHead.setAttribute('stroke-linejoin', 'round');
+      g.appendChild(arrowHead);
     } else {
       const bgCircle = document.createElementNS('http://www.w3.org/2000/svg','circle');
       bgCircle.setAttribute('cx', p.x.toFixed(2));
