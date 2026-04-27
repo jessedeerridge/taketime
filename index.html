@@ -3714,6 +3714,7 @@ function applyBoardRotation(deg, { animate = false, useShortestPath = false, all
   const hasPlacedCards = Object.keys(state.playedCards || {}).length > 0;
   const shouldAnimate = animate && (!hasPlacedCards || allowWithCards);
   const transitionDurationMs = Math.max(120, Number(transitionMs) || 220);
+  syncPlayedCardEntryTransforms();
   stageSvg.style.transition = shouldAnimate ? `transform ${transitionDurationMs}ms ease-out` : 'none';
   stageSvg.style.transformOrigin = '50% 50%';
   stageSvg.style.transform = `rotate(${boardRotationVisualDeg}deg)`;
@@ -5942,6 +5943,16 @@ function getCounterRotatedLocalPoint(baseX, baseY){
 function getPlayedCardEntryTransform(baseX, baseY, baseRot){
   const p = getCounterRotatedLocalPoint(baseX, baseY);
   return `translate(${p.x},${p.y}) rotate(${Number(baseRot) - boardRotationDeg})`;
+}
+
+function syncPlayedCardEntryTransforms(){
+  const entries = stageSvg.querySelectorAll('#playedCards .played-card-entry');
+  entries.forEach((cardG) => {
+    const baseX = Number(cardG.dataset.baseX || 0);
+    const baseY = Number(cardG.dataset.baseY || 0);
+    const baseRot = Number(cardG.dataset.baseRot || 0);
+    cardG.setAttribute('transform', getPlayedCardEntryTransform(baseX, baseY, baseRot));
+  });
 }
 
 function getPlayedCardLayouts(playedList = getPlayedEntriesSorted()){
