@@ -6280,7 +6280,7 @@ function renderRoomTexts(mission){
     };
 
     if (markerType === 'pizza250'){
-      const pizzaR = rBg * 2;
+      const pizzaR = rBg * 1.6;
       const sectorDeg = 110;
       const halfDeg = sectorDeg / 2;
       const tipDeg = midDeg;
@@ -6296,7 +6296,7 @@ function renderRoomTexts(mission){
         x: markerCenter.x + endOffset.x,
         y: markerCenter.y + endOffset.y
       };
-      const triBaseSpreadDeg = 20;
+      const triBaseSpreadDeg = 16;
       const triBaseL = {
         x: markerCenter.x + polar(pizzaR, midDeg - triBaseSpreadDeg).x,
         y: markerCenter.y + polar(pizzaR, midDeg - triBaseSpreadDeg).y
@@ -6310,8 +6310,9 @@ function renderRoomTexts(mission){
         y: (triBaseL.y + triBaseR.y) / 2
       };
       const triBaseSide = Math.hypot(triBaseR.x - triBaseL.x, triBaseR.y - triBaseL.y);
-      const triTipAngleDeg = 40;
-      const triHeight = (triBaseSide / 2) / Math.tan((triTipAngleDeg / 2) * Math.PI / 180);
+      const triTipAngleDeg = 55;
+      const triHeightRaw = (triBaseSide / 2) / Math.tan((triTipAngleDeg / 2) * Math.PI / 180);
+      const triHeight = Math.min(triHeightRaw, Math.max(5, rBg * 0.85));
       const outwardVec = {
         x: triBaseMid.x - markerCenter.x,
         y: triBaseMid.y - markerCenter.y
