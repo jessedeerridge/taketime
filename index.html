@@ -5774,6 +5774,7 @@ function renderRoomCards(mission = currentStage){
     strokeWidth = 1.6
   } = {}){
     if (!(room >= 1 && room <= 6)) return;
+    appendRoomBackground(room, { fill: '#ab5d1a' });
     const roomMidDeg = (room - 1) * 60 + 30;
     const markerTr = [
       'translate(150,150)',
@@ -5789,7 +5790,7 @@ function renderRoomCards(mission = currentStage){
     const markerCircle = document.createElementNS('http://www.w3.org/2000/svg','circle');
     markerCircle.setAttribute('cx', '0');
     markerCircle.setAttribute('cy', '0');
-    const markerRadius = Math.max(4.5, (Math.max(5.5, cardW * 0.31)) - 1);
+    const markerRadius = Math.max(4.5, (Math.max(5.5, cardW * 0.31)) - 1) * 3;
     markerCircle.setAttribute('r', String(markerRadius));
     markerCircle.setAttribute('fill', '#111111');
     markerCircle.setAttribute('stroke', stroke);
@@ -6763,7 +6764,7 @@ function getStageRoomHintText(stage, room){
     return `${nums}のカードはこのエリアに置けない。`;
   }
   if (placementRule.disallowAll){
-    return 'このエリアにカードは置けない。';
+    return 'この場所にはカードをプレイできない。';
   }
   if (
     placementRule.maxTotal === 1
