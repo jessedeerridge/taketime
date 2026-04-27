@@ -6355,6 +6355,10 @@ function renderRoomTexts(mission){
         x: markerCenter.x + polar(arrowR, arrowEndDeg).x,
         y: markerCenter.y + polar(arrowR, arrowEndDeg).y
       };
+      const arrowEndPrev = {
+        x: markerCenter.x + polar(arrowR, arrowEndDeg - 1.2).x,
+        y: markerCenter.y + polar(arrowR, arrowEndDeg - 1.2).y
+      };
 
       const arrowBody = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       arrowBody.setAttribute('d', `M ${arrowStart.x.toFixed(2)} ${arrowStart.y.toFixed(2)} A ${arrowR.toFixed(2)} ${arrowR.toFixed(2)} 0 0 1 ${arrowEnd.x.toFixed(2)} ${arrowEnd.y.toFixed(2)}`);
@@ -6365,7 +6369,7 @@ function renderRoomTexts(mission){
       g.appendChild(arrowBody);
 
       const headLen = Math.max(3, pizzaR * 0.16);
-      const tangentRad = Math.atan2(arrowEnd.y - arrowStart.y, arrowEnd.x - arrowStart.x);
+      const tangentRad = Math.atan2(arrowEnd.y - arrowEndPrev.y, arrowEnd.x - arrowEndPrev.x);
       const headDeg = 24;
       const headLeft = {
         x: arrowEnd.x - headLen * Math.cos(tangentRad - (headDeg * Math.PI / 180)),
