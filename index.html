@@ -3715,6 +3715,9 @@ function applyBoardRotation(deg, { animate = false, useShortestPath = false, all
   const shouldAnimate = animate && (!hasPlacedCards || allowWithCards);
   const transitionDurationMs = Math.max(120, Number(transitionMs) || 220);
   syncPlayedCardEntryTransforms();
+  if (shouldAnimate && allowWithCards){
+    void stageSvg.getBoundingClientRect();
+  }
   stageSvg.style.transition = shouldAnimate ? `transform ${transitionDurationMs}ms ease-out` : 'none';
   stageSvg.style.transformOrigin = '50% 50%';
   stageSvg.style.transform = `rotate(${boardRotationVisualDeg}deg)`;
