@@ -1198,7 +1198,8 @@ const USER_NAME_KEY = 'takeTimeUserName';
 const STAGE_ROOM_SUCCESS_CONDITIONS = {
   '1-2': [{ room: 3, min: 8, max: 12, label: '8-12エリア' }],
   '1-3': [{ room: 6, min: 20, max: 30, label: '20-30エリア' }],
-  '3-1': [{ room: 6, min: 20, max: 20, label: '20固定エリア' }]
+  '3-1': [{ room: 6, min: 20, max: 20, label: '20固定エリア' }],
+  '8-1': [{ room: 4, min: 16, max: 20, label: '16-20エリア' }]
 };
 const REVEAL_ROOM_INTERVAL_MS = 1200;
 const ROOM_TOTAL_DISPLAY_DELAY_MS = 1200;
@@ -4251,7 +4252,8 @@ const STAGE_BROWNCARDS = {
   '7-1': { 1: 3 },
   '7-2': { 1: 3, 4: 3 },
   '7-3': { 5: 3 },
-  '7-4': { 2: 3, 4: 3, 6: 3 }
+  '7-4': { 2: 3, 4: 3, 6: 3 },
+  '8-3': { 1: 1, 5: 2 }
 };
 const STAGE_PROHIBIT_ROOMS = {
   '2-1': [1, 2, 3],
@@ -4311,7 +4313,9 @@ function getBrowncardsCountForMission(mission, room){
   return Number(rec[room]) || 0;
 }
 function isBDeckStage(mission){
-  return typeof mission === 'string' && mission.startsWith('7-');
+  if (typeof mission !== 'string') return false;
+  if (mission.startsWith('7-')) return true;
+  return mission === '8-3';
 }
 function isBDeckRoomForMission(mission, room){
   if (!isBDeckStage(mission)) return false;
@@ -5922,6 +5926,10 @@ function renderRoomCards(mission = currentStage){
     appendBdeck(2, { count: 3 });
     appendBdeck(4, { count: 3 });
     appendBdeck(6, { count: 3 });
+  }
+  if (mission === '8-3') {
+    appendBdeck(1, { count: 1 });
+    appendBdeck(5, { count: 2 });
   }
   if (mission === '4-1') {
     appendCenterBrownPair({ halfGapDelta: -2, leftBackCount: 2, centerRightArrow: true, leftSign: '+', rightSign: '-' });
