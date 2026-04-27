@@ -2291,7 +2291,7 @@ async function maybeRunRevealFlipSequence(){
       if (!revealRoomOrder.length) break;
 
       for (const room of revealRoomOrder){
-        const roomBackCards = latestBackCards.filter((card) => Number(card.room) === room);
+        const roomBackCards = latestBackCards.filter((card) => getCardCurrentRoom(card) === room);
         if (!roomBackCards.length) continue;
         for (const card of roomBackCards){
           await update(ref(db, `rooms/${state.roomCode}/playedCards/${card.key}`), {
