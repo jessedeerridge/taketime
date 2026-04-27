@@ -6344,9 +6344,9 @@ function renderRoomTexts(mission){
       g.appendChild(unifiedShape);
 
       const arrowColor = '#7dd3fc';
-      const arrowR = pizzaR * 0.55;
-      const arrowStartDeg = midDeg - 20;
-      const arrowEndDeg = midDeg + 18;
+      const arrowR = pizzaR * 0.55 + 1;
+      const arrowStartDeg = midDeg - 24;
+      const arrowEndDeg = midDeg + 24;
       const arrowStart = {
         x: markerCenter.x + polar(arrowR, arrowStartDeg).x,
         y: markerCenter.y + polar(arrowR, arrowStartDeg).y
