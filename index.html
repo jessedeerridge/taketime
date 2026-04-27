@@ -6272,7 +6272,7 @@ function renderRoomTexts(mission){
   textSpecs.forEach(({room, label, rotate, color: textColor, bgColor: circleColor, bgOpacity: circleOpacity, underline, markerType})=>{
     const midDeg = (room-1)*60 + 30;
     const p = polar(rText, midDeg);
-    const pizzaCenterInset = 12;
+    const pizzaCenterInset = 20;
     const pizzaInsetOffset = (markerType === 'pizza250') ? polar(pizzaCenterInset, midDeg + 180) : { x: 0, y: 0 };
     const markerCenter = {
       x: p.x + pizzaInsetOffset.x,
@@ -6280,8 +6280,8 @@ function renderRoomTexts(mission){
     };
 
     if (markerType === 'pizza250'){
-      const pizzaR = rBg * 1.6;
-      const sectorDeg = 110;
+      const pizzaR = rBg * 1.25;
+      const sectorDeg = 100;
       const halfDeg = sectorDeg / 2;
       const tipDeg = midDeg;
       const startDeg = tipDeg - halfDeg;
