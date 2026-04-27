@@ -3770,8 +3770,9 @@ function subscribeBoardRotation(){
     lastBoardRotationTs = Math.max(lastBoardRotationTs, ts);
     if (actorId && actorId === state.userId) return;
     if (boardRotationDrag) return;
-    const shouldAnimate = !!data.isFinal;
-    const allowWithCards = String(data.reason || '') === 'rightarrow';
+    const hasPlayedCards = Object.keys(state.playedCards || {}).length > 0;
+    const shouldAnimate = !!data.isFinal && !hasPlayedCards;
+    const allowWithCards = String(data.reason || '') === 'rightarrow' && !hasPlayedCards;
     const transitionMs = allowWithCards ? 420 : 220;
     const executeAt = Number(data.executeAt || 0);
     const waitMs = allowWithCards && executeAt > 0 ? Math.max(0, executeAt - Date.now()) : 0;
