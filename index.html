@@ -1316,8 +1316,7 @@ function deriveCurrentPhase(phaseState){
 function computeNextTurnPlayerId({
   playerIds = [],
   hands = {},
-  playedCards = {},
-  starterPlayerId = null
+  playedCards = {}
 } = {}){
   if (!Array.isArray(playerIds) || !playerIds.length) return null;
   const playablePlayerIds = playerIds.filter((playerId) => {
@@ -1325,24 +1324,21 @@ function computeNextTurnPlayerId({
     return Array.isArray(cards) && cards.length > 0;
   });
   if (!playablePlayerIds.length) return null;
-  const normalizedStarterPlayerId = (starterPlayerId && playablePlayerIds.includes(starterPlayerId))
-    ? starterPlayerId
-    : playablePlayerIds[0];
 
   const playedList = Object.values(playedCards || {})
     .filter((card) => card?.playerId && playerIds.includes(card.playerId))
     .sort((a, b) => Number(a.placedAt || 0) - Number(b.placedAt || 0));
 
-  if (!playedList.length) return normalizedStarterPlayerId;
+  if (!playedList.length) return null;
 
   const lastPlayerId = playedList[playedList.length - 1].playerId;
   const lastIndex = playerIds.indexOf(lastPlayerId);
-  if (lastIndex === -1) return normalizedStarterPlayerId;
+  if (lastIndex === -1) return playablePlayerIds[0];
   for (let i = 1; i <= playerIds.length; i++){
     const candidate = playerIds[(lastIndex + i) % playerIds.length];
     if (playablePlayerIds.includes(candidate)) return candidate;
   }
-  return normalizedStarterPlayerId;
+  return playablePlayerIds[0];
 }
 
 function getActiveTurnPlayerIds(){
@@ -1351,11 +1347,16 @@ function getActiveTurnPlayerIds(){
     .filter((p) => p?.id)
     .map((p) => p.id);
   if (!playerIds.length) return [];
+  const playablePlayerIds = playerIds.filter((playerId) => {
+    const cards = state.hands?.[playerId]?.cards;
+    return Array.isArray(cards) && cards.length > 0;
+  });
+  const playedCardCount = Object.keys(state.playedCards || {}).length;
+  if (!playedCardCount) return playablePlayerIds;
   const nextPlayerId = computeNextTurnPlayerId({
     playerIds,
     hands: state.hands,
-    playedCards: state.playedCards,
-    starterPlayerId: state.phaseState?.placementStarterId || null
+    playedCards: state.playedCards
   });
   return nextPlayerId ? [nextPlayerId] : [];
 }
@@ -1371,17 +1372,23 @@ function getSeatedPlayerIds(){
   return getSeatedPlayerIdsFromTables(state.tables || {});
 }
 
-function getActiveTurnPlayerIdFromRoomData(roomData){
+function getActiveTurnPlayerIdsFromRoomData(roomData){
   const phase = deriveCurrentPhase(roomData?.phaseState || {});
-  if (phase !== 'placement') return null;
+  if (phase !== 'placement') return [];
   const playerIds = getSeatedPlayerIdsFromTables(roomData?.tables || {});
-  if (!playerIds.length) return null;
-  return computeNextTurnPlayerId({
+  if (!playerIds.length) return [];
+  const playablePlayerIds = playerIds.filter((playerId) => {
+    const cards = roomData?.hands?.[playerId]?.cards;
+    return Array.isArray(cards) && cards.length > 0;
+  });
+  const playedCardCount = Object.keys(roomData?.playedCards || {}).length;
+  if (!playedCardCount) return playablePlayerIds;
+  const nextPlayerId = computeNextTurnPlayerId({
     playerIds,
     hands: roomData?.hands || {},
-    playedCards: roomData?.playedCards || {},
-    starterPlayerId: roomData?.phaseState?.placementStarterId || null
+    playedCards: roomData?.playedCards || {}
   });
+  return nextPlayerId ? [nextPlayerId] : [];
 }
 
 function isMyTurnInPlacement(){
@@ -1710,16 +1717,6 @@ async function emitPhaseEvent(type){
     stage: currentStage || '',
     [`${type}Tick`]: ts
   };
-  if (type === 'placement'){
-    const seatedPlayerIds = getSeatedPlayerIdsFromTables(state.tables || {});
-    const playablePlayerIds = seatedPlayerIds.filter((playerId) => {
-      const cards = state.hands?.[playerId]?.cards;
-      return Array.isArray(cards) && cards.length > 0;
-    });
-    phaseStateUpdates.placementStarterId = playablePlayerIds.length
-      ? playablePlayerIds[randomInt(playablePlayerIds.length)]
-      : null;
-  }
   await update(ref(db, `rooms/${state.roomCode}/phaseState`), phaseStateUpdates);
 }
 
@@ -2550,8 +2547,8 @@ async function placeDroppedCard(cardData, room, face = 'face'){
     const txResult = await runTransaction(roomRef, (roomData) => {
       if (!roomData || typeof roomData !== 'object') return roomData;
       if (deriveCurrentPhase(roomData?.phaseState || {}) !== 'placement') return;
-      const activeTurnPlayerId = getActiveTurnPlayerIdFromRoomData(roomData);
-      if (activeTurnPlayerId && activeTurnPlayerId !== state.userId) return;
+      const activeTurnPlayerIds = getActiveTurnPlayerIdsFromRoomData(roomData);
+      if (activeTurnPlayerIds.length && !activeTurnPlayerIds.includes(state.userId)) return;
 
       const hands = (roomData.hands && typeof roomData.hands === 'object') ? roomData.hands : {};
       const myHand = (hands[state.userId] && Array.isArray(hands[state.userId].cards))
