@@ -1239,6 +1239,12 @@ let hasBoardRotationSnapshot = false;
 let lastBoardRotationTs = 0;
 let lastBoardRotationPublishAt = 0;
 const ROTATION_SYNC_INTERVAL_MS = 16;
+const RIGHTARROW_ROOM_NAME = 'rightarrow';
+const RIGHTARROW_ROTATE_DELAY_MS = 1500;
+const RIGHTARROW_ROTATE_DURATION_MS = 620;
+let rightarrowRotateTimer = null;
+let rightarrowRotateRaf = null;
+let lastRightarrowRotateEventId = '';
 let isCenterNeedleHidden = false;
 let centerNeedleRotationDeg = 0;
 let centerNeedleRotationVisualDeg = 0;
@@ -2566,6 +2572,20 @@ async function placeDroppedCard(cardData, room, face = 'face'){
         placedAt,
         boardRotationAtPlacement: boardRotationDeg
       };
+      const specialRoomName = getSpecialRoomName(stageCode, room);
+      if (specialRoomName === RIGHTARROW_ROOM_NAME){
+        const rotationFromDeg = normalizeDeg(boardRotationDeg);
+        roomData.rightarrowRotationEvent = {
+          id: `${key}_rightarrow`,
+          stage: stageCode,
+          room,
+          roomName: RIGHTARROW_ROOM_NAME,
+          ts: placedAt,
+          actorId: state.userId,
+          fromDeg: rotationFromDeg,
+          toDeg: normalizeDeg(rotationFromDeg + 60)
+        };
+      }
       roomData.playedCards = {
         ...(roomData.playedCards || {}),
         [key]: playedCard
@@ -3082,6 +3102,15 @@ btnJoin.addEventListener('click', async () => {
     lastBoardRotationTs = 0;
     hasCenterNeedleSnapshot = false;
     lastCenterNeedleTs = 0;
+    lastRightarrowRotateEventId = '';
+    if (rightarrowRotateTimer){
+      clearTimeout(rightarrowRotateTimer);
+      rightarrowRotateTimer = null;
+    }
+    if (rightarrowRotateRaf){
+      cancelAnimationFrame(rightarrowRotateRaf);
+      rightarrowRotateRaf = null;
+    }
 
     enterLobbyUI();
     updateHostUI();
@@ -3094,6 +3123,7 @@ btnJoin.addEventListener('click', async () => {
     subscribePhaseEvents();
     subscribeSubgearCount();
     subscribeBoardRotation();
+    subscribeRightarrowRotationEvent();
     subscribeCenterNeedleRotation();
 
     syncSeatUI();
@@ -3716,6 +3746,38 @@ function snapBoardRotationToNearestRoom(){
   return snapped;
 }
 
+function animateBoardRotationTo(deg, { durationMs = RIGHTARROW_ROTATE_DURATION_MS } = {}){
+  if (rightarrowRotateRaf){
+    cancelAnimationFrame(rightarrowRotateRaf);
+    rightarrowRotateRaf = null;
+  }
+  stageSvg.style.transition = 'none';
+  const fromVisual = boardRotationVisualDeg;
+  const targetVisual = toShortestVisualRotation(fromVisual, normalizeDeg(deg));
+  const distance = targetVisual - fromVisual;
+  if (Math.abs(distance) < 0.0001){
+    applyBoardRotation(targetVisual, { animate: false, useShortestPath: false });
+    return Promise.resolve();
+  }
+  const startAt = performance.now();
+  return new Promise((resolve) => {
+    const tick = (now) => {
+      const progress = Math.min(1, (now - startAt) / Math.max(80, Number(durationMs) || RIGHTARROW_ROTATE_DURATION_MS));
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const current = fromVisual + distance * eased;
+      applyBoardRotation(current, { animate: false, useShortestPath: false });
+      if (progress < 1){
+        rightarrowRotateRaf = requestAnimationFrame(tick);
+        return;
+      }
+      rightarrowRotateRaf = null;
+      applyBoardRotation(targetVisual, { animate: false, useShortestPath: false });
+      resolve();
+    };
+    rightarrowRotateRaf = requestAnimationFrame(tick);
+  });
+}
+
 function publishBoardRotation(deg, { isFinal = false, force = false } = {}){
   if (!state.roomCode || !state.userId) return;
   const now = Date.now();
@@ -3758,6 +3820,33 @@ function subscribeBoardRotation(){
     window.setTimeout(() => {
       if (!boardRotationDrag) stageSvg.style.transition = 'none';
     }, shouldAnimate ? 260 : 20);
+  });
+}
+
+function subscribeRightarrowRotationEvent(){
+  const rotateRef = ref(db, `rooms/${state.roomCode}/rightarrowRotationEvent`);
+  onValue(rotateRef, (snap) => {
+    const data = snap.val();
+    if (!data || !data.id) return;
+    const eventId = String(data.id);
+    if (eventId === lastRightarrowRotateEventId) return;
+    lastRightarrowRotateEventId = eventId;
+
+    if (rightarrowRotateTimer){
+      clearTimeout(rightarrowRotateTimer);
+      rightarrowRotateTimer = null;
+    }
+    const targetDeg = normalizeDeg(Number(data.toDeg || 0));
+    const triggerTs = Number(data.ts || 0);
+    const waitMs = Math.max(0, (triggerTs + RIGHTARROW_ROTATE_DELAY_MS) - Date.now());
+    rightarrowRotateTimer = window.setTimeout(async () => {
+      rightarrowRotateTimer = null;
+      if (boardRotationDrag) return;
+      await animateBoardRotationTo(targetDeg, { durationMs: RIGHTARROW_ROTATE_DURATION_MS });
+      if (String(data.actorId || '') === state.userId){
+        publishBoardRotation(targetDeg, { isFinal: true, force: true });
+      }
+    }, waitMs);
   });
 }
 
@@ -4104,9 +4193,18 @@ const STAGE_SPEC = {
   '7-4': { specifiedRooms: [2,4,6] },
   '8-1': { specifiedRooms: [6] },
 };
+const STAGE_SPECIAL_ROOM_NAMES = {
+  '8-1': { 6: RIGHTARROW_ROOM_NAME }
+};
 function getSpecifiedRoomsForMission(mission){
   const rec = STAGE_SPEC[mission];
   return rec?.specifiedRooms || [];
+}
+
+function getSpecialRoomName(mission, room){
+  const stageMap = STAGE_SPECIAL_ROOM_NAMES[mission];
+  if (!stageMap) return '';
+  return String(stageMap[Number(room)] || '');
 }
 
 function isNavyStage(mission){
