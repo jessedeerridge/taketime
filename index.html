@@ -6338,13 +6338,13 @@ function renderRoomTexts(mission){
       underline
     };
   }
-  function makeSpecialArrowSpec(room, markerType){
+  function makeSpecialArrowSpec(room, markerType, bgColor = '#8b5a2b'){
     return {
       room,
       label: '',
       rotate: (midDeg)=>midDeg,
       color: '#111',
-      bgColor: '#8b5a2b',
+      bgColor,
       bgOpacity: 1,
       markerType
     };
@@ -6386,7 +6386,7 @@ function renderRoomTexts(mission){
       if (roomName === RIGHTARROW_ROOM_NAME){
         textSpecs.push(makeSpecialArrowSpec(room, 'pizza250'));
       } else if (roomName === LEFTARROW_ROOM_NAME){
-        textSpecs.push(makeSpecialArrowSpec(room, 'pizza250left'));
+        textSpecs.push(makeSpecialArrowSpec(room, 'pizza250left', '#a67c52'));
       }
     });
   }
