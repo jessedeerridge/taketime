@@ -6344,15 +6344,20 @@ function renderRoomTexts(mission){
       g.appendChild(unifiedShape);
 
       const arrowColor = '#7dd3fc';
-      const arrowStartX = markerCenter.x - pizzaR * 0.36;
-      const arrowStartY = markerCenter.y + pizzaR * 0.06;
-      const arrowEndX = markerCenter.x + pizzaR * 0.28;
-      const arrowEndY = markerCenter.y - pizzaR * 0.04;
-      const arrowCtrlX = markerCenter.x - pizzaR * 0.02;
-      const arrowCtrlY = markerCenter.y - pizzaR * 0.20;
+      const arrowR = pizzaR * 0.55;
+      const arrowStartDeg = midDeg - 20;
+      const arrowEndDeg = midDeg + 18;
+      const arrowStart = {
+        x: markerCenter.x + polar(arrowR, arrowStartDeg).x,
+        y: markerCenter.y + polar(arrowR, arrowStartDeg).y
+      };
+      const arrowEnd = {
+        x: markerCenter.x + polar(arrowR, arrowEndDeg).x,
+        y: markerCenter.y + polar(arrowR, arrowEndDeg).y
+      };
 
       const arrowBody = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      arrowBody.setAttribute('d', `M ${arrowStartX.toFixed(2)} ${arrowStartY.toFixed(2)} Q ${arrowCtrlX.toFixed(2)} ${arrowCtrlY.toFixed(2)} ${arrowEndX.toFixed(2)} ${arrowEndY.toFixed(2)}`);
+      arrowBody.setAttribute('d', `M ${arrowStart.x.toFixed(2)} ${arrowStart.y.toFixed(2)} A ${arrowR.toFixed(2)} ${arrowR.toFixed(2)} 0 0 1 ${arrowEnd.x.toFixed(2)} ${arrowEnd.y.toFixed(2)}`);
       arrowBody.setAttribute('fill', 'none');
       arrowBody.setAttribute('stroke', arrowColor);
       arrowBody.setAttribute('stroke-width', '2.2');
@@ -6360,19 +6365,20 @@ function renderRoomTexts(mission){
       g.appendChild(arrowBody);
 
       const headLen = Math.max(3, pizzaR * 0.16);
-      const headDeg = 28;
+      const tangentDeg = arrowEndDeg + 90;
+      const headDeg = 24;
       const headLeft = {
-        x: arrowEndX - headLen * Math.cos((headDeg * Math.PI) / 180),
-        y: arrowEndY - headLen * Math.sin((headDeg * Math.PI) / 180)
+        x: arrowEnd.x + polar(headLen, tangentDeg + 180 - headDeg).x,
+        y: arrowEnd.y + polar(headLen, tangentDeg + 180 - headDeg).y
       };
       const headRight = {
-        x: arrowEndX - headLen * Math.cos((-headDeg * Math.PI) / 180),
-        y: arrowEndY - headLen * Math.sin((-headDeg * Math.PI) / 180)
+        x: arrowEnd.x + polar(headLen, tangentDeg + 180 + headDeg).x,
+        y: arrowEnd.y + polar(headLen, tangentDeg + 180 + headDeg).y
       };
       const arrowHead = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       arrowHead.setAttribute('d', [
         `M ${headLeft.x.toFixed(2)} ${headLeft.y.toFixed(2)}`,
-        `L ${arrowEndX.toFixed(2)} ${arrowEndY.toFixed(2)}`,
+        `L ${arrowEnd.x.toFixed(2)} ${arrowEnd.y.toFixed(2)}`,
         `L ${headRight.x.toFixed(2)} ${headRight.y.toFixed(2)}`
       ].join(' '));
       arrowHead.setAttribute('fill', 'none');
