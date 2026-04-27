@@ -2572,9 +2572,11 @@ async function placeDroppedCard(cardData, room, face = 'face'){
       };
       if (stageCode === '8-1' && Number(room) === 6){
         const currentRotation = normalizeDeg(Number(roomData?.boardRotation?.deg || 0));
+        const executeAt = placedAt + 1500;
         roomData.boardRotation = {
           deg: normalizeDeg(currentRotation + 60),
           ts: placedAt,
+          executeAt,
           actorId: `auto-rotate:${state.userId || ''}`,
           isFinal: true,
           reason: 'rightarrow'
@@ -3703,7 +3705,7 @@ function toShortestVisualRotation(currentVisualDeg, nextNormalizedDeg){
   return currentVisualDeg + delta;
 }
 
-function applyBoardRotation(deg, { animate = false, useShortestPath = false, allowWithCards = false } = {}){
+function applyBoardRotation(deg, { animate = false, useShortestPath = false, allowWithCards = false, transitionMs = 220 } = {}){
   const normalized = normalizeDeg(deg);
   boardRotationVisualDeg = useShortestPath
     ? toShortestVisualRotation(boardRotationVisualDeg, normalized)
@@ -3711,7 +3713,8 @@ function applyBoardRotation(deg, { animate = false, useShortestPath = false, all
   boardRotationDeg = normalizeDeg(boardRotationVisualDeg);
   const hasPlacedCards = Object.keys(state.playedCards || {}).length > 0;
   const shouldAnimate = animate && (!hasPlacedCards || allowWithCards);
-  stageSvg.style.transition = shouldAnimate ? 'transform 220ms ease-out' : 'none';
+  const transitionDurationMs = Math.max(120, Number(transitionMs) || 220);
+  stageSvg.style.transition = shouldAnimate ? `transform ${transitionDurationMs}ms ease-out` : 'none';
   stageSvg.style.transformOrigin = '50% 50%';
   stageSvg.style.transform = `rotate(${boardRotationVisualDeg}deg)`;
   syncRoomHintTableOrientation();
@@ -3765,10 +3768,15 @@ function subscribeBoardRotation(){
     if (boardRotationDrag) return;
     const shouldAnimate = !!data.isFinal;
     const allowWithCards = String(data.reason || '') === 'rightarrow';
-    applyBoardRotation(normalizedDeg, { animate: shouldAnimate, useShortestPath: true, allowWithCards });
+    const transitionMs = allowWithCards ? 420 : 220;
+    const executeAt = Number(data.executeAt || 0);
+    const waitMs = allowWithCards && executeAt > 0 ? Math.max(0, executeAt - Date.now()) : 0;
     window.setTimeout(() => {
-      if (!boardRotationDrag) stageSvg.style.transition = 'none';
-    }, shouldAnimate ? 260 : 20);
+      applyBoardRotation(normalizedDeg, { animate: shouldAnimate, useShortestPath: true, allowWithCards, transitionMs });
+      window.setTimeout(() => {
+        if (!boardRotationDrag) stageSvg.style.transition = 'none';
+      }, shouldAnimate ? (transitionMs + 40) : 20);
+    }, waitMs);
   });
 }
 
