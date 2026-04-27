@@ -4313,7 +4313,9 @@ function getBrowncardsCountForMission(mission, room){
   return Number(rec[room]) || 0;
 }
 function isBDeckStage(mission){
-  return typeof mission === 'string' && mission.startsWith('7-');
+  if (typeof mission !== 'string') return false;
+  if (mission.startsWith('7-')) return true;
+  return mission === '8-3';
 }
 function isBDeckRoomForMission(mission, room){
   if (!isBDeckStage(mission)) return false;
@@ -5924,6 +5926,10 @@ function renderRoomCards(mission = currentStage){
     appendBdeck(2, { count: 3 });
     appendBdeck(4, { count: 3 });
     appendBdeck(6, { count: 3 });
+  }
+  if (mission === '8-3') {
+    appendBdeck(1, { count: 1 });
+    appendBdeck(5, { count: 2 });
   }
   if (mission === '4-1') {
     appendCenterBrownPair({ halfGapDelta: -2, leftBackCount: 2, centerRightArrow: true, leftSign: '+', rightSign: '-' });
