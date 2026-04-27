@@ -2079,10 +2079,10 @@ function getPlayedEntriesSorted(){
     .sort((a, b) => Number(a.placedAt || 0) - Number(b.placedAt || 0));
 }
 
-function getRoomCardsMap(entries = getPlayedEntriesSorted()){
+function getRoomCardsMap(entries = getPlayedEntriesSorted(), rotationDeg = boardRotationDeg){
   const map = new Map(Array.from({ length: 6 }, (_, i) => [i + 1, []]));
   entries.forEach((card) => {
-    const room = Number(card.room);
+    const room = getCardCurrentRoom(card, rotationDeg);
     if (!map.has(room)) return;
     map.get(room).push(card);
   });
