@@ -2576,7 +2576,8 @@ async function placeDroppedCard(cardData, room, face = 'face'){
           deg: normalizeDeg(currentRotation + 60),
           ts: placedAt,
           actorId: `auto-rotate:${state.userId || ''}`,
-          isFinal: true
+          isFinal: true,
+          reason: 'rightarrow'
         };
       }
       roomData.hands = {
@@ -3702,14 +3703,14 @@ function toShortestVisualRotation(currentVisualDeg, nextNormalizedDeg){
   return currentVisualDeg + delta;
 }
 
-function applyBoardRotation(deg, { animate = false, useShortestPath = false } = {}){
+function applyBoardRotation(deg, { animate = false, useShortestPath = false, allowWithCards = false } = {}){
   const normalized = normalizeDeg(deg);
   boardRotationVisualDeg = useShortestPath
     ? toShortestVisualRotation(boardRotationVisualDeg, normalized)
     : deg;
   boardRotationDeg = normalizeDeg(boardRotationVisualDeg);
   const hasPlacedCards = Object.keys(state.playedCards || {}).length > 0;
-  const shouldAnimate = animate && !hasPlacedCards;
+  const shouldAnimate = animate && (!hasPlacedCards || allowWithCards);
   stageSvg.style.transition = shouldAnimate ? 'transform 220ms ease-out' : 'none';
   stageSvg.style.transformOrigin = '50% 50%';
   stageSvg.style.transform = `rotate(${boardRotationVisualDeg}deg)`;
@@ -3763,7 +3764,8 @@ function subscribeBoardRotation(){
     if (actorId && actorId === state.userId) return;
     if (boardRotationDrag) return;
     const shouldAnimate = !!data.isFinal;
-    applyBoardRotation(normalizedDeg, { animate: shouldAnimate, useShortestPath: true });
+    const allowWithCards = String(data.reason || '') === 'rightarrow';
+    applyBoardRotation(normalizedDeg, { animate: shouldAnimate, useShortestPath: true, allowWithCards });
     window.setTimeout(() => {
       if (!boardRotationDrag) stageSvg.style.transition = 'none';
     }, shouldAnimate ? 260 : 20);
