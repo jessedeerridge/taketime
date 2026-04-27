@@ -6316,8 +6316,7 @@ function renderRoomTexts(mission){
         `M ${markerCenter.x.toFixed(2)} ${markerCenter.y.toFixed(2)}`,
         `L ${start.x.toFixed(2)} ${start.y.toFixed(2)}`,
         `A ${pizzaR.toFixed(2)} ${pizzaR.toFixed(2)} 0 0 1 ${protrusionLeft.x.toFixed(2)} ${protrusionLeft.y.toFixed(2)}`,
-        `L ${protrusionTip.x.toFixed(2)} ${protrusionTip.y.toFixed(2)}`,
-        `L ${protrusionRight.x.toFixed(2)} ${protrusionRight.y.toFixed(2)}`,
+        `Q ${protrusionTip.x.toFixed(2)} ${protrusionTip.y.toFixed(2)} ${protrusionRight.x.toFixed(2)} ${protrusionRight.y.toFixed(2)}`,
         `A ${pizzaR.toFixed(2)} ${pizzaR.toFixed(2)} 0 0 1 ${end.x.toFixed(2)} ${end.y.toFixed(2)}`,
         `L ${markerCenter.x.toFixed(2)} ${markerCenter.y.toFixed(2)}`,
         'Z'
