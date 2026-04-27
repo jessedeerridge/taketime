@@ -4194,7 +4194,10 @@ const STAGE_SPEC = {
   '8-1': { specifiedRooms: [6] },
 };
 const STAGE_SPECIAL_ROOM_NAMES = {
-  '8-1': { 6: RIGHTARROW_ROOM_NAME }
+  '8-1': { 6: RIGHTARROW_ROOM_NAME },
+  '8-2': { 2: RIGHTARROW_ROOM_NAME, 5: RIGHTARROW_ROOM_NAME },
+  '8-3': { 2: RIGHTARROW_ROOM_NAME, 3: RIGHTARROW_ROOM_NAME, 4: RIGHTARROW_ROOM_NAME },
+  '8-4': { 1: RIGHTARROW_ROOM_NAME, 2: RIGHTARROW_ROOM_NAME }
 };
 function getSpecifiedRoomsForMission(mission){
   const rec = STAGE_SPEC[mission];
@@ -6354,9 +6357,12 @@ function renderRoomTexts(mission){
   if (mission === '6-4') {
     textSpecs.push(makeClosecardTextSpec(2, '24', (midDeg)=>midDeg + 180));
   }
-  if (mission === '8-1') {
+  const specialRightarrowRooms = Object.entries(STAGE_SPECIAL_ROOM_NAMES[mission] || {})
+    .filter(([, name]) => name === RIGHTARROW_ROOM_NAME)
+    .map(([room]) => Number(room));
+  specialRightarrowRooms.forEach((room) => {
     textSpecs.push({
-      room: 6,
+      room,
       label: '',
       rotate: (midDeg)=>midDeg,
       color: '#111',
@@ -6364,7 +6370,7 @@ function renderRoomTexts(mission){
       bgOpacity: 1,
       markerType: 'pizza250'
     });
-  }
+  });
   if (textSpecs.length === 0) return;
 
   textSpecs.forEach(({room, label, rotate, color: textColor, bgColor: circleColor, bgOpacity: circleOpacity, underline, markerType})=>{
@@ -6577,6 +6583,9 @@ function getStageRoomHintText(stage, room){
   }
   if (getDualColorExtremePlusRoomsForMission(stage).includes(Number(room))){
     return 'このエリアに全カード中で最大の黒カードと最小の白カードを出していなければならない。';
+  }
+  if (getSpecialRoomName(stage, room) === RIGHTARROW_ROOM_NAME){
+    return 'ここにカードを置くと、時計が1つ分回転する。プレイされたカードは動かない。';
   }
 
   if (stage === '3-1' && room === 4){
