@@ -1316,7 +1316,8 @@ function deriveCurrentPhase(phaseState){
 function computeNextTurnPlayerId({
   playerIds = [],
   hands = {},
-  playedCards = {}
+  playedCards = {},
+  starterPlayerId = null
 } = {}){
   if (!Array.isArray(playerIds) || !playerIds.length) return null;
   const playablePlayerIds = playerIds.filter((playerId) => {
@@ -1324,21 +1325,24 @@ function computeNextTurnPlayerId({
     return Array.isArray(cards) && cards.length > 0;
   });
   if (!playablePlayerIds.length) return null;
+  const normalizedStarterPlayerId = (starterPlayerId && playablePlayerIds.includes(starterPlayerId))
+    ? starterPlayerId
+    : playablePlayerIds[0];
 
   const playedList = Object.values(playedCards || {})
     .filter((card) => card?.playerId && playerIds.includes(card.playerId))
     .sort((a, b) => Number(a.placedAt || 0) - Number(b.placedAt || 0));
 
-  if (!playedList.length) return playablePlayerIds[0];
+  if (!playedList.length) return normalizedStarterPlayerId;
 
   const lastPlayerId = playedList[playedList.length - 1].playerId;
   const lastIndex = playerIds.indexOf(lastPlayerId);
-  if (lastIndex === -1) return playablePlayerIds[0];
+  if (lastIndex === -1) return normalizedStarterPlayerId;
   for (let i = 1; i <= playerIds.length; i++){
     const candidate = playerIds[(lastIndex + i) % playerIds.length];
     if (playablePlayerIds.includes(candidate)) return candidate;
   }
-  return playablePlayerIds[0];
+  return normalizedStarterPlayerId;
 }
 
 function getActiveTurnPlayerIds(){
@@ -1350,7 +1354,8 @@ function getActiveTurnPlayerIds(){
   const nextPlayerId = computeNextTurnPlayerId({
     playerIds,
     hands: state.hands,
-    playedCards: state.playedCards
+    playedCards: state.playedCards,
+    starterPlayerId: state.phaseState?.placementStarterId || null
   });
   return nextPlayerId ? [nextPlayerId] : [];
 }
@@ -1374,7 +1379,8 @@ function getActiveTurnPlayerIdFromRoomData(roomData){
   return computeNextTurnPlayerId({
     playerIds,
     hands: roomData?.hands || {},
-    playedCards: roomData?.playedCards || {}
+    playedCards: roomData?.playedCards || {},
+    starterPlayerId: roomData?.phaseState?.placementStarterId || null
   });
 }
 
@@ -1700,10 +1706,21 @@ async function emitPhaseEvent(type){
     ts,
     stage: currentStage || ''
   });
-  await update(ref(db, `rooms/${state.roomCode}/phaseState`), {
+  const phaseStateUpdates = {
     stage: currentStage || '',
     [`${type}Tick`]: ts
-  });
+  };
+  if (type === 'placement'){
+    const seatedPlayerIds = getSeatedPlayerIdsFromTables(state.tables || {});
+    const playablePlayerIds = seatedPlayerIds.filter((playerId) => {
+      const cards = state.hands?.[playerId]?.cards;
+      return Array.isArray(cards) && cards.length > 0;
+    });
+    phaseStateUpdates.placementStarterId = playablePlayerIds.length
+      ? playablePlayerIds[randomInt(playablePlayerIds.length)]
+      : null;
+  }
+  await update(ref(db, `rooms/${state.roomCode}/phaseState`), phaseStateUpdates);
 }
 
 function enterLobbyUI(){
