@@ -6296,7 +6296,8 @@ function renderRoomTexts(mission){
         x: markerCenter.x + endOffset.x,
         y: markerCenter.y + endOffset.y
       };
-      const triBaseSpreadDeg = 10;
+      const triScale = 0.67;
+      const triBaseSpreadDeg = 10 * triScale;
       const triBaseL = {
         x: markerCenter.x + polar(pizzaR, midDeg - triBaseSpreadDeg).x,
         y: markerCenter.y + polar(pizzaR, midDeg - triBaseSpreadDeg).y
@@ -6312,7 +6313,7 @@ function renderRoomTexts(mission){
       const triBaseSide = Math.hypot(triBaseR.x - triBaseL.x, triBaseR.y - triBaseL.y);
       const triTipAngleDeg = 65;
       const triHeightRaw = (triBaseSide / 2) / Math.tan((triTipAngleDeg / 2) * Math.PI / 180);
-      const triHeight = Math.min(triHeightRaw, Math.max(3, rBg * 0.38));
+      const triHeight = Math.min(triHeightRaw, Math.max(3, rBg * 0.38)) * triScale;
       const outwardVec = {
         x: triBaseMid.x - markerCenter.x,
         y: triBaseMid.y - markerCenter.y
