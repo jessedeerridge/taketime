@@ -5532,6 +5532,56 @@ function renderRoomCards(mission = currentStage){
     g.appendChild(bgG);
   }
 
+  function appendStage81Room6Marks(room = 6){
+    if (room !== 6) return;
+    const midDeg = (room-1)*60 + 30;
+    const outwardShift = 16;
+    const tr = [
+      'translate(150,150)',
+      `rotate(${midDeg})`,
+      `translate(${(roomTan[room]||0)}, 0)`,
+      `translate(0, ${-(rBase + (roomRad[room]||0) + outwardShift)})`,
+      `rotate(${inwardBase + (roomAdjust[room]||0)})`,
+      `translate(${localX}, ${localY})`
+    ].join(' ');
+
+    const roomG = document.createElementNS('http://www.w3.org/2000/svg','g');
+    roomG.setAttribute('transform', tr);
+
+    const pieR = 23;
+    const pieRemainDeg = 110;
+    const pieHalf = pieRemainDeg / 2;
+    const pieStart = 180 - pieHalf;
+    const pieEnd = 180 + pieHalf;
+    const pieLargeArc = pieRemainDeg > 180 ? 1 : 0;
+    const pieP0 = polar(pieR, pieStart);
+    const pieP1 = polar(pieR, pieEnd);
+    const piePath = document.createElementNS('http://www.w3.org/2000/svg','path');
+    piePath.setAttribute(
+      'd',
+      `M 0,0 L ${pieP0.x.toFixed(3)},${pieP0.y.toFixed(3)} A ${pieR},${pieR} 0 ${pieLargeArc} 1 ${pieP1.x.toFixed(3)},${pieP1.y.toFixed(3)} Z`
+    );
+    piePath.setAttribute('fill', '#a0522d');
+    piePath.setAttribute('stroke', '#111111');
+    piePath.setAttribute('stroke-width', '0.9');
+    piePath.setAttribute('stroke-linejoin', 'round');
+    roomG.appendChild(piePath);
+
+    const triG = document.createElementNS('http://www.w3.org/2000/svg','g');
+    triG.setAttribute('transform', 'translate(0,0)');
+    const triPath = document.createElementNS('http://www.w3.org/2000/svg','path');
+    triPath.setAttribute('d', 'M 0,9.6 L 9.8,-7.4 L -9.8,-7.4 Z');
+    triPath.setAttribute('fill', '#f7d4b2');
+    triPath.setAttribute('stroke', '#111111');
+    triPath.setAttribute('stroke-width', '1.8');
+    triPath.setAttribute('stroke-linejoin', 'round');
+    triPath.setAttribute('stroke-linecap', 'round');
+    triG.appendChild(triPath);
+    roomG.appendChild(triG);
+
+    g.appendChild(roomG);
+  }
+
   const specifiedRooms = new Set(getSpecifiedRoomsForMission(mission));
 
   if (mission==='1-1'){
@@ -5811,6 +5861,15 @@ function renderRoomCards(mission = currentStage){
     appendBdeck(2, { count: 3 });
     appendBdeck(4, { count: 3 });
     appendBdeck(6, { count: 3 });
+  }
+  if (mission === '8-1') {
+    appendRoomBackground(6, {
+      fill: 'rgba(160, 82, 45, 0.5)',
+      width: (cardW * 2 + 16) * 1.5,
+      height: (cardH + 16) * 1.5,
+      radius: (cardR + 4) * 1.5
+    });
+    appendStage81Room6Marks(6);
   }
   if (mission === '4-1') {
     appendCenterBrownPair({ halfGapDelta: -2, leftBackCount: 2, centerRightArrow: true, leftSign: '+', rightSign: '-' });
