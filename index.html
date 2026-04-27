@@ -5751,21 +5751,21 @@ function renderRoomCards(mission = currentStage){
   function appendBrowncardsRequirement(room, count){
     if (!specifiedRooms.has(room) || count <= 0) return;
     const fanN = Math.max(1, Math.round(count));
-    const spread = fanN === 1 ? 0 : 10;
-    const stepT = 8;
-    const stepR = -0.8;
+    const spread = fanN === 1 ? 0 : 8;
+    const stepT = 6;
+    const stepR = 0;
     const indices = [...Array(fanN).keys()].map(i => i - (fanN - 1) / 2);
     const drawOrder = [...indices].reverse();
     const paint = { fill: '#a0522d', stroke: '#111111' };
     drawOrder.forEach((idx) => {
-      appendLabeledCardAt(room, '', {
-        extraTan: idx * stepT,
-        extraRad: idx * stepR,
-        extraRot: idx * spread,
-        sizeScale: 0.75,
+      appendCardAt(
+        room,
+        idx * stepT,
+        idx * stepR,
+        idx * spread,
         paint,
-        flipDirection: true
-      });
+        true
+      );
     });
   }
 
