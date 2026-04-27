@@ -6296,36 +6296,27 @@ function renderRoomTexts(mission){
         x: markerCenter.x + endOffset.x,
         y: markerCenter.y + endOffset.y
       };
-      const protrusionSizeScale = 0.33;
-      const triBaseSpreadDeg = 20 * protrusionSizeScale;
-      const triBaseL = {
-        x: markerCenter.x + polar(pizzaR, midDeg - triBaseSpreadDeg).x,
-        y: markerCenter.y + polar(pizzaR, midDeg - triBaseSpreadDeg).y
+      const protrusionSpreadDeg = 8;
+      const protrusionLen = Math.max(1.8, rBg * 0.22);
+      const protrusionLeft = {
+        x: markerCenter.x + polar(pizzaR, midDeg - protrusionSpreadDeg).x,
+        y: markerCenter.y + polar(pizzaR, midDeg - protrusionSpreadDeg).y
       };
-      const triBaseR = {
-        x: markerCenter.x + polar(pizzaR, midDeg + triBaseSpreadDeg).x,
-        y: markerCenter.y + polar(pizzaR, midDeg + triBaseSpreadDeg).y
+      const protrusionRight = {
+        x: markerCenter.x + polar(pizzaR, midDeg + protrusionSpreadDeg).x,
+        y: markerCenter.y + polar(pizzaR, midDeg + protrusionSpreadDeg).y
       };
-      const triBaseMid = {
-        x: (triBaseL.x + triBaseR.x) / 2,
-        y: (triBaseL.y + triBaseR.y) / 2
-      };
-      const triTipLen = Math.max(2.4, pizzaR * 0.22 * protrusionSizeScale);
-      const outwardVec = {
-        x: triBaseMid.x - markerCenter.x,
-        y: triBaseMid.y - markerCenter.y
-      };
-      const outwardLen = Math.hypot(outwardVec.x, outwardVec.y) || 1;
-      const triTip = {
-        x: triBaseMid.x + (outwardVec.x / outwardLen) * triTipLen,
-        y: triBaseMid.y + (outwardVec.y / outwardLen) * triTipLen
+      const protrusionTip = {
+        x: markerCenter.x + polar(pizzaR + protrusionLen, midDeg).x,
+        y: markerCenter.y + polar(pizzaR + protrusionLen, midDeg).y
       };
 
       const unifiedPathD = [
         `M ${markerCenter.x.toFixed(2)} ${markerCenter.y.toFixed(2)}`,
         `L ${start.x.toFixed(2)} ${start.y.toFixed(2)}`,
-        `A ${pizzaR.toFixed(2)} ${pizzaR.toFixed(2)} 0 0 1 ${triBaseL.x.toFixed(2)} ${triBaseL.y.toFixed(2)}`,
-        `Q ${triTip.x.toFixed(2)} ${triTip.y.toFixed(2)} ${triBaseR.x.toFixed(2)} ${triBaseR.y.toFixed(2)}`,
+        `A ${pizzaR.toFixed(2)} ${pizzaR.toFixed(2)} 0 0 1 ${protrusionLeft.x.toFixed(2)} ${protrusionLeft.y.toFixed(2)}`,
+        `L ${protrusionTip.x.toFixed(2)} ${protrusionTip.y.toFixed(2)}`,
+        `L ${protrusionRight.x.toFixed(2)} ${protrusionRight.y.toFixed(2)}`,
         `A ${pizzaR.toFixed(2)} ${pizzaR.toFixed(2)} 0 0 1 ${end.x.toFixed(2)} ${end.y.toFixed(2)}`,
         `L ${markerCenter.x.toFixed(2)} ${markerCenter.y.toFixed(2)}`,
         'Z'
