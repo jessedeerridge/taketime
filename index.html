@@ -6342,6 +6342,45 @@ function renderRoomTexts(mission){
       unifiedShape.setAttribute('stroke-linejoin', 'round');
       unifiedShape.setAttribute('stroke-linecap', 'round');
       g.appendChild(unifiedShape);
+
+      const arrowColor = '#7dd3fc';
+      const arrowStartX = markerCenter.x - pizzaR * 0.36;
+      const arrowStartY = markerCenter.y + pizzaR * 0.06;
+      const arrowEndX = markerCenter.x + pizzaR * 0.28;
+      const arrowEndY = markerCenter.y - pizzaR * 0.04;
+      const arrowCtrlX = markerCenter.x - pizzaR * 0.02;
+      const arrowCtrlY = markerCenter.y - pizzaR * 0.20;
+
+      const arrowBody = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      arrowBody.setAttribute('d', `M ${arrowStartX.toFixed(2)} ${arrowStartY.toFixed(2)} Q ${arrowCtrlX.toFixed(2)} ${arrowCtrlY.toFixed(2)} ${arrowEndX.toFixed(2)} ${arrowEndY.toFixed(2)}`);
+      arrowBody.setAttribute('fill', 'none');
+      arrowBody.setAttribute('stroke', arrowColor);
+      arrowBody.setAttribute('stroke-width', '2.2');
+      arrowBody.setAttribute('stroke-linecap', 'round');
+      g.appendChild(arrowBody);
+
+      const headLen = Math.max(3, pizzaR * 0.16);
+      const headDeg = 28;
+      const headLeft = {
+        x: arrowEndX - headLen * Math.cos((headDeg * Math.PI) / 180),
+        y: arrowEndY - headLen * Math.sin((headDeg * Math.PI) / 180)
+      };
+      const headRight = {
+        x: arrowEndX - headLen * Math.cos((-headDeg * Math.PI) / 180),
+        y: arrowEndY - headLen * Math.sin((-headDeg * Math.PI) / 180)
+      };
+      const arrowHead = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      arrowHead.setAttribute('d', [
+        `M ${headLeft.x.toFixed(2)} ${headLeft.y.toFixed(2)}`,
+        `L ${arrowEndX.toFixed(2)} ${arrowEndY.toFixed(2)}`,
+        `L ${headRight.x.toFixed(2)} ${headRight.y.toFixed(2)}`
+      ].join(' '));
+      arrowHead.setAttribute('fill', 'none');
+      arrowHead.setAttribute('stroke', arrowColor);
+      arrowHead.setAttribute('stroke-width', '2.2');
+      arrowHead.setAttribute('stroke-linecap', 'round');
+      arrowHead.setAttribute('stroke-linejoin', 'round');
+      g.appendChild(arrowHead);
     } else {
       const bgCircle = document.createElementNS('http://www.w3.org/2000/svg','circle');
       bgCircle.setAttribute('cx', p.x.toFixed(2));
