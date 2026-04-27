@@ -6365,15 +6365,15 @@ function renderRoomTexts(mission){
       g.appendChild(arrowBody);
 
       const headLen = Math.max(3, pizzaR * 0.16);
-      const tangentDeg = arrowEndDeg + 90;
+      const tangentRad = Math.atan2(arrowEnd.y - arrowStart.y, arrowEnd.x - arrowStart.x);
       const headDeg = 24;
       const headLeft = {
-        x: arrowEnd.x + polar(headLen, tangentDeg + 180 - headDeg).x,
-        y: arrowEnd.y + polar(headLen, tangentDeg + 180 - headDeg).y
+        x: arrowEnd.x - headLen * Math.cos(tangentRad - (headDeg * Math.PI / 180)),
+        y: arrowEnd.y - headLen * Math.sin(tangentRad - (headDeg * Math.PI / 180))
       };
       const headRight = {
-        x: arrowEnd.x + polar(headLen, tangentDeg + 180 + headDeg).x,
-        y: arrowEnd.y + polar(headLen, tangentDeg + 180 + headDeg).y
+        x: arrowEnd.x - headLen * Math.cos(tangentRad + (headDeg * Math.PI / 180)),
+        y: arrowEnd.y - headLen * Math.sin(tangentRad + (headDeg * Math.PI / 180))
       };
       const arrowHead = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       arrowHead.setAttribute('d', [
