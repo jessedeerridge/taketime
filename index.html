@@ -6280,43 +6280,42 @@ function renderRoomTexts(mission){
     };
 
     if (markerType === 'pizza250'){
-      const pizzaR = rBg * 1.6;
-      const sectorDeg = 110;
+      const pizzaR = rBg * 1.55;
+      const sectorDeg = 104;
       const halfDeg = sectorDeg / 2;
       const tipDeg = midDeg;
       const startDeg = tipDeg - halfDeg;
       const endDeg = tipDeg + halfDeg;
-      const startOffset = polar(pizzaR, startDeg);
-      const endOffset = polar(pizzaR, endDeg);
+      const protrusionBaseHalfDeg = 4.5;
+      const protrusionLen = Math.max(0.9, rBg * 0.08);
+
       const start = {
-        x: markerCenter.x + startOffset.x,
-        y: markerCenter.y + startOffset.y
+        x: markerCenter.x + polar(pizzaR, startDeg).x,
+        y: markerCenter.y + polar(pizzaR, startDeg).y
       };
       const end = {
-        x: markerCenter.x + endOffset.x,
-        y: markerCenter.y + endOffset.y
+        x: markerCenter.x + polar(pizzaR, endDeg).x,
+        y: markerCenter.y + polar(pizzaR, endDeg).y
       };
-      const protrusionSpreadDeg = 8;
-      const protrusionLen = Math.max(1.8, rBg * 0.22);
-      const protrusionLeft = {
-        x: markerCenter.x + polar(pizzaR, midDeg - protrusionSpreadDeg).x,
-        y: markerCenter.y + polar(pizzaR, midDeg - protrusionSpreadDeg).y
+      const protrusionBaseLeft = {
+        x: markerCenter.x + polar(pizzaR, tipDeg - protrusionBaseHalfDeg).x,
+        y: markerCenter.y + polar(pizzaR, tipDeg - protrusionBaseHalfDeg).y
       };
-      const protrusionRight = {
-        x: markerCenter.x + polar(pizzaR, midDeg + protrusionSpreadDeg).x,
-        y: markerCenter.y + polar(pizzaR, midDeg + protrusionSpreadDeg).y
+      const protrusionBaseRight = {
+        x: markerCenter.x + polar(pizzaR, tipDeg + protrusionBaseHalfDeg).x,
+        y: markerCenter.y + polar(pizzaR, tipDeg + protrusionBaseHalfDeg).y
       };
       const protrusionTip = {
-        x: markerCenter.x + polar(pizzaR + protrusionLen, midDeg).x,
-        y: markerCenter.y + polar(pizzaR + protrusionLen, midDeg).y
+        x: markerCenter.x + polar(pizzaR + protrusionLen, tipDeg).x,
+        y: markerCenter.y + polar(pizzaR + protrusionLen, tipDeg).y
       };
 
       const unifiedPathD = [
         `M ${markerCenter.x.toFixed(2)} ${markerCenter.y.toFixed(2)}`,
         `L ${start.x.toFixed(2)} ${start.y.toFixed(2)}`,
-        `A ${pizzaR.toFixed(2)} ${pizzaR.toFixed(2)} 0 0 1 ${protrusionLeft.x.toFixed(2)} ${protrusionLeft.y.toFixed(2)}`,
+        `A ${pizzaR.toFixed(2)} ${pizzaR.toFixed(2)} 0 0 1 ${protrusionBaseLeft.x.toFixed(2)} ${protrusionBaseLeft.y.toFixed(2)}`,
         `L ${protrusionTip.x.toFixed(2)} ${protrusionTip.y.toFixed(2)}`,
-        `L ${protrusionRight.x.toFixed(2)} ${protrusionRight.y.toFixed(2)}`,
+        `L ${protrusionBaseRight.x.toFixed(2)} ${protrusionBaseRight.y.toFixed(2)}`,
         `A ${pizzaR.toFixed(2)} ${pizzaR.toFixed(2)} 0 0 1 ${end.x.toFixed(2)} ${end.y.toFixed(2)}`,
         `L ${markerCenter.x.toFixed(2)} ${markerCenter.y.toFixed(2)}`,
         'Z'
