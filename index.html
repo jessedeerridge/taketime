@@ -1240,6 +1240,7 @@ let lastBoardRotationTs = 0;
 let lastBoardRotationPublishAt = 0;
 const ROTATION_SYNC_INTERVAL_MS = 16;
 const RIGHTARROW_ROOM_NAME = 'rightarrow';
+const LEFTARROW_ROOM_NAME = 'leftarrow';
 const RIGHTARROW_ROTATE_DELAY_MS = 1500;
 const RIGHTARROW_ROTATE_DURATION_MS = 620;
 let rightarrowRotateTimer = null;
@@ -2573,17 +2574,18 @@ async function placeDroppedCard(cardData, room, face = 'face'){
         boardRotationAtPlacement: boardRotationDeg
       };
       const specialRoomName = getSpecialRoomName(stageCode, room);
-      if (specialRoomName === RIGHTARROW_ROOM_NAME){
+      if (specialRoomName === RIGHTARROW_ROOM_NAME || specialRoomName === LEFTARROW_ROOM_NAME){
         const rotationFromDeg = normalizeDeg(boardRotationDeg);
+        const rotationDelta = (specialRoomName === LEFTARROW_ROOM_NAME) ? -60 : 60;
         roomData.rightarrowRotationEvent = {
-          id: `${key}_rightarrow`,
+          id: `${key}_${specialRoomName}`,
           stage: stageCode,
           room,
-          roomName: RIGHTARROW_ROOM_NAME,
+          roomName: specialRoomName,
           ts: placedAt,
           actorId: state.userId,
           fromDeg: rotationFromDeg,
-          toDeg: normalizeDeg(rotationFromDeg + 60)
+          toDeg: normalizeDeg(rotationFromDeg + rotationDelta)
         };
       }
       roomData.playedCards = {
@@ -4194,7 +4196,15 @@ const STAGE_SPEC = {
   '8-1': { specifiedRooms: [6] },
 };
 const STAGE_SPECIAL_ROOM_NAMES = {
-  '8-1': { 6: RIGHTARROW_ROOM_NAME }
+  '8-1': { 6: RIGHTARROW_ROOM_NAME },
+  '8-2': { 2: RIGHTARROW_ROOM_NAME, 5: RIGHTARROW_ROOM_NAME },
+  '8-3': { 2: RIGHTARROW_ROOM_NAME, 3: RIGHTARROW_ROOM_NAME, 4: RIGHTARROW_ROOM_NAME },
+  '8-4': {
+    1: RIGHTARROW_ROOM_NAME,
+    2: RIGHTARROW_ROOM_NAME,
+    5: LEFTARROW_ROOM_NAME,
+    6: LEFTARROW_ROOM_NAME
+  }
 };
 function getSpecifiedRoomsForMission(mission){
   const rec = STAGE_SPEC[mission];
@@ -4275,7 +4285,7 @@ const STAGE_DUAL_COLOR_EXTREME_PLUS = {
 };
 const STAGE_DOUBLECLOCK = {
   '3-3': { room: 2, left: '2', right: '1', gap: 12 },
-  '6-3': { room: 5, left: '2', right: '3', gap: 12 }
+  '6-3': { room: 5, left: '3', right: '2', gap: 12 }
 };
 function getTwoBlackWhiteRoomsForMission(mission){
   return STAGE_TWO_BLACK_WHITE[mission] || [];
@@ -6325,6 +6335,17 @@ function renderRoomTexts(mission){
       underline
     };
   }
+  function makeSpecialArrowSpec(room, markerType){
+    return {
+      room,
+      label: '',
+      rotate: (midDeg)=>midDeg,
+      color: '#111',
+      bgColor: '#8b5a2b',
+      bgOpacity: 1,
+      markerType
+    };
+  }
 
   const textSpecs = [];
   if (mission === '1-2') {
@@ -6354,15 +6375,16 @@ function renderRoomTexts(mission){
   if (mission === '6-4') {
     textSpecs.push(makeClosecardTextSpec(2, '24', (midDeg)=>midDeg + 180));
   }
-  if (mission === '8-1') {
-    textSpecs.push({
-      room: 6,
-      label: '',
-      rotate: (midDeg)=>midDeg,
-      color: '#111',
-      bgColor: '#8b5a2b',
-      bgOpacity: 1,
-      markerType: 'pizza250'
+  const specialRoomMap = STAGE_SPECIAL_ROOM_NAMES[mission];
+  if (specialRoomMap){
+    Object.entries(specialRoomMap).forEach(([roomKey, roomName]) => {
+      const room = Number(roomKey);
+      if (!(room >= 1 && room <= 6)) return;
+      if (roomName === RIGHTARROW_ROOM_NAME){
+        textSpecs.push(makeSpecialArrowSpec(room, 'pizza250'));
+      } else if (roomName === LEFTARROW_ROOM_NAME){
+        textSpecs.push(makeSpecialArrowSpec(room, 'pizza250left'));
+      }
     });
   }
   if (textSpecs.length === 0) return;
@@ -6377,7 +6399,8 @@ function renderRoomTexts(mission){
       y: p.y + pizzaInsetOffset.y
     };
 
-    if (markerType === 'pizza250'){
+    if (markerType === 'pizza250' || markerType === 'pizza250left'){
+      const isLeftArrow = markerType === 'pizza250left';
       const pizzaNormalScale = 1.3;
       const pizzaR = rBg * 1.6 * pizzaNormalScale;
       const sectorDeg = 110;
@@ -6443,8 +6466,8 @@ function renderRoomTexts(mission){
 
       const arrowColor = '#7dd3fc';
       const arrowR = pizzaR * 0.55 + 4;
-      const arrowStartDeg = midDeg - 36;
-      const arrowEndDeg = midDeg + 36;
+      const arrowStartDeg = isLeftArrow ? (midDeg + 36) : (midDeg - 36);
+      const arrowEndDeg = isLeftArrow ? (midDeg - 36) : (midDeg + 36);
       const arrowStart = {
         x: markerCenter.x + polar(arrowR, arrowStartDeg).x,
         y: markerCenter.y + polar(arrowR, arrowStartDeg).y
@@ -6454,12 +6477,13 @@ function renderRoomTexts(mission){
         y: markerCenter.y + polar(arrowR, arrowEndDeg).y
       };
       const arrowEndPrev = {
-        x: markerCenter.x + polar(arrowR, arrowEndDeg - 1.2).x,
-        y: markerCenter.y + polar(arrowR, arrowEndDeg - 1.2).y
+        x: markerCenter.x + polar(arrowR, arrowEndDeg + (isLeftArrow ? 1.2 : -1.2)).x,
+        y: markerCenter.y + polar(arrowR, arrowEndDeg + (isLeftArrow ? 1.2 : -1.2)).y
       };
+      const arcSweep = isLeftArrow ? 0 : 1;
 
       const arrowBody = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      arrowBody.setAttribute('d', `M ${arrowStart.x.toFixed(2)} ${arrowStart.y.toFixed(2)} A ${arrowR.toFixed(2)} ${arrowR.toFixed(2)} 0 0 1 ${arrowEnd.x.toFixed(2)} ${arrowEnd.y.toFixed(2)}`);
+      arrowBody.setAttribute('d', `M ${arrowStart.x.toFixed(2)} ${arrowStart.y.toFixed(2)} A ${arrowR.toFixed(2)} ${arrowR.toFixed(2)} 0 0 ${arcSweep} ${arrowEnd.x.toFixed(2)} ${arrowEnd.y.toFixed(2)}`);
       arrowBody.setAttribute('fill', 'none');
       arrowBody.setAttribute('stroke', arrowColor);
       arrowBody.setAttribute('stroke-width', '2.2');
@@ -6529,6 +6553,7 @@ function renderRoomTexts(mission){
 
 function getStageRoomHintText(stage, room){
   const placementRule = getRoomPlacementRule(stage, room);
+  const specialRoomName = getSpecialRoomName(stage, room);
   const sumCondition = (STAGE_ROOM_SUCCESS_CONDITIONS[stage] || []).find((cond) => Number(cond.room) === Number(room));
   const clockLabels = getClockLabelsForMission(stage);
   const clockLabel = clockLabels?.[room];
@@ -6541,8 +6566,18 @@ function getStageRoomHintText(stage, room){
   if (clockLabel){
     return `${clockLabel}枚目のカードは必ずここに置かなければならない。それ以降に他のカードを置いてもよい。`;
   }
+  if (specialRoomName === RIGHTARROW_ROOM_NAME){
+    return 'ここにカードを置くと、時計が1つ分回転する。プレイされたカードは動かない。';
+  }
+  if (specialRoomName === LEFTARROW_ROOM_NAME){
+    return 'ここにカードを置くと、時計が1つ分逆回転する。プレイされたカードは動かない。';
+  }
+  if (isBDeckRoomForMission(stage, room)){
+    return 'ここにカードを置くと、余剰山札から1枚ドローする。';
+  }
   if (isClockRoom){
-    if (stage === '3-2' && room === 1){
+    const blackClockRooms = STAGE_BLACKCLOCK_ROOMS[stage] || [];
+    if (blackClockRooms.includes(Number(room))){
       return '最後の一枚のカードはこのエリアに置かなければならない。';
     }
     const doubleclock = getDoubleclockSpec(stage);
