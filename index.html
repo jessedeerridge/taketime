@@ -5764,7 +5764,7 @@ function renderRoomCards(mission = currentStage){
     topRotateDeltaDeg = -22,
     topCenterNudgeY = -12,
   } = {}){
-    if (!specifiedRooms.has(room) || count <= 0) return;
+    if (count <= 0) return;
     const midDeg = (room-1)*60 + 30;
     const tr = [
       'translate(150,150)',
@@ -5924,6 +5924,10 @@ function renderRoomCards(mission = currentStage){
     appendBdeck(2, { count: 3 });
     appendBdeck(4, { count: 3 });
     appendBdeck(6, { count: 3 });
+  }
+  if (mission === '8-3') {
+    appendBdeck(1, { count: 1 });
+    appendBdeck(5, { count: 2 });
   }
   if (mission === '4-1') {
     appendCenterBrownPair({ halfGapDelta: -2, leftBackCount: 2, centerRightArrow: true, leftSign: '+', rightSign: '-' });
