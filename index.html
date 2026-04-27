@@ -5748,6 +5748,27 @@ function renderRoomCards(mission = currentStage){
     g.appendChild(markerG);
   }
 
+  function appendBrowncardsRequirement(room, count){
+    if (!specifiedRooms.has(room) || count <= 0) return;
+    const fanN = Math.max(1, Math.round(count));
+    const spread = fanN === 1 ? 0 : 10;
+    const stepT = 8;
+    const stepR = -0.8;
+    const indices = [...Array(fanN).keys()].map(i => i - (fanN - 1) / 2);
+    const drawOrder = [...indices].reverse();
+    const paint = { fill: '#a0522d', stroke: '#111111' };
+    drawOrder.forEach((idx) => {
+      appendLabeledCardAt(room, '', {
+        extraTan: idx * stepT,
+        extraRad: idx * stepR,
+        extraRot: idx * spread,
+        sizeScale: 0.75,
+        paint,
+        flipDirection: true
+      });
+    });
+  }
+
   function appendBdeck(room, {
     count = 3,
     width = 14.4,
@@ -5926,8 +5947,8 @@ function renderRoomCards(mission = currentStage){
     appendBdeck(6, { count: 3 });
   }
   if (mission === '8-3') {
-    appendBdeck(1, { count: 1 });
-    appendBdeck(5, { count: 2 });
+    appendBrowncardsRequirement(1, 1);
+    appendBrowncardsRequirement(5, 2);
   }
   if (mission === '4-1') {
     appendCenterBrownPair({ halfGapDelta: -2, leftBackCount: 2, centerRightArrow: true, leftSign: '+', rightSign: '-' });
