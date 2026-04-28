@@ -2427,10 +2427,6 @@ function getRoomPlacementRule(stage, room){
     if (room === 1) return { maxTotal: 2, disallowedNums: ['1', '2', '3'] };
     if (room === 2) return { maxTotal: 2, allowedColors: ['white', 'black'], perColorMax: { white: 1, black: 1 } };
   }
-  if (stage === '6-4'){
-    if (room === 1) return { maxTotal: 2, allowedColors: ['white'], perColorMax: { white: 2 } };
-    if (room === 4) return { maxTotal: 2, allowedColors: ['black'], perColorMax: { black: 2 } };
-  }
   if (stage === '7-1'){
     if ([3, 4].includes(room)) return { disallowedNums: ['7', '8', '9'] };
   }
