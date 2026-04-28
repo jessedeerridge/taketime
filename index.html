@@ -1224,6 +1224,7 @@ let lastSeenPhaseTicks = { discussion: 0, placement: 0, reveal: 0 };
 let revealFlipProcessingKey = '';
 let revealFlipRetryTimer = null;
 let revealResultAnnouncedKey = '';
+let revealPhaseRetryTimer = null;
 let roomTotalsRefreshTimer = null;
 let revealResultDelayTimer = null;
 let lastAutoSortedHandSignature = '';
@@ -1287,6 +1288,14 @@ function scheduleRevealFlipRetry(delayMs = 20){
   revealFlipRetryTimer = setTimeout(() => {
     revealFlipRetryTimer = null;
     maybeRunRevealFlipSequence();
+  }, Math.max(20, Number(delayMs) || 20));
+}
+
+function scheduleRevealPhaseRetry(delayMs = 20){
+  if (revealPhaseRetryTimer) clearTimeout(revealPhaseRetryTimer);
+  revealPhaseRetryTimer = setTimeout(() => {
+    revealPhaseRetryTimer = null;
+    maybeAnnounceRevealPhase();
   }, Math.max(20, Number(delayMs) || 20));
 }
 
@@ -1876,6 +1885,10 @@ function subscribeStage(){
       clearTimeout(revealResultDelayTimer);
       revealResultDelayTimer = null;
     }
+    if (revealPhaseRetryTimer){
+      clearTimeout(revealPhaseRetryTimer);
+      revealPhaseRetryTimer = null;
+    }
 
     renderStageOptions();
     window.dispatchEvent(new CustomEvent('mission:change', { detail:{ value: currentStage }}));
@@ -2087,6 +2100,24 @@ function maybeAnnounceRevealPhase(){
   if (!totalExpectedCards) return;
 
   if (placedCount >= totalExpectedCards){
+    const latestPlaced = Object.values(state.playedCards || {})
+      .filter((card) => card?.playerId && seatedPlayerIds.includes(card.playerId))
+      .sort((a, b) => Number(a.placedAt || 0) - Number(b.placedAt || 0))
+      .at(-1);
+    if (latestPlaced){
+      const latestSpecialRoom = getSpecialRoomName(currentStage, Number(latestPlaced.room || 0));
+      if (latestSpecialRoom === RIGHTARROW_ROOM_NAME || latestSpecialRoom === LEFTARROW_ROOM_NAME){
+        const latestPlacedAt = Number(latestPlaced.placedAt || 0);
+        if (latestPlacedAt > 0){
+          const rotateDoneAt = latestPlacedAt + RIGHTARROW_ROTATE_DELAY_MS + RIGHTARROW_ROTATE_DURATION_MS;
+          const waitMs = rotateDoneAt - Date.now();
+          if (waitMs > 0){
+            scheduleRevealPhaseRetry(waitMs);
+            return;
+          }
+        }
+      }
+    }
     const key = `${state.roomCode}:${currentStage}`;
     if (revealPhaseAnnouncedForStage === key) return;
     revealPhaseAnnouncedForStage = key;
