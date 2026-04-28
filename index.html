@@ -1244,9 +1244,12 @@ const RIGHTARROW_ROOM_NAME = 'rightarrow';
 const LEFTARROW_ROOM_NAME = 'leftarrow';
 const RIGHTARROW_ROTATE_DELAY_MS = 1500;
 const RIGHTARROW_ROTATE_DURATION_MS = 620;
+const REVEAL_AFTER_ROTATION_BUFFER_MS = 100;
 let rightarrowRotateTimer = null;
 let rightarrowRotateRaf = null;
 let lastRightarrowRotateEventId = '';
+let revealAnnounceRetryTimer = null;
+let revealAnnounceRetryKey = '';
 let isCenterNeedleHidden = false;
 let centerNeedleRotationDeg = 0;
 let centerNeedleRotationVisualDeg = 0;
@@ -1876,6 +1879,11 @@ function subscribeStage(){
       clearTimeout(revealResultDelayTimer);
       revealResultDelayTimer = null;
     }
+    if (revealAnnounceRetryTimer){
+      clearTimeout(revealAnnounceRetryTimer);
+      revealAnnounceRetryTimer = null;
+    }
+    revealAnnounceRetryKey = '';
 
     renderStageOptions();
     window.dispatchEvent(new CustomEvent('mission:change', { detail:{ value: currentStage }}));
@@ -2087,6 +2095,46 @@ function maybeAnnounceRevealPhase(){
   if (!totalExpectedCards) return;
 
   if (placedCount >= totalExpectedCards){
+    const latestPlacedAt = Object.values(state.playedCards || {})
+      .filter((card) => card?.playerId && seatedPlayerIds.includes(card.playerId))
+      .reduce((maxTs, card) => Math.max(maxTs, Number(card?.placedAt || 0)), 0);
+    const rotationEvent = (state.rightarrowRotationEvent && typeof state.rightarrowRotationEvent === 'object')
+      ? state.rightarrowRotationEvent
+      : null;
+    const shouldWaitForRotation =
+      !!rotationEvent
+      && String(rotationEvent.stage || '') === currentStage
+      && Number(rotationEvent.ts || 0) > 0
+      && Number(rotationEvent.ts || 0) === latestPlacedAt;
+    if (shouldWaitForRotation){
+      const rotationDoneAt =
+        Number(rotationEvent.ts || 0)
+        + RIGHTARROW_ROTATE_DELAY_MS
+        + RIGHTARROW_ROTATE_DURATION_MS
+        + REVEAL_AFTER_ROTATION_BUFFER_MS;
+      const waitMs = Math.max(0, rotationDoneAt - Date.now());
+      if (waitMs > 0){
+        const retryKey = `${state.roomCode}:${currentStage}:${Number(rotationEvent.ts || 0)}`;
+        if (revealAnnounceRetryKey !== retryKey){
+          if (revealAnnounceRetryTimer){
+            clearTimeout(revealAnnounceRetryTimer);
+            revealAnnounceRetryTimer = null;
+          }
+          revealAnnounceRetryKey = retryKey;
+          revealAnnounceRetryTimer = window.setTimeout(() => {
+            revealAnnounceRetryTimer = null;
+            revealAnnounceRetryKey = '';
+            maybeAnnounceRevealPhase();
+          }, waitMs);
+        }
+        return;
+      }
+    } else if (revealAnnounceRetryTimer){
+      clearTimeout(revealAnnounceRetryTimer);
+      revealAnnounceRetryTimer = null;
+      revealAnnounceRetryKey = '';
+    }
+
     const key = `${state.roomCode}:${currentStage}`;
     if (revealPhaseAnnouncedForStage === key) return;
     revealPhaseAnnouncedForStage = key;
