@@ -5785,6 +5785,14 @@ function renderRoomCards(mission = currentStage){
     markerCircle.setAttribute('cx', '0');
     markerCircle.setAttribute('cy', '0');
     const markerRadius = Math.max(4.5, (Math.max(5.5, cardW * 0.31)) - 1);
+    const markerOuter = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    markerOuter.setAttribute('cx', '0');
+    markerOuter.setAttribute('cy', '0');
+    markerOuter.setAttribute('r', String(markerRadius + 1));
+    markerOuter.setAttribute('fill', 'none');
+    markerOuter.setAttribute('stroke', '#ffffff');
+    markerOuter.setAttribute('stroke-width', '2.2');
+    markerG.appendChild(markerOuter);
     markerCircle.setAttribute('r', String(markerRadius));
     markerCircle.setAttribute('fill', '#111111');
     markerCircle.setAttribute('stroke', stroke);
