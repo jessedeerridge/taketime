@@ -2070,6 +2070,14 @@ function syncPlacedCardIdsFromPlayed(){
 
 function maybeAnnounceRevealPhase(){
   if (!state.isHost || !state.roomCode || !currentStage) return;
+  const pendingRevealAfterRotation = state.room?.pendingRevealAfterRotation;
+  if (
+    pendingRevealAfterRotation
+    && typeof pendingRevealAfterRotation === 'object'
+    && String(pendingRevealAfterRotation.stage || '') === String(currentStage)
+  ){
+    return;
+  }
   const tables = state.tables || {};
   const seatedPlayerIds = Object.values(tables)
     .filter((seat) => seat?.playerId)
@@ -2591,11 +2599,13 @@ async function placeDroppedCard(cardData, room, face = 'face'){
         boardRotationAtPlacement: boardRotationDeg
       };
       const specialRoomName = getSpecialRoomName(stageCode, room);
+      let rotationEventId = '';
       if (specialRoomName === RIGHTARROW_ROOM_NAME || specialRoomName === LEFTARROW_ROOM_NAME){
         const rotationFromDeg = normalizeDeg(boardRotationDeg);
         const rotationDelta = (specialRoomName === LEFTARROW_ROOM_NAME) ? -60 : 60;
+        rotationEventId = `${key}_${specialRoomName}`;
         roomData.rightarrowRotationEvent = {
-          id: `${key}_${specialRoomName}`,
+          id: rotationEventId,
           stage: stageCode,
           room,
           roomName: specialRoomName,
@@ -2615,6 +2625,32 @@ async function placeDroppedCard(cardData, room, face = 'face'){
           cards: myHand
         }
       };
+      if (rotationEventId){
+        const tables = (roomData.tables && typeof roomData.tables === 'object') ? roomData.tables : {};
+        const seatedPlayerIds = Object.values(tables)
+          .filter((seat) => seat?.playerId)
+          .map((seat) => seat.playerId);
+        const remainingCards = seatedPlayerIds.reduce((sum, pid) => {
+          const cards = roomData.hands?.[pid]?.cards;
+          return sum + (Array.isArray(cards) ? cards.length : 0);
+        }, 0);
+        const placedCount = Object.values(roomData.playedCards || {})
+          .filter((card) => card?.playerId && seatedPlayerIds.includes(card.playerId))
+          .length;
+        const totalExpectedCards = remainingCards + placedCount;
+        if (totalExpectedCards > 0 && placedCount >= totalExpectedCards){
+          roomData.pendingRevealAfterRotation = {
+            id: rotationEventId,
+            stage: stageCode,
+            ts: placedAt
+          };
+        }
+      } else if (
+        roomData.pendingRevealAfterRotation
+        && String(roomData.pendingRevealAfterRotation.stage || '') === stageCode
+      ){
+        roomData.pendingRevealAfterRotation = null;
+      }
       return roomData;
     }, { applyLocally: false });
 
@@ -3862,6 +3898,22 @@ function subscribeRightarrowRotationEvent(){
       rightarrowRotateTimer = null;
       if (boardRotationDrag) return;
       await animateBoardRotationTo(targetDeg, { durationMs: RIGHTARROW_ROTATE_DURATION_MS });
+      if (state.isHost && state.roomCode){
+        try {
+          const roomRef = ref(db, `rooms/${state.roomCode}`);
+          await runTransaction(roomRef, (roomData) => {
+            if (!roomData || typeof roomData !== 'object') return roomData;
+            const pending = roomData.pendingRevealAfterRotation;
+            if (!pending || typeof pending !== 'object') return roomData;
+            if (String(pending.id || '') !== eventId) return roomData;
+            roomData.pendingRevealAfterRotation = null;
+            return roomData;
+          }, { applyLocally: false });
+        } catch (err){
+          console.error('回転後公開待機フラグの解除に失敗しました', err);
+        }
+        maybeAnnounceRevealPhase();
+      }
       if (String(data.actorId || '') === state.userId){
         publishBoardRotation(targetDeg, { isFinal: true, force: true });
       }
