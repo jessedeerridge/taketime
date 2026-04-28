@@ -2439,6 +2439,12 @@ function getRoomPlacementRule(stage, room){
       return { maxTotal: 4, allowedColors: ['white', 'black'], perColorMax: { white: 2, black: 2 } };
     }
   }
+  if (stage === '8-1'){
+    if (room === 2) return { maxTotal: 0 };
+  }
+  if (stage === '8-2'){
+    if ([1, 3, 4].includes(room)) return { maxTotal: 0 };
+  }
   if (typeof stage === 'string' && stage.startsWith('5-')){
     return { maxTotal: 2 };
   }
@@ -5762,6 +5768,53 @@ function renderRoomCards(mission = currentStage){
     g.appendChild(markerG);
   }
 
+  function appendNoPlayMarker(room, { stroke = '#111111', strokeWidth = 1.5 } = {}){
+    const roomMidDeg = (room - 1) * 60 + 30;
+    const markerTr = [
+      'translate(150,150)',
+      `rotate(${roomMidDeg})`,
+      `translate(${(roomTan[room] || 0)}, 0)`,
+      `translate(0, ${-(rBase + (roomRad[room] || 0) + cardH * 0.4)})`,
+      `rotate(${inwardBase + (roomAdjust[room] || 0)})`,
+      `translate(${localX}, ${localY})`
+    ].join(' ');
+    const markerG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    markerG.setAttribute('transform', markerTr);
+
+    const markerCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    markerCircle.setAttribute('cx', '0');
+    markerCircle.setAttribute('cy', '0');
+    const markerRadius = Math.max(4.5, (Math.max(5.5, cardW * 0.31)) - 1);
+    markerCircle.setAttribute('r', String(markerRadius));
+    markerCircle.setAttribute('fill', '#111111');
+    markerCircle.setAttribute('stroke', stroke);
+    markerCircle.setAttribute('stroke-width', String(strokeWidth));
+    markerG.appendChild(markerCircle);
+
+    const crossHalf = Math.max(2.4, markerRadius * 0.52 - 1);
+    const cross1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    cross1.setAttribute('x1', String(-crossHalf));
+    cross1.setAttribute('y1', String(-crossHalf));
+    cross1.setAttribute('x2', String(crossHalf));
+    cross1.setAttribute('y2', String(crossHalf));
+    cross1.setAttribute('stroke', '#dc2626');
+    cross1.setAttribute('stroke-width', '1.5');
+    cross1.setAttribute('stroke-linecap', 'round');
+    markerG.appendChild(cross1);
+
+    const cross2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    cross2.setAttribute('x1', String(crossHalf));
+    cross2.setAttribute('y1', String(-crossHalf));
+    cross2.setAttribute('x2', String(-crossHalf));
+    cross2.setAttribute('y2', String(crossHalf));
+    cross2.setAttribute('stroke', '#dc2626');
+    cross2.setAttribute('stroke-width', '1.5');
+    cross2.setAttribute('stroke-linecap', 'round');
+    markerG.appendChild(cross2);
+
+    g.appendChild(markerG);
+  }
+
   function appendBrowncardsRequirement(room, count){
     if (!specifiedRooms.has(room) || count <= 0) return;
     const fanN = Math.max(1, Math.round(count));
@@ -5922,6 +5975,12 @@ function renderRoomCards(mission = currentStage){
     appendWhiteBlackPair(3);
     appendWhiteBlackPair(4);
     appendClockRoom(5, { text: '2' });
+  }
+  if (mission === '8-1') {
+    appendNoPlayMarker(2);
+  }
+  if (mission === '8-2') {
+    [1, 3, 4].forEach((room) => appendNoPlayMarker(room, { stroke: '#d4af37', strokeWidth: 1.6 }));
   }
   if (mission === '6-1') {
     appendPlusMinusCards(6, { sign: '-' });
@@ -6691,6 +6750,9 @@ function getStageRoomHintText(stage, room){
   }
   if (!placementRule){
     return '';
+  }
+  if (Number(placementRule.maxTotal) === 0){
+    return '（この部屋にカードはプレイできない。）';
   }
   if (Array.isArray(placementRule.disallowedNums) && placementRule.disallowedNums.length){
     const nums = placementRule.disallowedNums.join(',');
