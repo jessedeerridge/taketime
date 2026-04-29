@@ -6521,14 +6521,18 @@ function renderRoomTexts(mission){
     });
   }
   if (mission === '9-1') {
+    const whitepizza = {
+      betweenDeg: 180,
+      centerInset: 12,
+      radius: rBg * 2.16
+    };
     const betweenDeg = 180;
     const pBetween = polar(rText, betweenDeg);
-    const pizzaCenterInset = 12;
     const markerCenter = {
-      x: pBetween.x + polar(pizzaCenterInset, betweenDeg + 180).x,
-      y: pBetween.y + polar(pizzaCenterInset, betweenDeg + 180).y
+      x: pBetween.x + polar(whitepizza.centerInset, betweenDeg + 180).x,
+      y: pBetween.y + polar(whitepizza.centerInset, betweenDeg + 180).y
     };
-    const pizzaR = rBg * 2.16;
+    const pizzaR = whitepizza.radius;
     const sectorDeg = 90;
     const halfDeg = sectorDeg / 2;
     const startDeg = betweenDeg - halfDeg;
@@ -6565,10 +6569,19 @@ function renderRoomTexts(mission){
     innerCircle.setAttribute('cy', innerCircleCenter.y.toFixed(2));
     const innerCircleR = (Math.max(2.8, pizzaR * 0.28) * 0.8);
     innerCircle.setAttribute('r', innerCircleR.toFixed(2));
-    innerCircle.setAttribute('fill', '#f8cb8d');
-    innerCircle.setAttribute('stroke', '#d4af37');
-    innerCircle.setAttribute('stroke-width', '1.5');
+    innerCircle.setAttribute('fill', '#ebc39f');
+    innerCircle.setAttribute('stroke', 'none');
     g.appendChild(innerCircle);
+    const whitepizzanumber = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    whitepizzanumber.textContent = '6';
+    whitepizzanumber.setAttribute('x', innerCircleCenter.x.toFixed(2));
+    whitepizzanumber.setAttribute('y', innerCircleCenter.y.toFixed(2));
+    whitepizzanumber.setAttribute('fill', '#8b5a2b');
+    whitepizzanumber.setAttribute('font-size', Math.max(7, (pizzaR * 0.66) - 4).toFixed(2));
+    whitepizzanumber.setAttribute('font-weight', '800');
+    whitepizzanumber.setAttribute('text-anchor', 'middle');
+    whitepizzanumber.setAttribute('dominant-baseline', 'middle');
+    g.appendChild(whitepizzanumber);
 
     const arrowColor = '#d4af37';
     const arrowArcR = innerCircleR + Math.max(2.2, pizzaR * 0.2);
@@ -7017,6 +7030,18 @@ function renderRoomConditionHints(mission = currentStage){
       lineH: 11,
       fontSize: 9.5
     });
+    if (mission === '9-1'){
+      const minGapValue = 6;
+      const exampleHigherValue = minGapValue + 6;
+      const exampleLowerValue = exampleHigherValue - minGapValue;
+      appendHintTable(`両隣の値は少なくとも${minGapValue}離れていなければならない。例${exampleHigherValue}-${exampleLowerValue}`, 0, 115, {
+        maxCharsPerLine: 12,
+        maxLines: 4,
+        boxW: 120,
+        lineH: 11,
+        fontSize: 9.3
+      });
+    }
     if (mission === '2-4'){
       appendHintTable('カードをオモテでおくことができない。', 0, 48, {
         maxCharsPerLine: 10,
