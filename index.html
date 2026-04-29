@@ -6520,7 +6520,46 @@ function renderRoomTexts(mission){
       }
     });
   }
-  if (textSpecs.length === 0) return;
+  if (mission === '9-1') {
+    const betweenDeg = 180;
+    const pBetween = polar(rText, betweenDeg);
+    const pizzaCenterInset = 12;
+    const markerCenter = {
+      x: pBetween.x + polar(pizzaCenterInset, betweenDeg + 180).x,
+      y: pBetween.y + polar(pizzaCenterInset, betweenDeg + 180).y
+    };
+    const pizzaR = rBg * 2.0;
+    const cutDeg = 90;
+    const cutHalf = cutDeg / 2;
+    const cutLeftDeg = betweenDeg - cutHalf;
+    const cutRightDeg = betweenDeg + cutHalf;
+    const startDeg = cutRightDeg;
+    const endDeg = cutLeftDeg;
+    const start = {
+      x: markerCenter.x + polar(pizzaR, startDeg).x,
+      y: markerCenter.y + polar(pizzaR, startDeg).y
+    };
+    const end = {
+      x: markerCenter.x + polar(pizzaR, endDeg).x,
+      y: markerCenter.y + polar(pizzaR, endDeg).y
+    };
+    const pizzaShape = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    pizzaShape.setAttribute('d', [
+      `M ${start.x.toFixed(2)} ${start.y.toFixed(2)}`,
+      `A ${pizzaR.toFixed(2)} ${pizzaR.toFixed(2)} 0 1 1 ${end.x.toFixed(2)} ${end.y.toFixed(2)}`,
+      `L ${markerCenter.x.toFixed(2)} ${markerCenter.y.toFixed(2)}`,
+      'Z'
+    ].join(' '));
+    pizzaShape.setAttribute('fill', '#8b5a2b');
+    pizzaShape.setAttribute('fill-opacity', '1');
+    pizzaShape.setAttribute('stroke', '#7dd3fc');
+    pizzaShape.setAttribute('stroke-width', '2');
+    pizzaShape.setAttribute('stroke-linejoin', 'round');
+    pizzaShape.setAttribute('stroke-linecap', 'round');
+    g.appendChild(pizzaShape);
+  }
+
+  if (textSpecs.length === 0 && mission !== '9-1') return;
 
   textSpecs.forEach(({room, label, rotate, color: textColor, bgColor: circleColor, bgOpacity: circleOpacity, underline, markerType})=>{
     const midDeg = (room-1)*60 + 30;
