@@ -4326,7 +4326,9 @@ const STAGE_PLUS_MINUS = {
   '5-2': { 6: '-' },
   '5-3': { 1: '+', 6: '-' },
   '6-1': { 6: '-' },
-  '6-4': { 1: '-', 4: '+' }
+  '6-4': { 1: '-', 4: '+' },
+  '9-1': { 4: '+' },
+  '9-3': { 1: '-', 4: '-' }
 };
 const STAGE_TWO_BLACK_WHITE = {
   '7-3': [6]
@@ -6050,6 +6052,13 @@ function renderRoomCards(mission = currentStage){
   if (mission === '8-2') {
     [1, 3, 4].forEach((room) => appendNoPlayMarker(room, { goldBorder: true }));
   }
+  if (mission === '9-1') {
+    appendPlusMinusCards(4, { sign: '+' });
+  }
+  if (mission === '9-3') {
+    appendPlusMinusCards(1, { sign: '-' });
+    appendPlusMinusCards(4, { sign: '-' });
+  }
   if (mission === '4-1') {
     appendCenterBrownPair({ halfGapDelta: -2, leftBackCount: 2, centerRightArrow: true, leftSign: '+', rightSign: '-' });
   } else if (mission === '4-2') {
@@ -6627,8 +6636,39 @@ function renderRoomTexts(mission){
     addArrowHead(arrowArcStart, betweenDeg + 130);
     addArrowHead(arrowArcEnd, betweenDeg + 55);
   }
+  if (mission === '9-2') {
+    const markerRadius = rBg * 1.18;
+    const markerInset = Math.max(6, rBg * 0.34);
+    const markerAngles = [0, 60, 120, 180, 240, 300];
+    markerAngles.forEach((betweenDeg) => {
+      const pBetween = polar(rText, betweenDeg);
+      const markerCenter = {
+        x: pBetween.x + polar(markerInset, betweenDeg + 180).x,
+        y: pBetween.y + polar(markerInset, betweenDeg + 180).y
+      };
+      const markerCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      markerCircle.setAttribute('cx', markerCenter.x.toFixed(2));
+      markerCircle.setAttribute('cy', markerCenter.y.toFixed(2));
+      markerCircle.setAttribute('r', markerRadius.toFixed(2));
+      markerCircle.setAttribute('fill', '#ffffff');
+      markerCircle.setAttribute('stroke', '#d4af37');
+      markerCircle.setAttribute('stroke-width', '1.6');
+      g.appendChild(markerCircle);
 
-  if (textSpecs.length === 0 && mission !== '9-1') return;
+      const markerText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      markerText.textContent = '2';
+      markerText.setAttribute('x', markerCenter.x.toFixed(2));
+      markerText.setAttribute('y', markerCenter.y.toFixed(2));
+      markerText.setAttribute('fill', '#8b5a2b');
+      markerText.setAttribute('font-size', Math.max(7, markerRadius * 1.25).toFixed(2));
+      markerText.setAttribute('font-weight', '800');
+      markerText.setAttribute('text-anchor', 'middle');
+      markerText.setAttribute('dominant-baseline', 'middle');
+      g.appendChild(markerText);
+    });
+  }
+
+  if (textSpecs.length === 0 && mission !== '9-1' && mission !== '9-2') return;
 
   textSpecs.forEach(({room, label, rotate, color: textColor, bgColor: circleColor, bgOpacity: circleOpacity, underline, markerType})=>{
     const midDeg = (room-1)*60 + 30;
