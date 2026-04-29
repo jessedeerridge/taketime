@@ -6556,7 +6556,7 @@ function renderRoomTexts(mission){
     pizzaShape.setAttribute('stroke-linecap', 'round');
     g.appendChild(pizzaShape);
     const innerCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    const sectorCenterOffset = polar(pizzaR * 0.6, betweenDeg);
+    const sectorCenterOffset = polar(pizzaR * 0.45, betweenDeg);
     const innerCircleCenter = {
       x: markerCenter.x + sectorCenterOffset.x,
       y: markerCenter.y + sectorCenterOffset.y
@@ -6611,8 +6611,8 @@ function renderRoomTexts(mission){
       g.appendChild(head);
     }
 
-    addArrowHead(arrowArcStart, betweenDeg - 152);
-    addArrowHead(arrowArcEnd, betweenDeg + 152);
+    addArrowHead(arrowArcStart, betweenDeg + 132);
+    addArrowHead(arrowArcEnd, betweenDeg + 62);
   }
 
   if (textSpecs.length === 0 && mission !== '9-1') return;
