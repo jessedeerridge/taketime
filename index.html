@@ -1247,6 +1247,9 @@ const RIGHTARROW_ROTATE_DURATION_MS = 620;
 let rightarrowRotateTimer = null;
 let rightarrowRotateRaf = null;
 let lastRightarrowRotateEventId = '';
+let currentRightarrowRotateEventId = '';
+let completedRightarrowRotateEventId = '';
+let rightarrowRotateInProgress = false;
 let isCenterNeedleHidden = false;
 let centerNeedleRotationDeg = 0;
 let centerNeedleRotationVisualDeg = 0;
@@ -1864,6 +1867,9 @@ function subscribeStage(){
     }
     revealResultAnnouncedKey = '';
     revealFlipProcessingKey = '';
+    currentRightarrowRotateEventId = '';
+    completedRightarrowRotateEventId = '';
+    rightarrowRotateInProgress = false;
     if (revealFlipRetryTimer){
       clearTimeout(revealFlipRetryTimer);
       revealFlipRetryTimer = null;
@@ -2070,6 +2076,9 @@ function syncPlacedCardIdsFromPlayed(){
 
 function maybeAnnounceRevealPhase(){
   if (!state.isHost || !state.roomCode || !currentStage) return;
+  const hasUnfinishedRightarrowRotation = !!currentRightarrowRotateEventId
+    && currentRightarrowRotateEventId !== completedRightarrowRotateEventId;
+  if (hasUnfinishedRightarrowRotation || rightarrowRotateInProgress || rightarrowRotateTimer) return;
   const tables = state.tables || {};
   const seatedPlayerIds = Object.values(tables)
     .filter((seat) => seat?.playerId)
@@ -3122,6 +3131,9 @@ btnJoin.addEventListener('click', async () => {
     hasCenterNeedleSnapshot = false;
     lastCenterNeedleTs = 0;
     lastRightarrowRotateEventId = '';
+    currentRightarrowRotateEventId = '';
+    completedRightarrowRotateEventId = '';
+    rightarrowRotateInProgress = false;
     if (rightarrowRotateTimer){
       clearTimeout(rightarrowRotateTimer);
       rightarrowRotateTimer = null;
@@ -3846,8 +3858,13 @@ function subscribeRightarrowRotationEvent(){
   const rotateRef = ref(db, `rooms/${state.roomCode}/rightarrowRotationEvent`);
   onValue(rotateRef, (snap) => {
     const data = snap.val();
-    if (!data || !data.id) return;
+    if (!data || !data.id){
+      currentRightarrowRotateEventId = '';
+      maybeAnnounceRevealPhase();
+      return;
+    }
     const eventId = String(data.id);
+    currentRightarrowRotateEventId = eventId;
     if (eventId === lastRightarrowRotateEventId) return;
     lastRightarrowRotateEventId = eventId;
 
@@ -3858,14 +3875,27 @@ function subscribeRightarrowRotationEvent(){
     const targetDeg = normalizeDeg(Number(data.toDeg || 0));
     const triggerTs = Number(data.ts || 0);
     const waitMs = Math.max(0, (triggerTs + RIGHTARROW_ROTATE_DELAY_MS) - Date.now());
-    rightarrowRotateTimer = window.setTimeout(async () => {
+    const runRotation = async () => {
       rightarrowRotateTimer = null;
-      if (boardRotationDrag) return;
-      await animateBoardRotationTo(targetDeg, { durationMs: RIGHTARROW_ROTATE_DURATION_MS });
+      if (boardRotationDrag){
+        rightarrowRotateTimer = window.setTimeout(runRotation, 90);
+        return;
+      }
+      rightarrowRotateInProgress = true;
+      try {
+        await animateBoardRotationTo(targetDeg, { durationMs: RIGHTARROW_ROTATE_DURATION_MS });
+        completedRightarrowRotateEventId = eventId;
+      } finally {
+        rightarrowRotateInProgress = false;
+      }
       if (String(data.actorId || '') === state.userId){
         publishBoardRotation(targetDeg, { isFinal: true, force: true });
+        set(ref(db, `rooms/${state.roomCode}/rightarrowRotationEvent`), null)
+          .catch((err) => console.error('回転イベントの終了処理に失敗しました', err));
       }
-    }, waitMs);
+      maybeAnnounceRevealPhase();
+    };
+    rightarrowRotateTimer = window.setTimeout(runRotation, waitMs);
   });
 }
 
