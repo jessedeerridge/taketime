@@ -6571,35 +6571,36 @@ function renderRoomTexts(mission){
     g.appendChild(innerCircle);
 
     const arrowColor = '#d4af37';
-    const arcR = innerCircleR + Math.max(1.8, pizzaR * 0.12);
-    const arcTopY = innerCircleCenter.y - innerCircleR - Math.max(1.6, pizzaR * 0.08);
-    const leftArcStart = { x: innerCircleCenter.x - arcR * 0.95, y: arcTopY };
-    const leftArcEnd = { x: innerCircleCenter.x - arcR * 0.1, y: arcTopY - arcR * 0.38 };
-    const rightArcStart = { x: innerCircleCenter.x + arcR * 0.95, y: arcTopY };
-    const rightArcEnd = { x: innerCircleCenter.x + arcR * 0.1, y: arcTopY - arcR * 0.38 };
+    const arrowArcR = innerCircleR + Math.max(3.2, pizzaR * 0.2);
+    const arrowArcStart = {
+      x: innerCircleCenter.x + polar(arrowArcR, betweenDeg - 62).x,
+      y: innerCircleCenter.y + polar(arrowArcR, betweenDeg - 62).y
+    };
+    const arrowArcEnd = {
+      x: innerCircleCenter.x + polar(arrowArcR, betweenDeg + 62).x,
+      y: innerCircleCenter.y + polar(arrowArcR, betweenDeg + 62).y
+    };
 
-    const leftArrowArc = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    leftArrowArc.setAttribute('d', `M ${leftArcStart.x.toFixed(2)} ${leftArcStart.y.toFixed(2)} A ${arcR.toFixed(2)} ${arcR.toFixed(2)} 0 0 1 ${leftArcEnd.x.toFixed(2)} ${leftArcEnd.y.toFixed(2)}`);
-    leftArrowArc.setAttribute('fill', 'none');
-    leftArrowArc.setAttribute('stroke', arrowColor);
-    leftArrowArc.setAttribute('stroke-width', '1.8');
-    leftArrowArc.setAttribute('stroke-linecap', 'round');
-    g.appendChild(leftArrowArc);
+    const outerArrowArc = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    outerArrowArc.setAttribute('d', `M ${arrowArcStart.x.toFixed(2)} ${arrowArcStart.y.toFixed(2)} A ${arrowArcR.toFixed(2)} ${arrowArcR.toFixed(2)} 0 0 1 ${arrowArcEnd.x.toFixed(2)} ${arrowArcEnd.y.toFixed(2)}`);
+    outerArrowArc.setAttribute('fill', 'none');
+    outerArrowArc.setAttribute('stroke', arrowColor);
+    outerArrowArc.setAttribute('stroke-width', '1.8');
+    outerArrowArc.setAttribute('stroke-linecap', 'round');
+    g.appendChild(outerArrowArc);
 
-    const rightArrowArc = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    rightArrowArc.setAttribute('d', `M ${rightArcStart.x.toFixed(2)} ${rightArcStart.y.toFixed(2)} A ${arcR.toFixed(2)} ${arcR.toFixed(2)} 0 0 0 ${rightArcEnd.x.toFixed(2)} ${rightArcEnd.y.toFixed(2)}`);
-    rightArrowArc.setAttribute('fill', 'none');
-    rightArrowArc.setAttribute('stroke', arrowColor);
-    rightArrowArc.setAttribute('stroke-width', '1.8');
-    rightArrowArc.setAttribute('stroke-linecap', 'round');
-    g.appendChild(rightArrowArc);
-
-    function addArrowHead(tip, towardLeft){
-      const len = Math.max(2.2, pizzaR * 0.12);
-      const spread = Math.PI / 6;
-      const dir = towardLeft ? Math.PI : 0;
-      const p1 = { x: tip.x - len * Math.cos(dir - spread), y: tip.y - len * Math.sin(dir - spread) };
-      const p2 = { x: tip.x - len * Math.cos(dir + spread), y: tip.y - len * Math.sin(dir + spread) };
+    function addArrowHead(tip, tangentDeg){
+      const len = Math.max(2.4, pizzaR * 0.13);
+      const spreadRad = Math.PI / 6;
+      const tangentRad = tangentDeg * Math.PI / 180;
+      const p1 = {
+        x: tip.x - len * Math.cos(tangentRad - spreadRad),
+        y: tip.y - len * Math.sin(tangentRad - spreadRad)
+      };
+      const p2 = {
+        x: tip.x - len * Math.cos(tangentRad + spreadRad),
+        y: tip.y - len * Math.sin(tangentRad + spreadRad)
+      };
       const head = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       head.setAttribute('d', `M ${p1.x.toFixed(2)} ${p1.y.toFixed(2)} L ${tip.x.toFixed(2)} ${tip.y.toFixed(2)} L ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}`);
       head.setAttribute('fill', 'none');
@@ -6609,8 +6610,9 @@ function renderRoomTexts(mission){
       head.setAttribute('stroke-linejoin', 'round');
       g.appendChild(head);
     }
-    addArrowHead(leftArcEnd, true);
-    addArrowHead(rightArcEnd, false);
+
+    addArrowHead(arrowArcStart, betweenDeg + 28);
+    addArrowHead(arrowArcEnd, betweenDeg + 152);
   }
 
   if (textSpecs.length === 0 && mission !== '9-1') return;
