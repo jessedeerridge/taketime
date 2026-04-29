@@ -6571,7 +6571,7 @@ function renderRoomTexts(mission){
     g.appendChild(innerCircle);
 
     const arrowColor = '#d4af37';
-    const arrowArcR = innerCircleR + Math.max(3.2, pizzaR * 0.2);
+    const arrowArcR = innerCircleR + Math.max(2.2, pizzaR * 0.2);
     const arrowArcStart = {
       x: innerCircleCenter.x + polar(arrowArcR, betweenDeg - 62).x,
       y: innerCircleCenter.y + polar(arrowArcR, betweenDeg - 62).y
@@ -6611,7 +6611,7 @@ function renderRoomTexts(mission){
       g.appendChild(head);
     }
 
-    addArrowHead(arrowArcStart, betweenDeg + 28);
+    addArrowHead(arrowArcStart, betweenDeg - 152);
     addArrowHead(arrowArcEnd, betweenDeg + 152);
   }
 
