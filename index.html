@@ -6528,13 +6528,11 @@ function renderRoomTexts(mission){
       x: pBetween.x + polar(pizzaCenterInset, betweenDeg + 180).x,
       y: pBetween.y + polar(pizzaCenterInset, betweenDeg + 180).y
     };
-    const pizzaR = rBg * 2.0;
-    const cutDeg = 90;
-    const cutHalf = cutDeg / 2;
-    const cutLeftDeg = betweenDeg - cutHalf;
-    const cutRightDeg = betweenDeg + cutHalf;
-    const startDeg = cutRightDeg;
-    const endDeg = cutLeftDeg;
+    const pizzaR = rBg * 1.8;
+    const sectorDeg = 90;
+    const halfDeg = sectorDeg / 2;
+    const startDeg = betweenDeg - halfDeg;
+    const endDeg = betweenDeg + halfDeg;
     const start = {
       x: markerCenter.x + polar(pizzaR, startDeg).x,
       y: markerCenter.y + polar(pizzaR, startDeg).y
@@ -6546,17 +6544,25 @@ function renderRoomTexts(mission){
     const pizzaShape = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     pizzaShape.setAttribute('d', [
       `M ${start.x.toFixed(2)} ${start.y.toFixed(2)}`,
-      `A ${pizzaR.toFixed(2)} ${pizzaR.toFixed(2)} 0 1 1 ${end.x.toFixed(2)} ${end.y.toFixed(2)}`,
+      `A ${pizzaR.toFixed(2)} ${pizzaR.toFixed(2)} 0 0 1 ${end.x.toFixed(2)} ${end.y.toFixed(2)}`,
       `L ${markerCenter.x.toFixed(2)} ${markerCenter.y.toFixed(2)}`,
       'Z'
     ].join(' '));
-    pizzaShape.setAttribute('fill', '#8b5a2b');
+    pizzaShape.setAttribute('fill', '#ffffff');
     pizzaShape.setAttribute('fill-opacity', '1');
-    pizzaShape.setAttribute('stroke', '#7dd3fc');
+    pizzaShape.setAttribute('stroke', '#d4af37');
     pizzaShape.setAttribute('stroke-width', '2');
     pizzaShape.setAttribute('stroke-linejoin', 'round');
     pizzaShape.setAttribute('stroke-linecap', 'round');
     g.appendChild(pizzaShape);
+    const innerCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    innerCircle.setAttribute('cx', markerCenter.x.toFixed(2));
+    innerCircle.setAttribute('cy', markerCenter.y.toFixed(2));
+    innerCircle.setAttribute('r', Math.max(2.8, pizzaR * 0.28).toFixed(2));
+    innerCircle.setAttribute('fill', '#f8cb8d');
+    innerCircle.setAttribute('stroke', '#d4af37');
+    innerCircle.setAttribute('stroke-width', '1.5');
+    g.appendChild(innerCircle);
   }
 
   if (textSpecs.length === 0 && mission !== '9-1') return;
