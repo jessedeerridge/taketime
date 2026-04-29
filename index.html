@@ -6556,8 +6556,13 @@ function renderRoomTexts(mission){
     pizzaShape.setAttribute('stroke-linecap', 'round');
     g.appendChild(pizzaShape);
     const innerCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    innerCircle.setAttribute('cx', markerCenter.x.toFixed(2));
-    innerCircle.setAttribute('cy', markerCenter.y.toFixed(2));
+    const sectorCenterOffset = polar(pizzaR * 0.6, betweenDeg);
+    const innerCircleCenter = {
+      x: markerCenter.x + sectorCenterOffset.x,
+      y: markerCenter.y + sectorCenterOffset.y
+    };
+    innerCircle.setAttribute('cx', innerCircleCenter.x.toFixed(2));
+    innerCircle.setAttribute('cy', innerCircleCenter.y.toFixed(2));
     innerCircle.setAttribute('r', (Math.max(2.8, pizzaR * 0.28) * 1.2).toFixed(2));
     innerCircle.setAttribute('fill', '#f8cb8d');
     innerCircle.setAttribute('stroke', '#d4af37');
