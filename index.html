@@ -6528,7 +6528,7 @@ function renderRoomTexts(mission){
       x: pBetween.x + polar(pizzaCenterInset, betweenDeg + 180).x,
       y: pBetween.y + polar(pizzaCenterInset, betweenDeg + 180).y
     };
-    const pizzaR = rBg * 1.8;
+    const pizzaR = rBg * 2.16;
     const sectorDeg = 90;
     const halfDeg = sectorDeg / 2;
     const startDeg = betweenDeg - halfDeg;
@@ -6563,11 +6563,54 @@ function renderRoomTexts(mission){
     };
     innerCircle.setAttribute('cx', innerCircleCenter.x.toFixed(2));
     innerCircle.setAttribute('cy', innerCircleCenter.y.toFixed(2));
-    innerCircle.setAttribute('r', (Math.max(2.8, pizzaR * 0.28) * 1.2).toFixed(2));
+    const innerCircleR = (Math.max(2.8, pizzaR * 0.28) * 0.8);
+    innerCircle.setAttribute('r', innerCircleR.toFixed(2));
     innerCircle.setAttribute('fill', '#f8cb8d');
     innerCircle.setAttribute('stroke', '#d4af37');
     innerCircle.setAttribute('stroke-width', '1.5');
     g.appendChild(innerCircle);
+
+    const arrowColor = '#d4af37';
+    const arcR = innerCircleR + Math.max(1.8, pizzaR * 0.12);
+    const arcTopY = innerCircleCenter.y - innerCircleR - Math.max(1.6, pizzaR * 0.08);
+    const leftArcStart = { x: innerCircleCenter.x - arcR * 0.95, y: arcTopY };
+    const leftArcEnd = { x: innerCircleCenter.x - arcR * 0.1, y: arcTopY - arcR * 0.38 };
+    const rightArcStart = { x: innerCircleCenter.x + arcR * 0.95, y: arcTopY };
+    const rightArcEnd = { x: innerCircleCenter.x + arcR * 0.1, y: arcTopY - arcR * 0.38 };
+
+    const leftArrowArc = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    leftArrowArc.setAttribute('d', `M ${leftArcStart.x.toFixed(2)} ${leftArcStart.y.toFixed(2)} A ${arcR.toFixed(2)} ${arcR.toFixed(2)} 0 0 1 ${leftArcEnd.x.toFixed(2)} ${leftArcEnd.y.toFixed(2)}`);
+    leftArrowArc.setAttribute('fill', 'none');
+    leftArrowArc.setAttribute('stroke', arrowColor);
+    leftArrowArc.setAttribute('stroke-width', '1.8');
+    leftArrowArc.setAttribute('stroke-linecap', 'round');
+    g.appendChild(leftArrowArc);
+
+    const rightArrowArc = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    rightArrowArc.setAttribute('d', `M ${rightArcStart.x.toFixed(2)} ${rightArcStart.y.toFixed(2)} A ${arcR.toFixed(2)} ${arcR.toFixed(2)} 0 0 0 ${rightArcEnd.x.toFixed(2)} ${rightArcEnd.y.toFixed(2)}`);
+    rightArrowArc.setAttribute('fill', 'none');
+    rightArrowArc.setAttribute('stroke', arrowColor);
+    rightArrowArc.setAttribute('stroke-width', '1.8');
+    rightArrowArc.setAttribute('stroke-linecap', 'round');
+    g.appendChild(rightArrowArc);
+
+    function addArrowHead(tip, towardLeft){
+      const len = Math.max(2.2, pizzaR * 0.12);
+      const spread = Math.PI / 6;
+      const dir = towardLeft ? Math.PI : 0;
+      const p1 = { x: tip.x - len * Math.cos(dir - spread), y: tip.y - len * Math.sin(dir - spread) };
+      const p2 = { x: tip.x - len * Math.cos(dir + spread), y: tip.y - len * Math.sin(dir + spread) };
+      const head = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      head.setAttribute('d', `M ${p1.x.toFixed(2)} ${p1.y.toFixed(2)} L ${tip.x.toFixed(2)} ${tip.y.toFixed(2)} L ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}`);
+      head.setAttribute('fill', 'none');
+      head.setAttribute('stroke', arrowColor);
+      head.setAttribute('stroke-width', '1.8');
+      head.setAttribute('stroke-linecap', 'round');
+      head.setAttribute('stroke-linejoin', 'round');
+      g.appendChild(head);
+    }
+    addArrowHead(leftArcEnd, true);
+    addArrowHead(rightArcEnd, false);
   }
 
   if (textSpecs.length === 0 && mission !== '9-1') return;
