@@ -7032,7 +7032,9 @@ function renderRoomConditionHints(mission = currentStage){
     });
     if (mission === '9-1'){
       const minGapValue = 6;
-      appendHintTable(`両隣の値は少なくとも${minGapValue}離れていなければならない。例12-6`, 0, 115, {
+      const exampleHigherValue = minGapValue + 6;
+      const exampleLowerValue = exampleHigherValue - minGapValue;
+      appendHintTable(`両隣の値は少なくとも${minGapValue}離れていなければならない。例${exampleHigherValue}-${exampleLowerValue}`, 0, 115, {
         maxCharsPerLine: 12,
         maxLines: 4,
         boxW: 120,
