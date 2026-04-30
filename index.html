@@ -6738,8 +6738,119 @@ function renderRoomTexts(mission){
       addArrowHead(arrowArcEnd, betweenDeg + 55);
     });
   }
+  if (mission === '9-3') {
+    const whitepizza = {
+      centerInset: 12,
+      radius: rBg * 2.16
+    };
+    [60, 240].forEach((betweenDeg) => {
+      const pBetween = polar(rText, betweenDeg);
+      const markerCenter = {
+        x: pBetween.x + polar(whitepizza.centerInset, betweenDeg + 180).x,
+        y: pBetween.y + polar(whitepizza.centerInset, betweenDeg + 180).y
+      };
+      const pizzaR = whitepizza.radius;
+      const sectorDeg = 90;
+      const halfDeg = sectorDeg / 2;
+      const startDeg = betweenDeg - halfDeg;
+      const endDeg = betweenDeg + halfDeg;
+      const start = {
+        x: markerCenter.x + polar(pizzaR, startDeg).x,
+        y: markerCenter.y + polar(pizzaR, startDeg).y
+      };
+      const end = {
+        x: markerCenter.x + polar(pizzaR, endDeg).x,
+        y: markerCenter.y + polar(pizzaR, endDeg).y
+      };
+      const pizzaShape = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      pizzaShape.setAttribute('d', [
+        `M ${start.x.toFixed(2)} ${start.y.toFixed(2)}`,
+        `A ${pizzaR.toFixed(2)} ${pizzaR.toFixed(2)} 0 0 1 ${end.x.toFixed(2)} ${end.y.toFixed(2)}`,
+        `L ${markerCenter.x.toFixed(2)} ${markerCenter.y.toFixed(2)}`,
+        'Z'
+      ].join(' '));
+      pizzaShape.setAttribute('fill', '#ffffff');
+      pizzaShape.setAttribute('fill-opacity', '1');
+      pizzaShape.setAttribute('stroke', '#d4af37');
+      pizzaShape.setAttribute('stroke-width', '2');
+      pizzaShape.setAttribute('stroke-linejoin', 'round');
+      pizzaShape.setAttribute('stroke-linecap', 'round');
+      g.appendChild(pizzaShape);
 
-  if (textSpecs.length === 0 && mission !== '9-1' && mission !== '9-2') return;
+      const innerCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      const sectorCenterOffset = polar(pizzaR * 0.45, betweenDeg);
+      const innerCircleCenter = {
+        x: markerCenter.x + sectorCenterOffset.x,
+        y: markerCenter.y + sectorCenterOffset.y
+      };
+      innerCircle.setAttribute('cx', innerCircleCenter.x.toFixed(2));
+      innerCircle.setAttribute('cy', innerCircleCenter.y.toFixed(2));
+      const innerCircleR = Math.max(2.8, pizzaR * 0.28) * 0.8;
+      innerCircle.setAttribute('r', innerCircleR.toFixed(2));
+      innerCircle.setAttribute('fill', '#ebc39f');
+      innerCircle.setAttribute('stroke', 'none');
+      g.appendChild(innerCircle);
+
+      const whitepizzaequal = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      const equalTextOffset = polar(1, betweenDeg + 180);
+      whitepizzaequal.textContent = '＝';
+      whitepizzaequal.setAttribute('x', (innerCircleCenter.x + equalTextOffset.x).toFixed(2));
+      whitepizzaequal.setAttribute('y', (innerCircleCenter.y + equalTextOffset.y).toFixed(2));
+      whitepizzaequal.setAttribute('transform', `rotate(${betweenDeg - 0} ${(innerCircleCenter.x + equalTextOffset.x).toFixed(2)} ${(innerCircleCenter.y + equalTextOffset.y).toFixed(2)})`);
+      whitepizzaequal.setAttribute('fill', '#8b5a2b');
+      whitepizzaequal.setAttribute('font-size', Math.max(7, (pizzaR * 0.66) - 4).toFixed(2));
+      whitepizzaequal.setAttribute('font-weight', '900');
+      whitepizzaequal.setAttribute('text-anchor', 'middle');
+      whitepizzaequal.setAttribute('dominant-baseline', 'middle');
+      g.appendChild(whitepizzaequal);
+
+      const arrowColor = '#d4af37';
+      const arrowArcR = innerCircleR + Math.max(2.2, pizzaR * 0.2);
+      const arrowArcStart = {
+        x: innerCircleCenter.x + polar(arrowArcR, betweenDeg - 62).x,
+        y: innerCircleCenter.y + polar(arrowArcR, betweenDeg - 62).y
+      };
+      const arrowArcEnd = {
+        x: innerCircleCenter.x + polar(arrowArcR, betweenDeg + 62).x,
+        y: innerCircleCenter.y + polar(arrowArcR, betweenDeg + 62).y
+      };
+
+      const outerArrowArc = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      outerArrowArc.setAttribute('d', `M ${arrowArcStart.x.toFixed(2)} ${arrowArcStart.y.toFixed(2)} A ${arrowArcR.toFixed(2)} ${arrowArcR.toFixed(2)} 0 0 1 ${arrowArcEnd.x.toFixed(2)} ${arrowArcEnd.y.toFixed(2)}`);
+      outerArrowArc.setAttribute('fill', 'none');
+      outerArrowArc.setAttribute('stroke', arrowColor);
+      outerArrowArc.setAttribute('stroke-width', '1.8');
+      outerArrowArc.setAttribute('stroke-linecap', 'round');
+      g.appendChild(outerArrowArc);
+
+      const addArrowHead = (tip, tangentDeg) => {
+        const len = Math.max(2.4, pizzaR * 0.13);
+        const spreadRad = Math.PI / 6;
+        const tangentRad = tangentDeg * Math.PI / 180;
+        const p1 = {
+          x: tip.x - len * Math.cos(tangentRad - spreadRad),
+          y: tip.y - len * Math.sin(tangentRad - spreadRad)
+        };
+        const p2 = {
+          x: tip.x - len * Math.cos(tangentRad + spreadRad),
+          y: tip.y - len * Math.sin(tangentRad + spreadRad)
+        };
+        const head = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        head.setAttribute('d', `M ${p1.x.toFixed(2)} ${p1.y.toFixed(2)} L ${tip.x.toFixed(2)} ${tip.y.toFixed(2)} L ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}`);
+        head.setAttribute('fill', 'none');
+        head.setAttribute('stroke', arrowColor);
+        head.setAttribute('stroke-width', '1.8');
+        head.setAttribute('stroke-linecap', 'round');
+        head.setAttribute('stroke-linejoin', 'round');
+        g.appendChild(head);
+      };
+
+      addArrowHead(arrowArcStart, betweenDeg + 130);
+      addArrowHead(arrowArcEnd, betweenDeg + 55);
+    });
+  }
+
+  if (textSpecs.length === 0 && mission !== '9-1' && mission !== '9-2' && mission !== '9-3') return;
 
   textSpecs.forEach(({room, label, rotate, color: textColor, bgColor: circleColor, bgOpacity: circleOpacity, underline, markerType})=>{
     const midDeg = (room-1)*60 + 30;
@@ -7145,24 +7256,54 @@ function renderRoomConditionHints(mission = currentStage){
       const minGapValue = 6;
       const exampleHigherValue = minGapValue + 6;
       const exampleLowerValue = exampleHigherValue - minGapValue;
-      appendHintTable(`両隣の値は少なくとも${minGapValue}離れていなければならない。例${exampleHigherValue}-${exampleLowerValue}`, 0, 115, {
-        maxCharsPerLine: 12,
-        maxLines: 4,
-        boxW: 120,
-        lineH: 11,
-        fontSize: 9.3
+      [180].forEach((betweenDeg) => {
+        const pBetween = polar(90, betweenDeg);
+        const markerCenter = {
+          x: pBetween.x + polar(12, betweenDeg + 180).x,
+          y: pBetween.y + polar(12, betweenDeg + 180).y
+        };
+        appendHintTable(`両隣の値は少なくとも${minGapValue}離れていなければならない。例${exampleHigherValue}-${exampleLowerValue}`, markerCenter.x, markerCenter.y, {
+          maxCharsPerLine: 12,
+          maxLines: 4,
+          boxW: 120,
+          lineH: 11,
+          fontSize: 9.3
+        });
       });
     }
     if (mission === '9-2'){
       const minGapValue = 2;
       const exampleHigherValue = minGapValue + 6;
       const exampleLowerValue = exampleHigherValue - minGapValue;
-      appendHintTable(`両隣の値は少なくとも${minGapValue}離れていなければならない。例${exampleHigherValue}-${exampleLowerValue}`, 0, 115, {
-        maxCharsPerLine: 12,
-        maxLines: 4,
-        boxW: 120,
-        lineH: 11,
-        fontSize: 9.3
+      [0, 60, 120, 180, 240, 300].forEach((betweenDeg) => {
+        const pBetween = polar(90, betweenDeg);
+        const markerCenter = {
+          x: pBetween.x + polar(12, betweenDeg + 180).x,
+          y: pBetween.y + polar(12, betweenDeg + 180).y
+        };
+        appendHintTable(`両隣の値は少なくとも${minGapValue}離れていなければならない。例${exampleHigherValue}-${exampleLowerValue}`, markerCenter.x, markerCenter.y, {
+          maxCharsPerLine: 12,
+          maxLines: 4,
+          boxW: 120,
+          lineH: 11,
+          fontSize: 9.3
+        });
+      });
+    }
+    if (mission === '9-3'){
+      [60, 240].forEach((betweenDeg) => {
+        const pBetween = polar(90, betweenDeg);
+        const markerCenter = {
+          x: pBetween.x + polar(12, betweenDeg + 180).x,
+          y: pBetween.y + polar(12, betweenDeg + 180).y
+        };
+        appendHintTable('両隣の値が同じでなければならない。', markerCenter.x, markerCenter.y, {
+          maxCharsPerLine: 12,
+          maxLines: 4,
+          boxW: 120,
+          lineH: 11,
+          fontSize: 9.3
+        });
       });
     }
     if (mission === '2-4'){
