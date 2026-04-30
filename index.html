@@ -6792,10 +6792,11 @@ function renderRoomTexts(mission){
       g.appendChild(innerCircle);
 
       const whitepizzaequal = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      const equalTextOffset = polar(1, betweenDeg + 180);
       whitepizzaequal.textContent = '＝';
-      whitepizzaequal.setAttribute('x', innerCircleCenter.x.toFixed(2));
-      whitepizzaequal.setAttribute('y', innerCircleCenter.y.toFixed(2));
-      whitepizzaequal.setAttribute('transform', `rotate(${betweenDeg - 90} ${innerCircleCenter.x.toFixed(2)} ${innerCircleCenter.y.toFixed(2)})`);
+      whitepizzaequal.setAttribute('x', (innerCircleCenter.x + equalTextOffset.x).toFixed(2));
+      whitepizzaequal.setAttribute('y', (innerCircleCenter.y + equalTextOffset.y).toFixed(2));
+      whitepizzaequal.setAttribute('transform', `rotate(${betweenDeg - 0} ${(innerCircleCenter.x + equalTextOffset.x).toFixed(2)} ${(innerCircleCenter.y + equalTextOffset.y).toFixed(2)})`);
       whitepizzaequal.setAttribute('fill', '#8b5a2b');
       whitepizzaequal.setAttribute('font-size', Math.max(7, (pizzaR * 0.66) - 4).toFixed(2));
       whitepizzaequal.setAttribute('font-weight', '900');
