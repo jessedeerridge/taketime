@@ -6627,8 +6627,74 @@ function renderRoomTexts(mission){
     addArrowHead(arrowArcStart, betweenDeg + 130);
     addArrowHead(arrowArcEnd, betweenDeg + 55);
   }
+  if (mission === '9-2') {
+    const whitepizza = {
+      centerInset: 12,
+      radius: rBg * 2.16
+    };
+    [0, 60, 120, 180, 240, 300].forEach((betweenDeg) => {
+      const pBetween = polar(rText, betweenDeg);
+      const markerCenter = {
+        x: pBetween.x + polar(whitepizza.centerInset, betweenDeg + 180).x,
+        y: pBetween.y + polar(whitepizza.centerInset, betweenDeg + 180).y
+      };
+      const pizzaR = whitepizza.radius;
+      const sectorDeg = 90;
+      const halfDeg = sectorDeg / 2;
+      const startDeg = betweenDeg - halfDeg;
+      const endDeg = betweenDeg + halfDeg;
+      const start = {
+        x: markerCenter.x + polar(pizzaR, startDeg).x,
+        y: markerCenter.y + polar(pizzaR, startDeg).y
+      };
+      const end = {
+        x: markerCenter.x + polar(pizzaR, endDeg).x,
+        y: markerCenter.y + polar(pizzaR, endDeg).y
+      };
 
-  if (textSpecs.length === 0 && mission !== '9-1') return;
+      const pizzaShape = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      pizzaShape.setAttribute('d', [
+        `M ${start.x.toFixed(2)} ${start.y.toFixed(2)}`,
+        `A ${pizzaR.toFixed(2)} ${pizzaR.toFixed(2)} 0 0 1 ${end.x.toFixed(2)} ${end.y.toFixed(2)}`,
+        `L ${markerCenter.x.toFixed(2)} ${markerCenter.y.toFixed(2)}`,
+        'Z'
+      ].join(' '));
+      pizzaShape.setAttribute('fill', '#ffffff');
+      pizzaShape.setAttribute('fill-opacity', '1');
+      pizzaShape.setAttribute('stroke', '#d4af37');
+      pizzaShape.setAttribute('stroke-width', '2');
+      pizzaShape.setAttribute('stroke-linejoin', 'round');
+      pizzaShape.setAttribute('stroke-linecap', 'round');
+      g.appendChild(pizzaShape);
+
+      const innerCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      const sectorCenterOffset = polar(pizzaR * 0.45, betweenDeg);
+      const innerCircleCenter = {
+        x: markerCenter.x + sectorCenterOffset.x,
+        y: markerCenter.y + sectorCenterOffset.y
+      };
+      innerCircle.setAttribute('cx', innerCircleCenter.x.toFixed(2));
+      innerCircle.setAttribute('cy', innerCircleCenter.y.toFixed(2));
+      const innerCircleR = Math.max(2.8, pizzaR * 0.28) * 0.8;
+      innerCircle.setAttribute('r', innerCircleR.toFixed(2));
+      innerCircle.setAttribute('fill', '#ebc39f');
+      innerCircle.setAttribute('stroke', 'none');
+      g.appendChild(innerCircle);
+
+      const whitepizzanumber = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      whitepizzanumber.textContent = '2';
+      whitepizzanumber.setAttribute('x', innerCircleCenter.x.toFixed(2));
+      whitepizzanumber.setAttribute('y', innerCircleCenter.y.toFixed(2));
+      whitepizzanumber.setAttribute('fill', '#8b5a2b');
+      whitepizzanumber.setAttribute('font-size', Math.max(7, (pizzaR * 0.66) - 4).toFixed(2));
+      whitepizzanumber.setAttribute('font-weight', '800');
+      whitepizzanumber.setAttribute('text-anchor', 'middle');
+      whitepizzanumber.setAttribute('dominant-baseline', 'middle');
+      g.appendChild(whitepizzanumber);
+    });
+  }
+
+  if (textSpecs.length === 0 && mission !== '9-1' && mission !== '9-2') return;
 
   textSpecs.forEach(({room, label, rotate, color: textColor, bgColor: circleColor, bgOpacity: circleOpacity, underline, markerType})=>{
     const midDeg = (room-1)*60 + 30;
