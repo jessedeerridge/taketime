@@ -6685,6 +6685,7 @@ function renderRoomTexts(mission){
       whitepizzanumber.textContent = '2';
       whitepizzanumber.setAttribute('x', innerCircleCenter.x.toFixed(2));
       whitepizzanumber.setAttribute('y', innerCircleCenter.y.toFixed(2));
+      whitepizzanumber.setAttribute('transform', `rotate(${betweenDeg - 90} ${innerCircleCenter.x.toFixed(2)} ${innerCircleCenter.y.toFixed(2)})`);
       whitepizzanumber.setAttribute('fill', '#8b5a2b');
       whitepizzanumber.setAttribute('font-size', Math.max(7, (pizzaR * 0.66) - 4).toFixed(2));
       whitepizzanumber.setAttribute('font-weight', '800');
