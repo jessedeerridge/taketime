@@ -1305,6 +1305,7 @@ function resetBoardAndNeedleRotations(){
   const centerNeedleResetDeg = CENTER_NEEDLE_SNAP_DEG;
   applyBoardRotation(0, { animate: false, useShortestPath: false });
   applyCenterNeedleRotation(centerNeedleResetDeg, { animate: false, useShortestPath: false });
+  applyCenterNeedleVisibility();
   if (stageSvg){
     stageSvg.style.transition = 'none';
   }
@@ -3469,7 +3470,7 @@ centerNeedleRotationDeg = initialCenterNeedleRotate;
 centerNeedleRotationVisualDeg = initialCenterNeedleRotate;
 
 function applyCenterNeedleVisibility(){
-  const shouldHide = isCenterNeedleHidden;
+  const shouldHide = isCenterNeedleLockedForMission() ? false : isCenterNeedleHidden;
   if (centerTopLineG) centerTopLineG.style.display = shouldHide ? 'none' : '';
   if (centerTopDiamondG) centerTopDiamondG.style.display = shouldHide ? 'none' : '';
 }
@@ -3515,6 +3516,11 @@ if (orangeCenterFill){
   orangeCenterFill.style.cursor = 'pointer';
   orangeCenterFill.addEventListener('click', (ev) => {
     ev.preventDefault();
+    if (isCenterNeedleLockedForMission()){
+      isCenterNeedleHidden = false;
+      applyCenterNeedleVisibility();
+      return;
+    }
     isCenterNeedleHidden = !isCenterNeedleHidden;
     applyCenterNeedleVisibility();
   });
