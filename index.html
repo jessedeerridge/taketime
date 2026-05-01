@@ -6497,6 +6497,10 @@ function renderRoomTexts(mission){
   const g = stageSvg.querySelector('#roomTexts');
   if(!g) return;
   while (g.firstChild) g.removeChild(g.firstChild);
+  const centerLineGroup = stageSvg.querySelector('#centerTopLineG');
+  if (centerLineGroup){
+    centerLineGroup.querySelectorAll('.mission-short-hand').forEach((el) => el.remove());
+  }
 
   const csT = getComputedStyle(stageSvg);
   const color  = csT.getPropertyValue('--roomTextColor').trim() || '#d4a373';
@@ -6534,6 +6538,7 @@ function renderRoomTexts(mission){
     };
   }
   function appendMissionShortHand(angleDeg = 10){
+    if (!centerLineGroup) return;
     const csStage = getComputedStyle(stageSvg);
     const centerTopW = parseFloat(csStage.getPropertyValue('--centerTopW')) || 2.8;
     const shortHandW = centerTopW + 1;
@@ -6577,7 +6582,8 @@ function renderRoomTexts(mission){
     hand.setAttribute('stroke', `url(#${gradientId})`);
     hand.setAttribute('stroke-width', shortHandW.toFixed(2));
     hand.setAttribute('stroke-linecap', 'round');
-    g.appendChild(hand);
+    hand.setAttribute('class', 'mission-short-hand');
+    centerLineGroup.appendChild(hand);
   }
 
   const textSpecs = [];
@@ -6624,7 +6630,6 @@ function renderRoomTexts(mission){
     });
   }
   if (mission === '9-1') {
-    appendMissionShortHand(10);
     const whitepizza = {
       betweenDeg: 180,
       centerInset: 12,
@@ -6732,7 +6737,6 @@ function renderRoomTexts(mission){
     addArrowHead(arrowArcEnd, betweenDeg + 55);
   }
   if (mission === '9-2') {
-    appendMissionShortHand(10);
     const whitepizza = {
       centerInset: 12,
       radius: rBg * 2.16
@@ -6844,7 +6848,6 @@ function renderRoomTexts(mission){
     });
   }
   if (mission === '9-3') {
-    appendMissionShortHand(10);
     const whitepizza = {
       centerInset: 12,
       radius: rBg * 2.16
@@ -6956,7 +6959,6 @@ function renderRoomTexts(mission){
     });
   }
   if (mission === '9-4') {
-    appendMissionShortHand(10);
     const centerArrowTuning = {
       startAngleDeg: 35,
       endAngleDeg: 325,
@@ -7031,6 +7033,9 @@ function renderRoomTexts(mission){
     const arcEndHeadAdjustDeg = centerArrowTuning.endHeadAdjustDeg;
     addArrowHeadFromPrev(arcStart, arcStartPrev, arcStartHeadAdjustDeg);
     addArrowHeadFromPrev(arcEnd, arcEndPrev, arcEndHeadAdjustDeg);
+  }
+  if (mission === '9-1' || mission === '9-2' || mission === '9-3' || mission === '9-4'){
+    appendMissionShortHand(10);
   }
 
   if (textSpecs.length === 0 && mission !== '9-1' && mission !== '9-2' && mission !== '9-3') return;
