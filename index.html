@@ -1266,6 +1266,26 @@ function isCenterNeedleLockedForMission(mission = currentStage){
   return CENTER_NEEDLE_LOCKED_MISSIONS.has(String(mission || ''));
 }
 
+function getInitialCenterNeedleSettingsForMission(mission = currentStage){
+  const stage = String(mission || '');
+  const match = stage.match(/^(\d+)-(\d+)$/);
+  if (!match){
+    return { deg: CENTER_NEEDLE_SNAP_DEG, hidden: false };
+  }
+
+  const chapter = Number(match[1]);
+  const step = Number(match[2]);
+  const isHiddenRange = ((chapter >= 3 && chapter <= 8) || chapter === 9) && step >= 1 && step <= 4;
+  if (isHiddenRange){
+    return { deg: CENTER_NEEDLE_SNAP_DEG, hidden: true };
+  }
+  if (stage === '10-1') return { deg: 70, hidden: false };
+  if (stage === '10-2') return { deg: 130, hidden: false };
+  if (stage === '10-3') return { deg: 190, hidden: false };
+
+  return { deg: CENTER_NEEDLE_SNAP_DEG, hidden: false };
+}
+
 function getBlackBackGradient(){
   return 'repeating-linear-gradient(135deg,var(--black-card) 0px,var(--black-card) 4px,var(--black-card-stripe) 4px,var(--black-card-stripe) 8px)';
 }
@@ -1302,9 +1322,10 @@ function resetBoardAndNeedleRotations(){
   boardRotationDrag = null;
   centerNeedleDrag = null;
   isCenterNeedleDragging = false;
-  const centerNeedleResetDeg = CENTER_NEEDLE_SNAP_DEG;
+  const centerNeedleSettings = getInitialCenterNeedleSettingsForMission(currentStage);
   applyBoardRotation(0, { animate: false, useShortestPath: false });
-  applyCenterNeedleRotation(centerNeedleResetDeg, { animate: false, useShortestPath: false });
+  applyCenterNeedleRotation(centerNeedleSettings.deg, { animate: false, useShortestPath: false });
+  isCenterNeedleHidden = !!centerNeedleSettings.hidden;
   applyCenterNeedleVisibility();
   if (stageSvg){
     stageSvg.style.transition = 'none';
@@ -3430,7 +3451,7 @@ async function setStage(code){
         isFinal: true
       }),
       set(ref(db, `rooms/${state.roomCode}/centerNeedleRotation`), {
-        deg: CENTER_NEEDLE_SNAP_DEG,
+        deg: getInitialCenterNeedleSettingsForMission(currentStage).deg,
         ts: now,
         actorId: state.userId || '',
         isFinal: true
