@@ -6875,11 +6875,11 @@ function renderRoomTexts(mission){
   }
   if (mission === '9-4') {
     const centerArrowTuning = {
-      startAngleDeg: -145,
-      endAngleDeg: 145,
-      headStepDeg: 25,
-      startHeadAdjustDeg: 0,
-      endHeadAdjustDeg: 0,
+      startAngleDeg: 145,
+      endAngleDeg: -145,
+      headStepDeg: 20,
+      startHeadAdjustDeg: -18,
+      endHeadAdjustDeg: 18,
       headSpreadDeg: 30
     };
     const centerCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
@@ -6904,7 +6904,7 @@ function renderRoomTexts(mission){
     g.appendChild(centerText);
 
     const arrowColor = '#d4af37';
-    const arrowArcR = centerCircleR + Math.max(2.4, rBg * 0.35) - 1;
+    const arrowArcR = centerCircleR + Math.max(0.35, rBg * 0.03);
     const arcStartDeg = centerArrowTuning.startAngleDeg;
     const arcEndDeg = centerArrowTuning.endAngleDeg;
     const arcStart = polar(arrowArcR, arcStartDeg);
@@ -6919,7 +6919,7 @@ function renderRoomTexts(mission){
     g.appendChild(circleArrowArc);
 
     const addArrowHeadFromPrev = (tip, prev, angleAdjustDeg = 0) => {
-      const len = Math.max(2.6, centerCircleR * 0.7);
+      const len = Math.max(1.9, centerCircleR * 0.4);
       const spreadRad = (centerArrowTuning.headSpreadDeg * Math.PI) / 180;
       const tangentRadBase = Math.atan2(tip.y - prev.y, tip.x - prev.x);
       const tangentRad = tangentRadBase + (angleAdjustDeg * Math.PI / 180);
@@ -7406,6 +7406,16 @@ function renderRoomConditionHints(mission = currentStage){
         });
       });
     }
+    if (mission === '9-4'){
+      appendHintTable('最初から最後までの差が4以内でなければならない。例8・・・12', 0, 48, {
+        maxCharsPerLine: 12,
+        maxLines: 4,
+        boxW: 120,
+        lineH: 11,
+        fontSize: 9.3
+      });
+    }
+
     if (mission === '2-4'){
       appendHintTable('カードをオモテでおくことができない。', 0, 48, {
         maxCharsPerLine: 10,
