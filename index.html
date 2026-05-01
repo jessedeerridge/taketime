@@ -6913,7 +6913,7 @@ function renderRoomTexts(mission){
     const addArrowHeadFromPrev = (tip, prev) => {
       const len = Math.max(2.6, centerCircleR * 0.7);
       const spreadRad = Math.PI / 6;
-      const tangentRad = Math.atan2(tip.y - prev.y, tip.x - prev.x);
+      const tangentRad = Math.atan2(prev.y - tip.y, prev.x - tip.x);
       const p1 = {
         x: tip.x - len * Math.cos(tangentRad - spreadRad),
         y: tip.y - len * Math.sin(tangentRad - spreadRad)
