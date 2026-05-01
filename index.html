@@ -2228,6 +2228,29 @@ function evaluateDualColorExtremePlusSuccess(stage, entries, roomCardsMap){
   return true;
 }
 
+function evaluateWhitePizzaDiffSuccess(stage, roomCardsMap){
+  const diffMap = getWhitePizzaDiffMapForMission(stage);
+  if (!diffMap) return true;
+
+  for (const [roomKey, requiredDiffRaw] of Object.entries(diffMap)){
+    const room = Number(roomKey);
+    const requiredDiff = Number(requiredDiffRaw);
+    if (!(room >= 1 && room <= 6) || !Number.isFinite(requiredDiff)) continue;
+
+    const leftRoom = room === 1 ? 6 : room - 1;
+    const rightRoom = room === 6 ? 1 : room + 1;
+    const leftCards = roomCardsMap.get(leftRoom) || [];
+    const rightCards = roomCardsMap.get(rightRoom) || [];
+    if (!leftCards.length || !rightCards.length) return false;
+
+    const leftValue = getRoomResultValue(stage, leftCards);
+    const rightValue = getRoomResultValue(stage, rightCards);
+    if (Math.abs(leftValue - rightValue) !== requiredDiff) return false;
+  }
+
+  return true;
+}
+
 function evaluatePlacementResult(stage, roomCardsMap){
   if (
     typeof stage === 'string'
@@ -2269,8 +2292,9 @@ function evaluatePlacementResult(stage, roomCardsMap){
   const plusMinusOk = evaluatePlusMinusSuccess(stage, getPlayedEntriesSorted(), roomCardsMap);
   const twoBlackWhiteOk = evaluateTwoBlackWhiteRoomSuccess(stage, roomCardsMap);
   const dualColorExtremePlusOk = evaluateDualColorExtremePlusSuccess(stage, getPlayedEntriesSorted(), roomCardsMap);
+  const whitePizzaDiffOk = evaluateWhitePizzaDiffSuccess(stage, roomCardsMap);
 
-  return isAscending && conditionsOk && room6Ok && plusMinusOk && twoBlackWhiteOk && dualColorExtremePlusOk;
+  return isAscending && conditionsOk && room6Ok && plusMinusOk && twoBlackWhiteOk && dualColorExtremePlusOk && whitePizzaDiffOk;
 }
 
 function getOrderedRoomsWithCardsByRevealStart(roomCardsMap, stage = currentStage){
@@ -4348,6 +4372,13 @@ const STAGE_DOUBLECLOCK = {
   '3-3': { room: 2, left: '2', right: '1', gap: 12 },
   '6-3': { room: 5, left: '3', right: '2', gap: 12 }
 };
+const STAGE_WHITE_PIZZA_DIFF = {
+  '9-1': { 4: 6 },
+  '9-2': { 1: 2, 2: 2, 3: 2, 4: 2, 5: 2, 6: 2 }
+};
+function getWhitePizzaDiffMapForMission(mission){
+  return STAGE_WHITE_PIZZA_DIFF[mission] || null;
+}
 function getTwoBlackWhiteRoomsForMission(mission){
   return STAGE_TWO_BLACK_WHITE[mission] || [];
 }
