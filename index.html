@@ -6904,7 +6904,7 @@ function renderRoomTexts(mission){
     g.appendChild(centerText);
 
     const arrowColor = '#d4af37';
-    const arrowArcR = centerCircleR + Math.max(2.4, rBg * 0.35) - 1;
+    const arrowArcR = Math.max(2.2, centerCircleR - Math.max(1.8, rBg * 0.18));
     const arcStartDeg = centerArrowTuning.startAngleDeg;
     const arcEndDeg = centerArrowTuning.endAngleDeg;
     const arcStart = polar(arrowArcR, arcStartDeg);
@@ -6919,7 +6919,7 @@ function renderRoomTexts(mission){
     g.appendChild(circleArrowArc);
 
     const addArrowHeadFromPrev = (tip, prev, angleAdjustDeg = 0) => {
-      const len = Math.max(2.6, centerCircleR * 0.7);
+      const len = Math.max(1.8, centerCircleR * 0.32);
       const spreadRad = (centerArrowTuning.headSpreadDeg * Math.PI) / 180;
       const tangentRadBase = Math.atan2(tip.y - prev.y, tip.x - prev.x);
       const tangentRad = tangentRadBase + (angleAdjustDeg * Math.PI / 180);
