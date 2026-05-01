@@ -995,6 +995,14 @@
         <g transform="translate(150,150)" id="stageClockMarks" style="pointer-events:none"></g>
 
         <g transform="translate(150,150)" id="centerTopLineG" style="pointer-events:none">
+          <defs>
+            <linearGradient id="shortNeedleGradient" x1="0" y1="-10" x2="0" y2="-58" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#000000"/>
+              <stop offset="100%" stop-color="#d4af37"/>
+            </linearGradient>
+          </defs>
+          <line id="centerShortLine" x1="0" y1="-10" x2="0" y2="-58"
+                stroke="url(#shortNeedleGradient)" stroke-width="5" stroke-linecap="round" style="display:none"/>
           <line id="centerTopLine" x1="0" y1="-10" x2="0" y2="-90"
                 stroke="var(--centerTopColor)" stroke-width="var(--centerTopW)" stroke-linecap="round"/>
         </g>
@@ -7596,6 +7604,19 @@ function redrawAll(m){
   renderMainGearVisual();
   applySubgearCountToDom();
   syncGearClickableState();
+
+  const centerShortLine = stageSvg.querySelector('#centerShortLine');
+  if (centerShortLine){
+    const showShortNeedle = ['9-1', '9-2', '9-3', '9-4'].includes(renderStage);
+    centerShortLine.style.display = showShortNeedle ? '' : 'none';
+    if (showShortNeedle){
+      const secNeedleW = parseFloat(getComputedStyle(stageSvg).getPropertyValue('--centerTopW')) || 4;
+      centerShortLine.setAttribute('stroke-width', String(secNeedleW + 1));
+      centerShortLine.setAttribute('transform', 'rotate(10 0 0)');
+    } else {
+      centerShortLine.removeAttribute('transform');
+    }
+  }
 
   applyMissionSkin(renderStage);
   applyCenterNeedleRotation(centerNeedleRotationDeg, { animate: false, useShortestPath: true });
