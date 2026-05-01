@@ -6910,10 +6910,10 @@ function renderRoomTexts(mission){
     circleArrowArc.setAttribute('stroke-linecap', 'round');
     g.appendChild(circleArrowArc);
 
-    const addArrowHead = (tip, tangentDeg) => {
+    const addArrowHeadFromPrev = (tip, prev) => {
       const len = Math.max(2.6, centerCircleR * 0.7);
       const spreadRad = Math.PI / 6;
-      const tangentRad = tangentDeg * Math.PI / 180;
+      const tangentRad = Math.atan2(tip.y - prev.y, tip.x - prev.x);
       const p1 = {
         x: tip.x - len * Math.cos(tangentRad - spreadRad),
         y: tip.y - len * Math.sin(tangentRad - spreadRad)
@@ -6932,8 +6932,11 @@ function renderRoomTexts(mission){
       g.appendChild(head);
     };
 
-    addArrowHead(arcStart, arcStartDeg + 90);
-    addArrowHead(arcEnd, arcEndDeg - 90);
+    const arcHeadStep = 2;
+    const arcStartPrev = polar(arrowArcR, arcStartDeg + arcHeadStep);
+    const arcEndPrev = polar(arrowArcR, arcEndDeg - arcHeadStep);
+    addArrowHeadFromPrev(arcStart, arcStartPrev);
+    addArrowHeadFromPrev(arcEnd, arcEndPrev);
   }
 
   if (textSpecs.length === 0 && mission !== '9-1' && mission !== '9-2' && mission !== '9-3') return;
