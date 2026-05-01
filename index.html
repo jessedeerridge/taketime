@@ -6535,6 +6535,43 @@ function renderRoomTexts(mission){
   }
 
   const textSpecs = [];
+  const appendStage9ShortHand = () => {
+    const shortHand = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    const stage9ShortHandGradientId = 'stage9ShortHandGrad';
+    let stage9ShortHandGradient = stageSvg.querySelector(`#${stage9ShortHandGradientId}`);
+    if (!stage9ShortHandGradient){
+      let defs = stageSvg.querySelector('defs');
+      if (!defs){
+        defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+        stageSvg.insertBefore(defs, stageSvg.firstChild || null);
+      }
+      stage9ShortHandGradient = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+      stage9ShortHandGradient.setAttribute('id', stage9ShortHandGradientId);
+      stage9ShortHandGradient.setAttribute('gradientUnits', 'userSpaceOnUse');
+      stage9ShortHandGradient.setAttribute('x1', '0');
+      stage9ShortHandGradient.setAttribute('y1', '0');
+      stage9ShortHandGradient.setAttribute('x2', '0');
+      stage9ShortHandGradient.setAttribute('y2', '-65');
+      const nearCenter = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+      nearCenter.setAttribute('offset', '0%');
+      nearCenter.setAttribute('stop-color', '#111111');
+      const tipSide = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+      tipSide.setAttribute('offset', '100%');
+      tipSide.setAttribute('stop-color', '#d4af37');
+      stage9ShortHandGradient.appendChild(nearCenter);
+      stage9ShortHandGradient.appendChild(tipSide);
+      defs.appendChild(stage9ShortHandGradient);
+    }
+    shortHand.setAttribute('x1', '0');
+    shortHand.setAttribute('y1', '0');
+    shortHand.setAttribute('x2', '0');
+    shortHand.setAttribute('y2', '-65');
+    shortHand.setAttribute('stroke', `url(#${stage9ShortHandGradientId})`);
+    shortHand.setAttribute('stroke-width', '5');
+    shortHand.setAttribute('stroke-linecap', 'round');
+    shortHand.setAttribute('transform', 'rotate(10)');
+    g.appendChild(shortHand);
+  };
   if (mission === '1-2') {
     textSpecs.push({ room: 3, label: '8-12', rotate: (midDeg)=>midDeg });
   }
@@ -6578,6 +6615,7 @@ function renderRoomTexts(mission){
     });
   }
   if (mission === '9-1') {
+    appendStage9ShortHand();
     const whitepizza = {
       betweenDeg: 180,
       centerInset: 12,
@@ -6685,6 +6723,7 @@ function renderRoomTexts(mission){
     addArrowHead(arrowArcEnd, betweenDeg + 55);
   }
   if (mission === '9-2') {
+    appendStage9ShortHand();
     const whitepizza = {
       centerInset: 12,
       radius: rBg * 2.16
@@ -6796,6 +6835,7 @@ function renderRoomTexts(mission){
     });
   }
   if (mission === '9-3') {
+    appendStage9ShortHand();
     const whitepizza = {
       centerInset: 12,
       radius: rBg * 2.16
@@ -6907,6 +6947,7 @@ function renderRoomTexts(mission){
     });
   }
   if (mission === '9-4') {
+    appendStage9ShortHand();
     const centerArrowTuning = {
       startAngleDeg: 35,
       endAngleDeg: 325,
