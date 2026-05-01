@@ -6873,6 +6873,27 @@ function renderRoomTexts(mission){
       addArrowHead(arrowArcEnd, betweenDeg + 55);
     });
   }
+  if (mission === '9-4') {
+    const centerCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    const centerCircleR = Math.max(5.5, rBg * 0.9);
+    centerCircle.setAttribute('cx', '0');
+    centerCircle.setAttribute('cy', '0');
+    centerCircle.setAttribute('r', centerCircleR.toFixed(2));
+    centerCircle.setAttribute('fill', '#ebc39f');
+    centerCircle.setAttribute('stroke', 'none');
+    g.appendChild(centerCircle);
+
+    const centerText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    centerText.textContent = '4';
+    centerText.setAttribute('x', '0');
+    centerText.setAttribute('y', '0');
+    centerText.setAttribute('fill', '#8b5a2b');
+    centerText.setAttribute('font-size', Math.max(9, rBg * 1.15).toFixed(2));
+    centerText.setAttribute('font-weight', '900');
+    centerText.setAttribute('text-anchor', 'middle');
+    centerText.setAttribute('dominant-baseline', 'middle');
+    g.appendChild(centerText);
+  }
 
   if (textSpecs.length === 0 && mission !== '9-1' && mission !== '9-2' && mission !== '9-3') return;
 
