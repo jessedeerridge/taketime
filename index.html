@@ -1260,6 +1260,11 @@ let lastCenterNeedleTs = 0;
 let lastCenterNeedlePublishAt = 0;
 const CENTER_NEEDLE_SYNC_INTERVAL_MS = 16;
 const CENTER_NEEDLE_SNAP_DEG = 12;
+const CENTER_NEEDLE_LOCKED_MISSIONS = new Set(['8-4']);
+
+function isCenterNeedleLockedForMission(mission = currentStage){
+  return CENTER_NEEDLE_LOCKED_MISSIONS.has(String(mission || ''));
+}
 
 function getBlackBackGradient(){
   return 'repeating-linear-gradient(135deg,var(--black-card) 0px,var(--black-card) 4px,var(--black-card-stripe) 4px,var(--black-card-stripe) 8px)';
@@ -4185,6 +4190,7 @@ function syncRoomHintTableOrientation(){
   centerTopDiamondG.addEventListener('pointerdown', (ev) => {
     const handle = ev.target.closest('.center-needle-handle');
     if (!handle) return;
+    if (isCenterNeedleLockedForMission()) return;
     ev.preventDefault();
     ev.stopPropagation();
     lastCenterNeedlePublishAt = 0;
