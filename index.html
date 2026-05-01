@@ -6873,8 +6873,77 @@ function renderRoomTexts(mission){
       addArrowHead(arrowArcEnd, betweenDeg + 55);
     });
   }
+  if (mission === '9-4') {
+    const centerX = 0;
+    const centerY = 0;
+    const innerCircleR = Math.max(10, rBg * 1.15);
+    const innerCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    innerCircle.setAttribute('cx', centerX.toFixed(2));
+    innerCircle.setAttribute('cy', centerY.toFixed(2));
+    innerCircle.setAttribute('r', innerCircleR.toFixed(2));
+    innerCircle.setAttribute('fill', '#ebc39f');
+    innerCircle.setAttribute('stroke', 'none');
+    g.appendChild(innerCircle);
 
-  if (textSpecs.length === 0 && mission !== '9-1' && mission !== '9-2' && mission !== '9-3') return;
+    const centerNumber = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    centerNumber.textContent = '4';
+    centerNumber.setAttribute('x', centerX.toFixed(2));
+    centerNumber.setAttribute('y', centerY.toFixed(2));
+    centerNumber.setAttribute('fill', '#8b5a2b');
+    centerNumber.setAttribute('font-size', Math.max(12, innerCircleR * 1.05).toFixed(2));
+    centerNumber.setAttribute('font-weight', '900');
+    centerNumber.setAttribute('text-anchor', 'middle');
+    centerNumber.setAttribute('dominant-baseline', 'middle');
+    g.appendChild(centerNumber);
+
+    const arrowColor = '#d4af37';
+    const arrowArcR = innerCircleR + Math.max(4, innerCircleR * 0.55);
+    const arcStartDeg = -142;
+    const arcEndDeg = 142;
+    const arrowArcStart = {
+      x: centerX + polar(arrowArcR, arcStartDeg).x,
+      y: centerY + polar(arrowArcR, arcStartDeg).y
+    };
+    const arrowArcEnd = {
+      x: centerX + polar(arrowArcR, arcEndDeg).x,
+      y: centerY + polar(arrowArcR, arcEndDeg).y
+    };
+
+    const outerArrowArc = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    outerArrowArc.setAttribute('d', `M ${arrowArcStart.x.toFixed(2)} ${arrowArcStart.y.toFixed(2)} A ${arrowArcR.toFixed(2)} ${arrowArcR.toFixed(2)} 0 1 1 ${arrowArcEnd.x.toFixed(2)} ${arrowArcEnd.y.toFixed(2)}`);
+    outerArrowArc.setAttribute('fill', 'none');
+    outerArrowArc.setAttribute('stroke', arrowColor);
+    outerArrowArc.setAttribute('stroke-width', '2');
+    outerArrowArc.setAttribute('stroke-linecap', 'round');
+    g.appendChild(outerArrowArc);
+
+    const addArrowHead = (tip, tangentDeg) => {
+      const len = Math.max(3.2, innerCircleR * 0.38);
+      const spreadRad = Math.PI / 6;
+      const tangentRad = tangentDeg * Math.PI / 180;
+      const p1 = {
+        x: tip.x - len * Math.cos(tangentRad - spreadRad),
+        y: tip.y - len * Math.sin(tangentRad - spreadRad)
+      };
+      const p2 = {
+        x: tip.x - len * Math.cos(tangentRad + spreadRad),
+        y: tip.y - len * Math.sin(tangentRad + spreadRad)
+      };
+      const head = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      head.setAttribute('d', `M ${p1.x.toFixed(2)} ${p1.y.toFixed(2)} L ${tip.x.toFixed(2)} ${tip.y.toFixed(2)} L ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}`);
+      head.setAttribute('fill', 'none');
+      head.setAttribute('stroke', arrowColor);
+      head.setAttribute('stroke-width', '2');
+      head.setAttribute('stroke-linecap', 'round');
+      head.setAttribute('stroke-linejoin', 'round');
+      g.appendChild(head);
+    };
+
+    addArrowHead(arrowArcStart, arcStartDeg + 92);
+    addArrowHead(arrowArcEnd, arcEndDeg - 92);
+  }
+
+  if (textSpecs.length === 0 && mission !== '9-1' && mission !== '9-2' && mission !== '9-3' && mission !== '9-4') return;
 
   textSpecs.forEach(({room, label, rotate, color: textColor, bgColor: circleColor, bgOpacity: circleOpacity, underline, markerType})=>{
     const midDeg = (room-1)*60 + 30;
