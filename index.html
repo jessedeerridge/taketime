@@ -6875,8 +6875,8 @@ function renderRoomTexts(mission){
   }
   if (mission === '9-4') {
     const centerArrowTuning = {
-      startAngleDeg: -145,
-      endAngleDeg: 145,
+      startAngleDeg: 35,
+      endAngleDeg: 325,
       headStepDeg: 25,
       startHeadAdjustDeg: 0,
       endHeadAdjustDeg: 0,
@@ -7404,6 +7404,15 @@ function renderRoomConditionHints(mission = currentStage){
           lineH: 11,
           fontSize: 9.3
         });
+      });
+    }
+    if (mission === '9-4'){
+      appendHintTable('最初から最後までの差が4以内でなければならない。例8・・・12', 0, 48, {
+        maxCharsPerLine: 13,
+        maxLines: 4,
+        boxW: 132,
+        lineH: 11,
+        fontSize: 9.2
       });
     }
     if (mission === '2-4'){
