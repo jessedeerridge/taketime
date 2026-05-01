@@ -6896,7 +6896,7 @@ function renderRoomTexts(mission){
     g.appendChild(centerText);
 
     const arrowColor = '#d4af37';
-    const arrowArcR = centerCircleR + Math.max(2.4, rBg * 0.35);
+    const arrowArcR = centerCircleR + Math.max(2.4, rBg * 0.35) - 1;
     const arcStartDeg = -145;
     const arcEndDeg = 145;
     const arcStart = polar(arrowArcR, arcStartDeg);
