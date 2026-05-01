@@ -6873,6 +6873,82 @@ function renderRoomTexts(mission){
       addArrowHead(arrowArcEnd, betweenDeg + 55);
     });
   }
+  if (mission === '9-4') {
+    const centerArrowTuning = {
+      startAngleDeg: -145,
+      endAngleDeg: 145,
+      headStepDeg: 25,
+      startHeadAdjustDeg: 0,
+      endHeadAdjustDeg: 0,
+      headSpreadDeg: 30
+    };
+    const centerCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    const centerCircleR = Math.max(4.8, rBg * 0.58);
+    centerCircle.setAttribute('cx', '0');
+    centerCircle.setAttribute('cy', '0');
+    centerCircle.setAttribute('r', centerCircleR.toFixed(2));
+    centerCircle.setAttribute('fill', '#ebc39f');
+    centerCircle.setAttribute('stroke', 'none');
+    g.appendChild(centerCircle);
+
+    const centerText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    centerText.textContent = '4';
+    centerText.setAttribute('x', '0');
+    centerText.setAttribute('y', '0');
+    centerText.setAttribute('fill', '#8b5a2b');
+    centerText.setAttribute('font-size', Math.max(8, (rBg * 1.15) - 1).toFixed(2));
+    centerText.setAttribute('font-weight', '900');
+    centerText.setAttribute('text-anchor', 'middle');
+    centerText.setAttribute('dominant-baseline', 'central');
+    centerText.setAttribute('alignment-baseline', 'central');
+    g.appendChild(centerText);
+
+    const arrowColor = '#d4af37';
+    const arrowArcR = centerCircleR + Math.max(2.4, rBg * 0.35) - 1;
+    const arcStartDeg = centerArrowTuning.startAngleDeg;
+    const arcEndDeg = centerArrowTuning.endAngleDeg;
+    const arcStart = polar(arrowArcR, arcStartDeg);
+    const arcEnd = polar(arrowArcR, arcEndDeg);
+
+    const circleArrowArc = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    circleArrowArc.setAttribute('d', `M ${arcStart.x.toFixed(2)} ${arcStart.y.toFixed(2)} A ${arrowArcR.toFixed(2)} ${arrowArcR.toFixed(2)} 0 1 1 ${arcEnd.x.toFixed(2)} ${arcEnd.y.toFixed(2)}`);
+    circleArrowArc.setAttribute('fill', 'none');
+    circleArrowArc.setAttribute('stroke', arrowColor);
+    circleArrowArc.setAttribute('stroke-width', '1.8');
+    circleArrowArc.setAttribute('stroke-linecap', 'round');
+    g.appendChild(circleArrowArc);
+
+    const addArrowHeadFromPrev = (tip, prev, angleAdjustDeg = 0) => {
+      const len = Math.max(2.6, centerCircleR * 0.7);
+      const spreadRad = (centerArrowTuning.headSpreadDeg * Math.PI) / 180;
+      const tangentRadBase = Math.atan2(tip.y - prev.y, tip.x - prev.x);
+      const tangentRad = tangentRadBase + (angleAdjustDeg * Math.PI / 180);
+      const p1 = {
+        x: tip.x - len * Math.cos(tangentRad - spreadRad),
+        y: tip.y - len * Math.sin(tangentRad - spreadRad)
+      };
+      const p2 = {
+        x: tip.x - len * Math.cos(tangentRad + spreadRad),
+        y: tip.y - len * Math.sin(tangentRad + spreadRad)
+      };
+      const head = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      head.setAttribute('d', `M ${p1.x.toFixed(2)} ${p1.y.toFixed(2)} L ${tip.x.toFixed(2)} ${tip.y.toFixed(2)} L ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}`);
+      head.setAttribute('fill', 'none');
+      head.setAttribute('stroke', arrowColor);
+      head.setAttribute('stroke-width', '1.8');
+      head.setAttribute('stroke-linecap', 'round');
+      head.setAttribute('stroke-linejoin', 'round');
+      g.appendChild(head);
+    };
+
+    const arcHeadStep = centerArrowTuning.headStepDeg;
+    const arcStartPrev = polar(arrowArcR, arcStartDeg + arcHeadStep);
+    const arcEndPrev = polar(arrowArcR, arcEndDeg - arcHeadStep);
+    const arcStartHeadAdjustDeg = centerArrowTuning.startHeadAdjustDeg;
+    const arcEndHeadAdjustDeg = centerArrowTuning.endHeadAdjustDeg;
+    addArrowHeadFromPrev(arcStart, arcStartPrev, arcStartHeadAdjustDeg);
+    addArrowHeadFromPrev(arcEnd, arcEndPrev, arcEndHeadAdjustDeg);
+  }
 
   if (textSpecs.length === 0 && mission !== '9-1' && mission !== '9-2' && mission !== '9-3') return;
 
