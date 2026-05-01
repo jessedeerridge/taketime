@@ -6533,6 +6533,52 @@ function renderRoomTexts(mission){
       markerType
     };
   }
+  function appendMissionShortHand(angleDeg = 10){
+    const csStage = getComputedStyle(stageSvg);
+    const centerTopW = parseFloat(csStage.getPropertyValue('--centerTopW')) || 2.8;
+    const shortHandW = centerTopW + 1;
+    const shortHandLength = Math.max(22, rBg * 2.4);
+    const handRad = ((angleDeg - 90) * Math.PI) / 180;
+    const handEnd = {
+      x: Math.cos(handRad) * shortHandLength,
+      y: Math.sin(handRad) * shortHandLength
+    };
+    const gradientId = `missionShortHandGrad-${mission.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+    let gradient = stageSvg.querySelector(`#${gradientId}`);
+    if (!gradient){
+      gradient = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+      gradient.setAttribute('id', gradientId);
+      gradient.setAttribute('gradientUnits', 'userSpaceOnUse');
+      const start = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+      start.setAttribute('offset', '0%');
+      start.setAttribute('stop-color', '#000000');
+      const end = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+      end.setAttribute('offset', '100%');
+      end.setAttribute('stop-color', '#d4af37');
+      gradient.appendChild(start);
+      gradient.appendChild(end);
+      let defs = stageSvg.querySelector('defs');
+      if (!defs){
+        defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+        stageSvg.insertBefore(defs, stageSvg.firstChild);
+      }
+      defs.appendChild(gradient);
+    }
+    gradient.setAttribute('x1', '0');
+    gradient.setAttribute('y1', '0');
+    gradient.setAttribute('x2', handEnd.x.toFixed(2));
+    gradient.setAttribute('y2', handEnd.y.toFixed(2));
+
+    const hand = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    hand.setAttribute('x1', '0');
+    hand.setAttribute('y1', '0');
+    hand.setAttribute('x2', handEnd.x.toFixed(2));
+    hand.setAttribute('y2', handEnd.y.toFixed(2));
+    hand.setAttribute('stroke', `url(#${gradientId})`);
+    hand.setAttribute('stroke-width', shortHandW.toFixed(2));
+    hand.setAttribute('stroke-linecap', 'round');
+    g.appendChild(hand);
+  }
 
   const textSpecs = [];
   if (mission === '1-2') {
@@ -6578,6 +6624,7 @@ function renderRoomTexts(mission){
     });
   }
   if (mission === '9-1') {
+    appendMissionShortHand(10);
     const whitepizza = {
       betweenDeg: 180,
       centerInset: 12,
@@ -6685,6 +6732,7 @@ function renderRoomTexts(mission){
     addArrowHead(arrowArcEnd, betweenDeg + 55);
   }
   if (mission === '9-2') {
+    appendMissionShortHand(10);
     const whitepizza = {
       centerInset: 12,
       radius: rBg * 2.16
@@ -6796,6 +6844,7 @@ function renderRoomTexts(mission){
     });
   }
   if (mission === '9-3') {
+    appendMissionShortHand(10);
     const whitepizza = {
       centerInset: 12,
       radius: rBg * 2.16
@@ -6907,6 +6956,7 @@ function renderRoomTexts(mission){
     });
   }
   if (mission === '9-4') {
+    appendMissionShortHand(10);
     const centerArrowTuning = {
       startAngleDeg: 35,
       endAngleDeg: 325,
