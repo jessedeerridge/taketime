@@ -6565,6 +6565,48 @@ function renderRoomTexts(mission){
   if (mission === '6-4') {
     textSpecs.push(makeClosecardTextSpec(2, '24', (midDeg)=>midDeg + 180));
   }
+
+  const mission9ShortHandAngleDeg = 10;
+  const mission9ShortHandStrokeW = 2.8;
+  function appendMission9ShortHand(origin, handLength){
+    const tip = {
+      x: origin.x + polar(handLength, mission9ShortHandAngleDeg).x,
+      y: origin.y + polar(handLength, mission9ShortHandAngleDeg).y
+    };
+    const gradId = `mission9ShortHandGrad-${mission}-${Math.random().toString(36).slice(2, 10)}`;
+    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+    const grad = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+    grad.setAttribute('id', gradId);
+    grad.setAttribute('gradientUnits', 'userSpaceOnUse');
+    grad.setAttribute('x1', origin.x.toFixed(2));
+    grad.setAttribute('y1', origin.y.toFixed(2));
+    grad.setAttribute('x2', tip.x.toFixed(2));
+    grad.setAttribute('y2', tip.y.toFixed(2));
+
+    const stopStart = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+    stopStart.setAttribute('offset', '0%');
+    stopStart.setAttribute('stop-color', '#111111');
+    grad.appendChild(stopStart);
+
+    const stopEnd = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+    stopEnd.setAttribute('offset', '100%');
+    stopEnd.setAttribute('stop-color', '#d4af37');
+    grad.appendChild(stopEnd);
+
+    defs.appendChild(grad);
+    g.appendChild(defs);
+
+    const shortHand = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    shortHand.setAttribute('x1', origin.x.toFixed(2));
+    shortHand.setAttribute('y1', origin.y.toFixed(2));
+    shortHand.setAttribute('x2', tip.x.toFixed(2));
+    shortHand.setAttribute('y2', tip.y.toFixed(2));
+    shortHand.setAttribute('stroke', `url(#${gradId})`);
+    shortHand.setAttribute('stroke-width', String(mission9ShortHandStrokeW));
+    shortHand.setAttribute('stroke-linecap', 'round');
+    g.appendChild(shortHand);
+  }
+
   const specialRoomMap = STAGE_SPECIAL_ROOM_NAMES[mission];
   if (specialRoomMap){
     Object.entries(specialRoomMap).forEach(([roomKey, roomName]) => {
@@ -6683,6 +6725,7 @@ function renderRoomTexts(mission){
 
     addArrowHead(arrowArcStart, betweenDeg + 130);
     addArrowHead(arrowArcEnd, betweenDeg + 55);
+    appendMission9ShortHand(markerCenter, Math.max(8, pizzaR * 1.05));
   }
   if (mission === '9-2') {
     const whitepizza = {
@@ -6793,6 +6836,7 @@ function renderRoomTexts(mission){
 
       addArrowHead(arrowArcStart, betweenDeg + 130);
       addArrowHead(arrowArcEnd, betweenDeg + 55);
+      appendMission9ShortHand(markerCenter, Math.max(8, pizzaR * 1.05));
     });
   }
   if (mission === '9-3') {
@@ -6904,6 +6948,7 @@ function renderRoomTexts(mission){
 
       addArrowHead(arrowArcStart, betweenDeg + 130);
       addArrowHead(arrowArcEnd, betweenDeg + 55);
+      appendMission9ShortHand(markerCenter, Math.max(8, pizzaR * 1.05));
     });
   }
   if (mission === '9-4') {
@@ -6950,6 +6995,7 @@ function renderRoomTexts(mission){
     circleArrowArc.setAttribute('stroke-width', '1.8');
     circleArrowArc.setAttribute('stroke-linecap', 'round');
     g.appendChild(circleArrowArc);
+    appendMission9ShortHand({ x: 0, y: 0 }, Math.max(10, centerCircleR * 1.45));
 
     const addArrowHeadFromPrev = (tip, prev, angleAdjustDeg = 0) => {
       const len = Math.max(2.6, centerCircleR * 0.7);
