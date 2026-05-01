@@ -6054,6 +6054,20 @@ function renderRoomCards(mission = currentStage){
     appendBrowncardsRequirement(1, 1);
     appendBrowncardsRequirement(5, 2);
   }
+  if (mission === '9-1') {
+    appendPlusMinusCards(4, { sign: '+' });
+  }
+  if (mission === '9-3') {
+    appendPlusMinusCards(1, { sign: '-' });
+    appendPlusMinusCards(4, { sign: '-' });
+  }
+  if (mission === '10-2') {
+    appendBrowncardsRequirement(4, 2);
+  }
+  if (mission === '10-3') {
+    appendClockRoom(2, { blackclock: true, centerScale: 2.5 });
+    appendClockRoom(5, { text: '1' });
+  }
   if (mission === '8-1') {
     appendNoPlayMarker(2, { goldBorder: true });
   }
