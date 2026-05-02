@@ -1220,6 +1220,8 @@ let isStageTagPressed = false;
 let hostHandLockedByStage = false;
 let lastShownPhaseEventTs = 0;
 let revealPhaseAnnouncedForStage = '';
+let revealPhaseDeferredKey = '';
+let revealPhaseDelayTimer = null;
 let lastSeenPhaseTicks = { discussion: 0, placement: 0, reveal: 0 };
 let revealFlipProcessingKey = '';
 let revealFlipRetryTimer = null;
@@ -1909,6 +1911,11 @@ function subscribeStage(){
       clearTimeout(revealResultDelayTimer);
       revealResultDelayTimer = null;
     }
+    if (revealPhaseDelayTimer){
+      clearTimeout(revealPhaseDelayTimer);
+      revealPhaseDelayTimer = null;
+    }
+    revealPhaseDeferredKey = '';
 
     renderStageOptions();
     window.dispatchEvent(new CustomEvent('mission:change', { detail:{ value: currentStage }}));
@@ -2125,6 +2132,40 @@ function maybeAnnounceRevealPhase(){
   if (placedCount >= totalExpectedCards){
     const key = `${state.roomCode}:${currentStage}`;
     if (revealPhaseAnnouncedForStage === key) return;
+
+    const latestPlacedCard = Object.values(state.playedCards || {})
+      .filter((card) => card?.playerId && seatedPlayerIds.includes(card.playerId))
+      .sort((a, b) => Number(b?.placedAt || 0) - Number(a?.placedAt || 0))[0];
+    const latestSpecialRoom = latestPlacedCard
+      ? getSpecialRoomName(currentStage, Number(latestPlacedCard.room))
+      : '';
+    const shouldWaitRotation = latestSpecialRoom === RIGHTARROW_ROOM_NAME || latestSpecialRoom === LEFTARROW_ROOM_NAME;
+
+    if (shouldWaitRotation){
+      const waitUntil = Number(latestPlacedCard?.placedAt || 0) + RIGHTARROW_ROTATE_DELAY_MS + RIGHTARROW_ROTATE_DURATION_MS + 120;
+      const waitMs = Math.max(0, waitUntil - Date.now());
+      if (waitMs > 0){
+        if (revealPhaseDeferredKey !== key && revealPhaseDelayTimer){
+          clearTimeout(revealPhaseDelayTimer);
+          revealPhaseDelayTimer = null;
+        }
+        revealPhaseDeferredKey = key;
+        if (!revealPhaseDelayTimer){
+          revealPhaseDelayTimer = window.setTimeout(() => {
+            revealPhaseDelayTimer = null;
+            revealPhaseDeferredKey = '';
+            maybeAnnounceRevealPhase();
+          }, waitMs);
+        }
+        return;
+      }
+    }
+
+    if (revealPhaseDelayTimer){
+      clearTimeout(revealPhaseDelayTimer);
+      revealPhaseDelayTimer = null;
+    }
+    revealPhaseDeferredKey = '';
     revealPhaseAnnouncedForStage = key;
     emitPhaseEvent('reveal');
   }
