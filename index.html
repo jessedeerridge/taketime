@@ -2699,9 +2699,11 @@ async function placeDroppedCard(cardData, room, face = 'face'){
 
       myHand.splice(removeIndex, 1);
       const stageCode = String(roomData.stageCode || currentStage || '');
+      const boardRotInTx = Number(roomData.boardRotation?.deg ?? boardRotationDeg);
       const blockedRoomsInTx = getGreenneedleBlockedRoomsFromDeg(
         Number(roomData.greenneedleRotation?.deg ?? greenHandRotationDeg),
-        stageCode
+        stageCode,
+        boardRotInTx
       );
       if (blockedRoomsInTx && blockedRoomsInTx.has(Number(room))) return;
       if (isBDeckRoomForMission(stageCode, room)){
@@ -3661,14 +3663,16 @@ function getNearestGreenSnapDeg(deg){
 
 function getGreenneedleBlockedRooms(stage = currentStage){
   if (!/^10-/.test(String(stage || ''))) return null;
-  const idxA = ((Math.round((normalizeDeg(greenHandRotationDeg) - 30) / 60) % 6) + 6) % 6;
+  const logicalDeg = normalizeDeg(greenHandRotationDeg - boardRotationDeg);
+  const idxA = ((Math.round((logicalDeg - 30) / 60) % 6) + 6) % 6;
   const idxB = (idxA + 3) % 6;
   return new Set([idxA + 1, idxB + 1]);
 }
 
-function getGreenneedleBlockedRoomsFromDeg(deg, stage = currentStage){
+function getGreenneedleBlockedRoomsFromDeg(deg, stage = currentStage, boardRot = boardRotationDeg){
   if (!/^10-/.test(String(stage || ''))) return null;
-  const idxA = ((Math.round((normalizeDeg(deg) - 30) / 60) % 6) + 6) % 6;
+  const logicalDeg = normalizeDeg(deg - boardRot);
+  const idxA = ((Math.round((logicalDeg - 30) / 60) % 6) + 6) % 6;
   const idxB = (idxA + 3) % 6;
   return new Set([idxA + 1, idxB + 1]);
 }
