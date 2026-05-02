@@ -3663,7 +3663,7 @@ function getNearestGreenSnapDeg(deg){
 
 function getGreenneedleBlockedRooms(stage = currentStage){
   if (!/^10-/.test(String(stage || ''))) return null;
-  const logicalDeg = normalizeDeg(greenHandRotationDeg - boardRotationDeg);
+  const logicalDeg = normalizeDeg(greenHandRotationDeg - boardRotationDeg + 90);
   const idxA = ((Math.floor(logicalDeg / 60) % 6) + 6) % 6;
   const idxB = (idxA + 3) % 6;
   return new Set([idxA + 1, idxB + 1]);
@@ -3671,7 +3671,7 @@ function getGreenneedleBlockedRooms(stage = currentStage){
 
 function getGreenneedleBlockedRoomsFromDeg(deg, stage = currentStage, boardRot = boardRotationDeg){
   if (!/^10-/.test(String(stage || ''))) return null;
-  const logicalDeg = normalizeDeg(deg - boardRot);
+  const logicalDeg = normalizeDeg(deg - boardRot + 90);
   const idxA = ((Math.floor(logicalDeg / 60) % 6) + 6) % 6;
   const idxB = (idxA + 3) % 6;
   return new Set([idxA + 1, idxB + 1]);
