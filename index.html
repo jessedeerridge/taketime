@@ -3621,6 +3621,20 @@ function applyGreenHandRotation(deg, { animate = false, useShortestPath = false 
   }
 }
 
+function getNearestGreenSnapDeg(deg){
+  const snaps = [30, 90, 150, 210, 270, 320];
+  let best = snaps[0];
+  let bestDelta = Math.abs(shortestDegDelta(best, deg));
+  for (let i = 1; i < snaps.length; i += 1){
+    const delta = Math.abs(shortestDegDelta(snaps[i], deg));
+    if (delta < bestDelta){
+      best = snaps[i];
+      bestDelta = delta;
+    }
+  }
+  return normalizeDeg(best);
+}
+
 function publishCenterNeedleRotation(deg, { isFinal = false, force = false } = {}){
   if (!state.roomCode || !state.userId) return;
   const now = Date.now();
@@ -4351,6 +4365,9 @@ function syncRoomHintTableOrientation(){
   if (!centerGreenHandG) return;
   centerGreenHandG.style.pointerEvents = 'auto';
   centerGreenHandG.style.touchAction = 'none';
+  centerGreenHandG.querySelectorAll('.green-needle-handle').forEach((el) => {
+    el.style.cursor = 'grab';
+  });
   let greenDrag = null;
 
   const onMove = (ev) => {
@@ -4366,7 +4383,7 @@ function syncRoomHintTableOrientation(){
     if (!greenDrag || ev.pointerId !== greenDrag.pointerId) return;
     const captureEl = greenDrag.captureEl;
     if (captureEl && typeof captureEl.releasePointerCapture === 'function') captureEl.releasePointerCapture(ev.pointerId);
-    const snapped = normalizeDeg(Math.round(greenDrag.currentRotationDeg / CENTER_NEEDLE_SNAP_DEG) * CENTER_NEEDLE_SNAP_DEG);
+    const snapped = getNearestGreenSnapDeg(greenDrag.currentRotationDeg);
     greenDrag = null;
     applyGreenHandRotation(snapped, { animate: true, useShortestPath: true });
     window.removeEventListener('pointermove', onMove);
@@ -7833,6 +7850,9 @@ function redrawAll(m){
   if (centerTopLineG && centerTopDiamondG){
     stageSvg.appendChild(centerTopLineG);
     stageSvg.appendChild(centerTopDiamondG);
+  }
+  if (centerGreenHandG && /^10-/.test(String(renderStage || ''))){
+    stageSvg.appendChild(centerGreenHandG);
   }
 }
 window.addEventListener('mission:change', (e)=>{
