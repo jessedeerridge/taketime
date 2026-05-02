@@ -1729,6 +1729,24 @@ function showPhaseFlow(text){
   phaseFlowPop.classList.add('run');
 }
 
+function getRevealPhaseRotationSnapshotDeg(){
+  const latestEntry = getPlayedEntriesSorted().slice(-1)[0];
+  if (latestEntry){
+    const latestSpecialRoomName = getSpecialRoomName(currentStage || '', Number(latestEntry.room));
+    if (latestSpecialRoomName === RIGHTARROW_ROOM_NAME || latestSpecialRoomName === LEFTARROW_ROOM_NAME){
+      const delta = latestSpecialRoomName === LEFTARROW_ROOM_NAME ? -60 : 60;
+      return normalizeDeg(boardRotationDeg + delta);
+    }
+  }
+
+  const latestRotateEvent = state.room?.rightarrowRotationEvent;
+  if (latestRotateEvent && latestRotateEvent.stage === (currentStage || '')){
+    const toDeg = Number(latestRotateEvent.toDeg);
+    if (Number.isFinite(toDeg)) return normalizeDeg(toDeg);
+  }
+  return normalizeDeg(boardRotationDeg);
+}
+
 async function emitPhaseEvent(type){
   if (!state.roomCode || !state.isHost) return;
   const labels = {
@@ -1747,6 +1765,11 @@ async function emitPhaseEvent(type){
     stage: currentStage || '',
     [`${type}Tick`]: ts
   };
+  if (type === 'reveal'){
+    phaseStateUpdates.revealRotationDeg = getRevealPhaseRotationSnapshotDeg();
+  } else if (type === 'discussion' || type === 'placement'){
+    phaseStateUpdates.revealRotationDeg = null;
+  }
   await update(ref(db, `rooms/${state.roomCode}/phaseState`), phaseStateUpdates);
 }
 
@@ -2137,7 +2160,13 @@ function getPlayedEntriesSorted(){
     .sort((a, b) => Number(a.placedAt || 0) - Number(b.placedAt || 0));
 }
 
-function getRoomCardsMap(entries = getPlayedEntriesSorted(), rotationDeg = boardRotationDeg){
+function getRevealPhaseBoardRotationDeg(){
+  const phaseRotation = Number(state.phaseState?.revealRotationDeg);
+  if (state.currentPhase === 'reveal' && Number.isFinite(phaseRotation)) return normalizeDeg(phaseRotation);
+  return normalizeDeg(boardRotationDeg);
+}
+
+function getRoomCardsMap(entries = getPlayedEntriesSorted(), rotationDeg = getRevealPhaseBoardRotationDeg()){
   const map = new Map(Array.from({ length: 6 }, (_, i) => [i + 1, []]));
   entries.forEach((card) => {
     const room = getCardCurrentRoom(card, rotationDeg);
