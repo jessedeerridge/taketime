@@ -988,11 +988,11 @@
         <g id="centerGreenHandG" transform="translate(150,150) rotate(0)" style="pointer-events:none;display:none">
           <path id="centerGreenHand" d="M -60 0 L -26 0 A 26 26 0 0 1 26 0 L 60 0"
                 fill="none" stroke="#22c55e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-          <circle class="center-needle-handle" cx="-74" cy="0" r="10" fill="rgba(0,0,0,0)" stroke="none"/>
-          <circle class="center-needle-handle" cx="74" cy="0" r="10" fill="rgba(0,0,0,0)" stroke="none"/>
-          <path class="center-needle-handle" d="M -82,0 L -74,-6 L -66,0 L -74,6 Z"
+          <circle class="green-needle-handle" cx="-66" cy="0" r="10" fill="rgba(0,0,0,0)" stroke="none"/>
+          <circle class="green-needle-handle" cx="66" cy="0" r="10" fill="rgba(0,0,0,0)" stroke="none"/>
+          <path class="green-needle-handle" d="M -74,0 L -66,-6 L -58,0 L -66,6 Z"
                 fill="#22c55e" stroke="none"/>
-          <path class="center-needle-handle" d="M 66,0 L 74,-6 L 82,0 L 74,6 Z"
+          <path class="green-needle-handle" d="M 58,0 L 66,-6 L 74,0 L 66,6 Z"
                 fill="#22c55e" stroke="none"/>
         </g>
 
@@ -1276,6 +1276,8 @@ let rightarrowRotateInProgress = false;
 let isCenterNeedleHidden = false;
 let centerNeedleRotationDeg = 0;
 let centerNeedleRotationVisualDeg = 0;
+let greenHandRotationDeg = 0;
+let greenHandRotationVisualDeg = 0;
 let centerNeedleDrag = null;
 let isCenterNeedleDragging = false;
 let hasCenterNeedleSnapshot = false;
@@ -3576,6 +3578,8 @@ const rotationHandlesG = stageSvg.querySelector('#rotationHandles');
 const initialCenterNeedleRotate = parseFloat(getComputedStyle(stageSvg).getPropertyValue('--centerTopRotate')) || 0;
 centerNeedleRotationDeg = initialCenterNeedleRotate;
 centerNeedleRotationVisualDeg = initialCenterNeedleRotate;
+greenHandRotationDeg = initialCenterNeedleRotate;
+greenHandRotationVisualDeg = initialCenterNeedleRotate;
 
 function applyCenterNeedleVisibility(){
   const shouldHide = isCenterNeedleLockedForMission() ? false : isCenterNeedleHidden;
@@ -3603,9 +3607,17 @@ function applyCenterNeedleRotation(deg, { animate = false, useShortestPath = fal
     innerOrangeFillG.style.transition = animate ? 'transform 220ms ease-out' : 'none';
     innerOrangeFillG.setAttribute('transform', transform);
   }
+}
+
+function applyGreenHandRotation(deg, { animate = false, useShortestPath = false } = {}){
+  const normalized = normalizeDeg(deg);
+  greenHandRotationVisualDeg = useShortestPath
+    ? toShortestVisualRotation(greenHandRotationVisualDeg, normalized)
+    : deg;
+  greenHandRotationDeg = normalizeDeg(greenHandRotationVisualDeg);
   if (centerGreenHandG){
     centerGreenHandG.style.transition = animate ? 'transform 220ms ease-out' : 'none';
-    centerGreenHandG.setAttribute('transform', transform);
+    centerGreenHandG.setAttribute('transform', `translate(150,150) rotate(${greenHandRotationVisualDeg})`);
   }
 }
 
@@ -3623,6 +3635,7 @@ function publishCenterNeedleRotation(deg, { isFinal = false, force = false } = {
 }
 
 applyCenterNeedleRotation(centerNeedleRotationDeg, { animate: false });
+applyGreenHandRotation(greenHandRotationDeg, { animate: false });
 
 if (orangeCenterFill){
   orangeCenterFill.style.cursor = 'pointer';
@@ -4260,10 +4273,6 @@ function syncRoomHintTableOrientation(){
   if (!centerTopDiamondG) return;
   centerTopDiamondG.style.pointerEvents = 'auto';
   centerTopDiamondG.style.touchAction = 'none';
-  if (centerGreenHandG){
-    centerGreenHandG.style.pointerEvents = 'auto';
-    centerGreenHandG.style.touchAction = 'none';
-  }
 
   const endNeedleDrag = ({ pointerId = null, shouldSnap = true } = {}) => {
     if (!centerNeedleDrag) return;
@@ -4335,7 +4344,52 @@ function syncRoomHintTableOrientation(){
   };
 
   centerTopDiamondG.addEventListener('pointerdown', onNeedlePointerDown);
-  if (centerGreenHandG) centerGreenHandG.addEventListener('pointerdown', onNeedlePointerDown);
+})();
+
+(function setupGreenNeedleDrag(){
+  if (!centerGreenHandG) return;
+  centerGreenHandG.style.pointerEvents = 'auto';
+  centerGreenHandG.style.touchAction = 'none';
+  let greenDrag = null;
+
+  const onMove = (ev) => {
+    if (!greenDrag || ev.pointerId !== greenDrag.pointerId) return;
+    ev.preventDefault();
+    const nextAngle = pointerAngleDegFromBoardCenter(ev.clientX, ev.clientY);
+    const delta = shortestDegDelta(greenDrag.lastPointerDeg, nextAngle);
+    greenDrag.currentRotationDeg = normalizeDeg(greenDrag.currentRotationDeg + delta);
+    greenDrag.lastPointerDeg = nextAngle;
+    applyGreenHandRotation(greenDrag.currentRotationDeg);
+  };
+  const onUp = (ev) => {
+    if (!greenDrag || ev.pointerId !== greenDrag.pointerId) return;
+    const captureEl = greenDrag.captureEl;
+    if (captureEl && typeof captureEl.releasePointerCapture === 'function') captureEl.releasePointerCapture(ev.pointerId);
+    const snapped = normalizeDeg(Math.round(greenDrag.currentRotationDeg / CENTER_NEEDLE_SNAP_DEG) * CENTER_NEEDLE_SNAP_DEG);
+    greenDrag = null;
+    applyGreenHandRotation(snapped, { animate: true, useShortestPath: true });
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', onUp);
+    window.removeEventListener('pointercancel', onUp);
+  };
+
+  centerGreenHandG.addEventListener('pointerdown', (ev) => {
+    const handle = ev.target.closest('.green-needle-handle');
+    if (!handle) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    const captureEl = ev.currentTarget;
+    if (typeof captureEl.setPointerCapture === 'function') captureEl.setPointerCapture(ev.pointerId);
+    greenDrag = {
+      pointerId: ev.pointerId,
+      captureEl,
+      currentRotationDeg: greenHandRotationDeg,
+      lastPointerDeg: pointerAngleDegFromBoardCenter(ev.clientX, ev.clientY)
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  });
 })();
 
 /* ================== ステージ定義 ================== */
@@ -7708,6 +7762,7 @@ function redrawAll(m){
 
   applyMissionSkin(renderStage);
   applyCenterNeedleRotation(centerNeedleRotationDeg, { animate: false, useShortestPath: true });
+  applyGreenHandRotation(greenHandRotationDeg, { animate: false, useShortestPath: true });
   renderEqTriBackFill(renderStage);
   updateOrangeGraphics();
   renderInnerTinyDiv();
