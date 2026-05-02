@@ -2267,6 +2267,42 @@ function evaluateDualColorExtremePlusSuccess(stage, entries, roomCardsMap){
   return true;
 }
 
+function evaluateWhitePizzaGapSuccess(stage, roomCardsMap){
+  const getRoomSum = (room) => {
+    const cards = roomCardsMap.get(room) || [];
+    if (!cards.length) return null;
+    return getRoomResultValue(stage, cards);
+  };
+
+  if (stage === '9-1'){
+    const leftRoom = 3;
+    const rightRoom = 5;
+    const leftSum = getRoomSum(leftRoom);
+    const rightSum = getRoomSum(rightRoom);
+    if (leftSum === null || rightSum === null) return false;
+    return Math.abs(leftSum - rightSum) >= 6;
+  }
+
+  if (stage === '9-2'){
+    const adjacentPairs = [
+      [1, 2],
+      [2, 3],
+      [3, 4],
+      [4, 5],
+      [5, 6],
+      [6, 1]
+    ];
+    return adjacentPairs.every(([leftRoom, rightRoom]) => {
+      const leftSum = getRoomSum(leftRoom);
+      const rightSum = getRoomSum(rightRoom);
+      if (leftSum === null || rightSum === null) return false;
+      return Math.abs(leftSum - rightSum) >= 2;
+    });
+  }
+
+  return true;
+}
+
 function evaluatePlacementResult(stage, roomCardsMap){
   if (
     typeof stage === 'string'
@@ -2308,8 +2344,9 @@ function evaluatePlacementResult(stage, roomCardsMap){
   const plusMinusOk = evaluatePlusMinusSuccess(stage, getPlayedEntriesSorted(), roomCardsMap);
   const twoBlackWhiteOk = evaluateTwoBlackWhiteRoomSuccess(stage, roomCardsMap);
   const dualColorExtremePlusOk = evaluateDualColorExtremePlusSuccess(stage, getPlayedEntriesSorted(), roomCardsMap);
+  const whitePizzaGapOk = evaluateWhitePizzaGapSuccess(stage, roomCardsMap);
 
-  return isAscending && conditionsOk && room6Ok && plusMinusOk && twoBlackWhiteOk && dualColorExtremePlusOk;
+  return isAscending && conditionsOk && room6Ok && plusMinusOk && twoBlackWhiteOk && dualColorExtremePlusOk && whitePizzaGapOk;
 }
 
 function getOrderedRoomsWithCardsByRevealStart(roomCardsMap, stage = currentStage){
