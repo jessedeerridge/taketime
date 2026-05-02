@@ -993,6 +993,16 @@
         <g id="r5Infinity" transform="translate(150,150)" style="pointer-events:none"></g>
         <g transform="translate(150,150)" id="stageSpecified" style="pointer-events:none"></g>
         <g transform="translate(150,150)" id="stageClockMarks" style="pointer-events:none"></g>
+        <defs>
+          <linearGradient id="centerHourHandGrad" x1="0" y1="-10" x2="0" y2="-62" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#000000"/>
+            <stop offset="100%" stop-color="#d4af37"/>
+          </linearGradient>
+        </defs>
+        <g transform="translate(150,150) rotate(10)" id="centerHourHandG" style="pointer-events:none;display:none">
+          <line id="centerHourHand" x1="0" y1="-10" x2="0" y2="-62"
+                stroke="url(#centerHourHandGrad)" stroke-width="calc(var(--centerTopW) + 1)" stroke-linecap="round"/>
+        </g>
 
         <g transform="translate(150,150)" id="centerTopLineG" style="pointer-events:none">
           <line id="centerTopLine" x1="0" y1="-10" x2="0" y2="-90"
@@ -3481,6 +3491,7 @@ window.addEventListener('resize', () => {
 
 /* ===== ステージSVGロジック：元コードをそのまま移植 ===== */
 const stageSvg = document.getElementById('stageBoard');
+const centerHourHandG = stageSvg.querySelector('#centerHourHandG');
 const centerTopLineG = stageSvg.querySelector('#centerTopLineG');
 const centerTopDiamondG = stageSvg.querySelector('#centerTopDiamondG');
 const innerOrangeFillG = stageSvg.querySelector('#innerOrangeFill');
@@ -7526,6 +7537,7 @@ function renderRoomConditionHints(mission = currentStage){
   const infinityG    = stageSvg.querySelector('#r5Infinity');
   const spec         = stageSvg.querySelector('#stageSpecified');
   const clockMarks   = stageSvg.querySelector('#stageClockMarks');
+  const hourHandG    = stageSvg.querySelector('#centerHourHandG');
   const centerLineG  = stageSvg.querySelector('#centerTopLineG');
   const tipG         = stageSvg.querySelector('#centerTopDiamondG');
   const roomGuideCircles = stageSvg.querySelector('#roomGuideCircles');
@@ -7539,7 +7551,7 @@ function renderRoomConditionHints(mission = currentStage){
   centerLineG?.setAttribute('transform', `translate(150,150) rotate(${rot})`);
   tipG?.setAttribute('transform',         `translate(150,150) rotate(${rot})`);
 
-  if (!back || !marks || !outG || !r2 || !orangeFill || !tiny20 || !orangeStroke || !infinityG || !spec || !clockMarks || !centerLineG || !tipG || !roomGuideCircles || !roomTexts || !roomConditionHints || !cardsG || !playedCardsG || !roomTotalsG) return;
+  if (!back || !marks || !outG || !r2 || !orangeFill || !tiny20 || !orangeStroke || !infinityG || !spec || !clockMarks || !hourHandG || !centerLineG || !tipG || !roomGuideCircles || !roomTexts || !roomConditionHints || !cardsG || !playedCardsG || !roomTotalsG) return;
 
   if (innerLightFill && innerLightFill.previousSibling !== outG) stageSvg.insertBefore(outG, innerLightFill);
   else if (!innerLightFill && back.previousSibling !== outG)     stageSvg.insertBefore(outG, back);
@@ -7553,6 +7565,7 @@ function renderRoomConditionHints(mission = currentStage){
   if (spec.nextSibling !== clockMarks)          stageSvg.insertBefore(clockMarks,   spec.nextSibling);
   if (clockMarks.nextSibling !== roomGuideCircles) stageSvg.insertBefore(roomGuideCircles, clockMarks.nextSibling);
   if (roomGuideCircles.nextSibling !== roomTexts) stageSvg.insertBefore(roomTexts, roomGuideCircles.nextSibling);
+  if (roomTexts.nextSibling !== hourHandG) stageSvg.insertBefore(hourHandG, roomTexts.nextSibling);
   if (roomTexts.nextSibling !== centerLineG) stageSvg.insertBefore(centerLineG, roomTexts.nextSibling);
   if (centerLineG.nextSibling !== tipG) stageSvg.insertBefore(tipG, centerLineG.nextSibling);
   if (centerLineG.nextSibling !== cardsG) stageSvg.insertBefore(cardsG, centerLineG.nextSibling);
@@ -7596,6 +7609,11 @@ function redrawAll(m){
   renderMainGearVisual();
   applySubgearCountToDom();
   syncGearClickableState();
+  if (centerHourHandG){
+    const showHourHand = ['10-1', '10-2', '10-3', '10-4'].includes(renderStage) && state.joined;
+    centerHourHandG.style.display = showHourHand ? '' : 'none';
+    centerHourHandG.setAttribute('transform', 'translate(150,150) rotate(10)');
+  }
 
   applyMissionSkin(renderStage);
   applyCenterNeedleRotation(centerNeedleRotationDeg, { animate: false, useShortestPath: true });
