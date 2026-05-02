@@ -4321,6 +4321,7 @@ function syncRoomHintTableOrientation(){
   const onNeedlePointerDown = (ev) => {
     const handle = ev.target.closest('.center-needle-handle');
     if (!handle) return;
+    if (/^10-/.test(String(currentStage || ''))) return;
     if (isCenterNeedleLockedForMission()) return;
     ev.preventDefault();
     ev.stopPropagation();
@@ -7773,6 +7774,11 @@ function redrawAll(m){
     }
     if (stageSvg.lastElementChild !== centerTopDiamondG){
       stageSvg.appendChild(centerTopDiamondG);
+    }
+  }
+  if (centerGreenHandG && /^10-/.test(String(renderStage || ''))){
+    if (stageSvg.lastElementChild !== centerGreenHandG){
+      stageSvg.appendChild(centerGreenHandG);
     }
   }
 
