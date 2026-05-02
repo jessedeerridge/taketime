@@ -990,9 +990,9 @@
                 fill="none" stroke="#22c55e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
           <circle class="center-needle-handle" cx="-64" cy="0" r="10" fill="rgba(0,0,0,0)" stroke="none"/>
           <circle class="center-needle-handle" cx="64" cy="0" r="10" fill="rgba(0,0,0,0)" stroke="none"/>
-          <path class="center-needle-handle" d="M -64,-7 L -57,0 L -64,7 L -71,0 Z"
+          <path class="center-needle-handle" d="M -64,-8 L -58,0 L -64,8 L -70,0 Z"
                 fill="#22c55e" stroke="#14532d" stroke-width="1.5"/>
-          <path class="center-needle-handle" d="M 64,-7 L 71,0 L 64,7 L 57,0 Z"
+          <path class="center-needle-handle" d="M 64,-8 L 70,0 L 64,8 L 58,0 Z"
                 fill="#22c55e" stroke="#14532d" stroke-width="1.5"/>
         </g>
 
@@ -1283,7 +1283,7 @@ let lastCenterNeedleTs = 0;
 let lastCenterNeedlePublishAt = 0;
 const CENTER_NEEDLE_SYNC_INTERVAL_MS = 16;
 const CENTER_NEEDLE_SNAP_DEG = 12;
-const CENTER_NEEDLE_LOCKED_MISSIONS = new Set(['8-4', '10-1', '10-2', '10-3', '10-4']);
+const CENTER_NEEDLE_LOCKED_MISSIONS = new Set(['8-4']);
 
 function isCenterNeedleLockedForMission(mission = currentStage){
   return CENTER_NEEDLE_LOCKED_MISSIONS.has(String(mission || ''));
