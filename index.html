@@ -2300,6 +2300,31 @@ function evaluateWhitePizzaGapSuccess(stage, roomCardsMap){
     });
   }
 
+  if (stage === '9-3'){
+    const equalPairs = [
+      [1, 2],
+      [4, 5]
+    ];
+    return equalPairs.every(([leftRoom, rightRoom]) => {
+      const leftSum = getRoomSum(leftRoom);
+      const rightSum = getRoomSum(rightRoom);
+      if (leftSum === null || rightSum === null) return false;
+      return leftSum === rightSum;
+    });
+  }
+
+  if (stage === '9-4'){
+    const roomSums = [];
+    for (let room = 1; room <= 6; room++){
+      const sum = getRoomSum(room);
+      if (sum !== null) roomSums.push(sum);
+    }
+    if (roomSums.length < 2) return false;
+    const minValue = Math.min(...roomSums);
+    const maxValue = Math.max(...roomSums);
+    return (maxValue - minValue) <= 4;
+  }
+
   return true;
 }
 
@@ -7490,7 +7515,7 @@ function renderRoomConditionHints(mission = currentStage){
       });
     }
     if (mission === '9-4'){
-      appendHintTable('最初から最後までの差が4以内でなければならない。例8・・・12', 0, 48, {
+      appendHintTable('最小の値と最大の値の差が4以内でなければならない。例8・・・12', 0, 48, {
         maxCharsPerLine: 13,
         maxLines: 4,
         boxW: 132,
