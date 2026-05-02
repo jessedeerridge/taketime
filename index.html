@@ -1279,7 +1279,7 @@ let centerNeedleRotationVisualDeg = 0;
 let greenHandRotationDeg = 0;
 let greenHandRotationVisualDeg = 0;
 let lastGreenneedleStageCode = '';
-const greenneedle = { initialDeg: 180, stepDeg: 60, snapAngles: [0, 60, 120, 180, 240, 300] };
+const greenneedle = { initialDeg: 0, stepDeg: 60, snapAngles: [0, 60, 120, 180, 240, 300] };
 let centerNeedleDrag = null;
 let isCenterNeedleDragging = false;
 let hasCenterNeedleSnapshot = false;
@@ -2615,8 +2615,8 @@ function getRoomPlacementCounts(room, rotationDeg = boardRotationDeg){
 
 function canPlaceCardInRoom(cardData, room, stage = currentStage){
   if (!cardData || !(room >= 1 && room <= 6)) return false;
-  const blockedRoom = getGreenneedleBlockedRoom(stage);
-  if (blockedRoom != null && Number(room) === Number(blockedRoom)) return false;
+  const blockedRooms = getGreenneedleBlockedRooms(stage);
+  if (blockedRooms && blockedRooms.has(Number(room))) return false;
   const forcedClockRooms = getForcedClockRoomsForNextPlacement(stage);
   if (forcedClockRooms.size > 0 && !forcedClockRooms.has(Number(room))) return false;
 
@@ -3642,10 +3642,11 @@ function getNearestGreenSnapDeg(deg){
   return normalizeDeg(best);
 }
 
-function getGreenneedleBlockedRoom(stage = currentStage){
+function getGreenneedleBlockedRooms(stage = currentStage){
   if (!/^10-/.test(String(stage || ''))) return null;
-  const idx = ((Math.round((normalizeDeg(greenHandRotationDeg) - 30) / 60) % 6) + 6) % 6;
-  return idx + 1;
+  const idxA = ((Math.round((normalizeDeg(greenHandRotationDeg) - 30) / 60) % 6) + 6) % 6;
+  const idxB = (idxA + 3) % 6;
+  return new Set([idxA + 1, idxB + 1]);
 }
 
 function publishCenterNeedleRotation(deg, { isFinal = false, force = false } = {}){
