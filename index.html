@@ -1272,7 +1272,7 @@ let lastCenterNeedleTs = 0;
 let lastCenterNeedlePublishAt = 0;
 const CENTER_NEEDLE_SYNC_INTERVAL_MS = 16;
 const CENTER_NEEDLE_SNAP_DEG = 12;
-const CENTER_NEEDLE_LOCKED_MISSIONS = new Set(['8-4']);
+const CENTER_NEEDLE_LOCKED_MISSIONS = new Set(['8-4', '10-1', '10-2', '10-3', '10-4']);
 
 function isCenterNeedleLockedForMission(mission = currentStage){
   return CENTER_NEEDLE_LOCKED_MISSIONS.has(String(mission || ''));
@@ -7612,7 +7612,7 @@ function redrawAll(m){
   applySubgearCountToDom();
   syncGearClickableState();
   if (centerHourHandG){
-    const showHourHand = ['10-1', '10-2', '10-3', '10-4'].includes(renderStage) && state.joined;
+    const showHourHand = ['10-1', '10-2', '10-3', '10-4'].includes(renderStage);
     centerHourHandG.style.display = showHourHand ? '' : 'none';
     centerHourHandG.setAttribute('transform', 'translate(150,150) rotate(10)');
   }
