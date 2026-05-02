@@ -3578,8 +3578,8 @@ const rotationHandlesG = stageSvg.querySelector('#rotationHandles');
 const initialCenterNeedleRotate = parseFloat(getComputedStyle(stageSvg).getPropertyValue('--centerTopRotate')) || 0;
 centerNeedleRotationDeg = initialCenterNeedleRotate;
 centerNeedleRotationVisualDeg = initialCenterNeedleRotate;
-greenHandRotationDeg = initialCenterNeedleRotate;
-greenHandRotationVisualDeg = initialCenterNeedleRotate;
+greenHandRotationDeg = 120;
+greenHandRotationVisualDeg = 120;
 
 function applyCenterNeedleVisibility(){
   const shouldHide = isCenterNeedleLockedForMission() ? false : isCenterNeedleHidden;
@@ -3622,7 +3622,7 @@ function applyGreenHandRotation(deg, { animate = false, useShortestPath = false 
 }
 
 function getNearestGreenSnapDeg(deg){
-  const snaps = [30, 90, 150, 210, 270, 320];
+  const snaps = [0, 60, 120, 180, 240, 300];
   let best = snaps[0];
   let bestDelta = Math.abs(shortestDegDelta(best, deg));
   for (let i = 1; i < snaps.length; i += 1){
