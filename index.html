@@ -985,6 +985,17 @@
 
         <g id="innerTiny20" transform="translate(150,150)" class="sharp" style="pointer-events:none"></g>
 
+        <g id="centerGreenHandG" transform="translate(150,150) rotate(0)" style="pointer-events:none;display:none">
+          <path id="centerGreenHand" d="M -60 0 L -26 0 A 26 26 0 0 1 26 0 L 60 0"
+                fill="none" stroke="#22c55e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle class="green-needle-handle" cx="-66" cy="0" r="10" fill="rgba(0,0,0,0)" stroke="none"/>
+          <circle class="green-needle-handle" cx="66" cy="0" r="10" fill="rgba(0,0,0,0)" stroke="none"/>
+          <path class="green-needle-handle" d="M -74,0 L -66,-6 L -58,0 L -66,6 Z"
+                fill="#22c55e" stroke="none"/>
+          <path class="green-needle-handle" d="M 58,0 L 66,-6 L 74,0 L 66,6 Z"
+                fill="#22c55e" stroke="none"/>
+        </g>
+
         <g id="innerRingsOrange" transform="translate(150,150)" class="sharp">
           <circle id="innerRing4" r="0" fill="none" stroke="var(--ringStroke)" stroke-width="var(--outline)"/>
           <circle id="innerRing5" r="0" fill="none" stroke="var(--ringStroke)" stroke-width="var(--outline)"/>
@@ -1265,6 +1276,13 @@ let rightarrowRotateInProgress = false;
 let isCenterNeedleHidden = false;
 let centerNeedleRotationDeg = 0;
 let centerNeedleRotationVisualDeg = 0;
+let greenHandRotationDeg = 0;
+let greenHandRotationVisualDeg = 0;
+let lastGreenneedleStageCode = '';
+const greenneedle = { initialDeg: 240, stepDeg: 60, snapAngles: [0, 60, 120, 180, 240, 300] };
+let hasGreenneedleSnapshot = false;
+let lastGreenneedleTs = 0;
+let lastGreenneedlePublishAt = 0;
 let centerNeedleDrag = null;
 let isCenterNeedleDragging = false;
 let hasCenterNeedleSnapshot = false;
@@ -1272,7 +1290,7 @@ let lastCenterNeedleTs = 0;
 let lastCenterNeedlePublishAt = 0;
 const CENTER_NEEDLE_SYNC_INTERVAL_MS = 16;
 const CENTER_NEEDLE_SNAP_DEG = 12;
-const CENTER_NEEDLE_LOCKED_MISSIONS = new Set(['8-4', '10-1', '10-2', '10-3', '10-4']);
+const CENTER_NEEDLE_LOCKED_MISSIONS = new Set(['8-4']);
 
 function isCenterNeedleLockedForMission(mission = currentStage){
   return CENTER_NEEDLE_LOCKED_MISSIONS.has(String(mission || ''));
@@ -2600,6 +2618,8 @@ function getRoomPlacementCounts(room, rotationDeg = boardRotationDeg){
 
 function canPlaceCardInRoom(cardData, room, stage = currentStage){
   if (!cardData || !(room >= 1 && room <= 6)) return false;
+  const blockedRooms = getGreenneedleBlockedRooms(stage);
+  if (blockedRooms && blockedRooms.has(Number(room))) return false;
   const forcedClockRooms = getForcedClockRoomsForNextPlacement(stage);
   if (forcedClockRooms.size > 0 && !forcedClockRooms.has(Number(room))) return false;
 
@@ -2679,6 +2699,13 @@ async function placeDroppedCard(cardData, room, face = 'face'){
 
       myHand.splice(removeIndex, 1);
       const stageCode = String(roomData.stageCode || currentStage || '');
+      const boardRotInTx = Number(roomData.boardRotation?.deg ?? boardRotationDeg);
+      const blockedRoomsInTx = getGreenneedleBlockedRoomsFromDeg(
+        Number(roomData.greenneedleRotation?.deg ?? greenHandRotationDeg),
+        stageCode,
+        boardRotInTx
+      );
+      if (blockedRoomsInTx && blockedRoomsInTx.has(Number(room))) return;
       if (isBDeckRoomForMission(stageCode, room)){
         const extraCards = Array.isArray(roomData?.extraDeck?.cards)
           ? roomData.extraDeck.cards.slice()
@@ -2725,11 +2752,22 @@ async function placeDroppedCard(cardData, room, face = 'face'){
           cards: myHand
         }
       };
+      if (/^10-/.test(stageCode)){
+        roomData.greenneedleRotation = {
+          deg: normalizeDeg(Number(roomData.greenneedleRotation?.deg ?? greenHandRotationDeg) + greenneedle.stepDeg),
+          ts: placedAt,
+          actorId: state.userId,
+          isFinal: true
+        };
+      }
       return roomData;
     }, { applyLocally: false });
 
     if (!txResult.committed){
       throw new Error('カード配置トランザクションがコミットされませんでした');
+    }
+    if (/^10-/.test(String(currentStage || ''))){
+      applyGreenHandRotation(normalizeDeg(greenHandRotationDeg + greenneedle.stepDeg), { animate: true, useShortestPath: true });
     }
     placedCardIds.add(cardData.id);
   } catch (err){
@@ -3257,6 +3295,7 @@ btnJoin.addEventListener('click', async () => {
     subscribeBoardRotation();
     subscribeRightarrowRotationEvent();
     subscribeCenterNeedleRotation();
+    subscribeGreenneedleRotation();
 
     syncSeatUI();
   } catch (err) {
@@ -3558,12 +3597,15 @@ const stageSvg = document.getElementById('stageBoard');
 const centerHourHandG = stageSvg.querySelector('#centerHourHandG');
 const centerTopLineG = stageSvg.querySelector('#centerTopLineG');
 const centerTopDiamondG = stageSvg.querySelector('#centerTopDiamondG');
+const centerGreenHandG = stageSvg.querySelector('#centerGreenHandG');
 const innerOrangeFillG = stageSvg.querySelector('#innerOrangeFill');
 const orangeCenterFill = stageSvg.querySelector('#orangeCenterFill');
 const rotationHandlesG = stageSvg.querySelector('#rotationHandles');
 const initialCenterNeedleRotate = parseFloat(getComputedStyle(stageSvg).getPropertyValue('--centerTopRotate')) || 0;
 centerNeedleRotationDeg = initialCenterNeedleRotate;
 centerNeedleRotationVisualDeg = initialCenterNeedleRotate;
+greenHandRotationDeg = greenneedle.initialDeg;
+greenHandRotationVisualDeg = greenneedle.initialDeg;
 
 function applyCenterNeedleVisibility(){
   const shouldHide = isCenterNeedleLockedForMission() ? false : isCenterNeedleHidden;
@@ -3593,6 +3635,61 @@ function applyCenterNeedleRotation(deg, { animate = false, useShortestPath = fal
   }
 }
 
+function applyGreenHandRotation(deg, { animate = false, useShortestPath = false } = {}){
+  const normalized = normalizeDeg(deg);
+  greenHandRotationVisualDeg = useShortestPath
+    ? toShortestVisualRotation(greenHandRotationVisualDeg, normalized)
+    : deg;
+  greenHandRotationDeg = normalizeDeg(greenHandRotationVisualDeg);
+  if (centerGreenHandG){
+    centerGreenHandG.style.transition = animate ? 'transform 220ms ease-out' : 'none';
+    centerGreenHandG.setAttribute('transform', `translate(150,150) rotate(${greenHandRotationVisualDeg})`);
+  }
+}
+
+function getNearestGreenSnapDeg(deg){
+  const snaps = greenneedle.snapAngles;
+  let best = snaps[0];
+  let bestDelta = Math.abs(shortestDegDelta(best, deg));
+  for (let i = 1; i < snaps.length; i += 1){
+    const delta = Math.abs(shortestDegDelta(snaps[i], deg));
+    if (delta < bestDelta){
+      best = snaps[i];
+      bestDelta = delta;
+    }
+  }
+  return normalizeDeg(best);
+}
+
+function getGreenneedleBlockedRooms(stage = currentStage){
+  if (!/^10-/.test(String(stage || ''))) return null;
+  const logicalDeg = normalizeDeg(greenHandRotationDeg - boardRotationDeg + 90);
+  const idxA = ((Math.floor(logicalDeg / 60) % 6) + 6) % 6;
+  const idxB = (idxA + 3) % 6;
+  return new Set([idxA + 1, idxB + 1]);
+}
+
+function getGreenneedleBlockedRoomsFromDeg(deg, stage = currentStage, boardRot = boardRotationDeg){
+  if (!/^10-/.test(String(stage || ''))) return null;
+  const logicalDeg = normalizeDeg(deg - boardRot + 90);
+  const idxA = ((Math.floor(logicalDeg / 60) % 6) + 6) % 6;
+  const idxB = (idxA + 3) % 6;
+  return new Set([idxA + 1, idxB + 1]);
+}
+
+function publishGreenneedleRotation(deg, { isFinal = false, force = false } = {}){
+  if (!state.roomCode || !state.userId) return;
+  const now = Date.now();
+  if (!force && !isFinal && (now - lastGreenneedlePublishAt) < CENTER_NEEDLE_SYNC_INTERVAL_MS) return;
+  lastGreenneedlePublishAt = now;
+  set(ref(db, `rooms/${state.roomCode}/greenneedleRotation`), {
+    deg: normalizeDeg(deg),
+    ts: now,
+    actorId: state.userId,
+    isFinal: !!isFinal
+  }).catch((err) => console.error('greenneedle回転の同期に失敗しました', err));
+}
+
 function publishCenterNeedleRotation(deg, { isFinal = false, force = false } = {}){
   if (!state.roomCode || !state.userId) return;
   const now = Date.now();
@@ -3607,6 +3704,7 @@ function publishCenterNeedleRotation(deg, { isFinal = false, force = false } = {
 }
 
 applyCenterNeedleRotation(centerNeedleRotationDeg, { animate: false });
+applyGreenHandRotation(greenHandRotationDeg, { animate: false });
 
 if (orangeCenterFill){
   orangeCenterFill.style.cursor = 'pointer';
@@ -4289,9 +4387,10 @@ function syncRoomHintTableOrientation(){
     window.removeEventListener('pointercancel', onPointerUp);
   };
 
-  centerTopDiamondG.addEventListener('pointerdown', (ev) => {
+  const onNeedlePointerDown = (ev) => {
     const handle = ev.target.closest('.center-needle-handle');
     if (!handle) return;
+    if (/^10-/.test(String(currentStage || ''))) return;
     if (isCenterNeedleLockedForMission()) return;
     ev.preventDefault();
     ev.stopPropagation();
@@ -4312,6 +4411,59 @@ function syncRoomHintTableOrientation(){
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
     window.addEventListener('pointercancel', onPointerUp);
+  };
+
+  centerTopDiamondG.addEventListener('pointerdown', onNeedlePointerDown);
+})();
+
+(function setupGreenNeedleDrag(){
+  if (!centerGreenHandG) return;
+  centerGreenHandG.style.pointerEvents = 'auto';
+  centerGreenHandG.style.touchAction = 'none';
+  centerGreenHandG.querySelectorAll('.green-needle-handle').forEach((el) => {
+    el.style.cursor = 'grab';
+  });
+  let greenDrag = null;
+
+  const onMove = (ev) => {
+    if (!greenDrag || ev.pointerId !== greenDrag.pointerId) return;
+    ev.preventDefault();
+    const nextAngle = pointerAngleDegFromBoardCenter(ev.clientX, ev.clientY);
+    const delta = shortestDegDelta(greenDrag.lastPointerDeg, nextAngle);
+    greenDrag.currentRotationDeg = normalizeDeg(greenDrag.currentRotationDeg + delta);
+    greenDrag.lastPointerDeg = nextAngle;
+    applyGreenHandRotation(greenDrag.currentRotationDeg);
+    publishGreenneedleRotation(greenDrag.currentRotationDeg);
+  };
+  const onUp = (ev) => {
+    if (!greenDrag || ev.pointerId !== greenDrag.pointerId) return;
+    const captureEl = greenDrag.captureEl;
+    if (captureEl && typeof captureEl.releasePointerCapture === 'function') captureEl.releasePointerCapture(ev.pointerId);
+    const snapped = getNearestGreenSnapDeg(greenDrag.currentRotationDeg);
+    greenDrag = null;
+    applyGreenHandRotation(snapped, { animate: true, useShortestPath: true });
+    publishGreenneedleRotation(snapped, { isFinal: true, force: true });
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', onUp);
+    window.removeEventListener('pointercancel', onUp);
+  };
+
+  centerGreenHandG.addEventListener('pointerdown', (ev) => {
+    const handle = ev.target.closest('.green-needle-handle');
+    if (!handle) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    const captureEl = ev.currentTarget;
+    if (typeof captureEl.setPointerCapture === 'function') captureEl.setPointerCapture(ev.pointerId);
+    greenDrag = {
+      pointerId: ev.pointerId,
+      captureEl,
+      currentRotationDeg: greenHandRotationDeg,
+      lastPointerDeg: pointerAngleDegFromBoardCenter(ev.clientX, ev.clientY)
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
   });
 })();
 
@@ -7643,6 +7795,11 @@ function redrawAll(m){
   if (typeof m === 'string') currentStage = m;
   const hasStage = STAGE_CODES.includes(currentStage);
   const renderStage = hasStage ? currentStage : '';
+  if (renderStage !== lastGreenneedleStageCode){
+    lastGreenneedleStageCode = renderStage;
+    applyGreenHandRotation(greenneedle.initialDeg, { animate: false, useShortestPath: false });
+    if (/^10-/.test(renderStage)) publishGreenneedleRotation(greenneedle.initialDeg, { isFinal: true, force: true });
+  }
   const isStage24 = renderStage === '2-4';
 
   missionTextEl.textContent = renderStage;
@@ -7678,9 +7835,14 @@ function redrawAll(m){
     centerHourHandG.style.display = showHourHand ? '' : 'none';
     centerHourHandG.setAttribute('transform', 'translate(150,150) rotate(10)');
   }
+  if (centerGreenHandG){
+    const showGreenHand = /^10-/.test(String(renderStage || ''));
+    centerGreenHandG.style.display = showGreenHand ? '' : 'none';
+  }
 
   applyMissionSkin(renderStage);
   applyCenterNeedleRotation(centerNeedleRotationDeg, { animate: false, useShortestPath: true });
+  applyGreenHandRotation(greenHandRotationDeg, { animate: false, useShortestPath: true });
   renderEqTriBackFill(renderStage);
   updateOrangeGraphics();
   renderInnerTinyDiv();
@@ -7691,6 +7853,11 @@ function redrawAll(m){
     }
     if (stageSvg.lastElementChild !== centerTopDiamondG){
       stageSvg.appendChild(centerTopDiamondG);
+    }
+  }
+  if (centerGreenHandG && /^10-/.test(String(renderStage || ''))){
+    if (stageSvg.lastElementChild !== centerGreenHandG){
+      stageSvg.appendChild(centerGreenHandG);
     }
   }
 
@@ -7746,6 +7913,31 @@ function redrawAll(m){
     stageSvg.appendChild(centerTopLineG);
     stageSvg.appendChild(centerTopDiamondG);
   }
+  if (centerGreenHandG && /^10-/.test(String(renderStage || ''))){
+    stageSvg.appendChild(centerGreenHandG);
+  }
+}
+
+function subscribeGreenneedleRotation(){
+  const needleRef = ref(db, `rooms/${state.roomCode}/greenneedleRotation`);
+  onValue(needleRef, (snap) => {
+    const data = snap.val();
+    if (!data || typeof data.deg !== 'number') return;
+    const ts = Number(data.ts || 0);
+    const actorId = String(data.actorId || '');
+    const normalizedDeg = normalizeDeg(data.deg);
+    if (!hasGreenneedleSnapshot){
+      hasGreenneedleSnapshot = true;
+      lastGreenneedleTs = ts;
+      applyGreenHandRotation(normalizedDeg, { animate: false, useShortestPath: true });
+      return;
+    }
+    if (ts && ts <= lastGreenneedleTs) return;
+    lastGreenneedleTs = Math.max(lastGreenneedleTs, ts);
+    if (actorId && actorId === state.userId) return;
+    const shouldAnimate = !!data.isFinal;
+    applyGreenHandRotation(normalizedDeg, { animate: shouldAnimate, useShortestPath: true });
+  });
 }
 window.addEventListener('mission:change', (e)=>{
   redrawAll(e.detail?.value || currentStage);
