@@ -2346,6 +2346,29 @@ function evaluateWhitePizzaGapSuccess(stage, roomCardsMap){
   return true;
 }
 
+function evaluateStage10LastCardAscending(roomCardsMap){
+  const lastCards = [];
+  for (let room = 1; room <= 6; room++){
+    const cards = roomCardsMap.get(room) || [];
+    if (!cards.length) return false;
+    let lastCard = cards[0];
+    for (let i = 1; i < cards.length; i++){
+      const card = cards[i];
+      if (Number(card?.placedAt || 0) > Number(lastCard?.placedAt || 0)){
+        lastCard = card;
+      }
+    }
+    const value = Number(lastCard?.num);
+    if (!Number.isFinite(value)) return false;
+    lastCards.push(value);
+  }
+
+  for (let i = 1; i < lastCards.length; i++){
+    if (lastCards[i] < lastCards[i - 1]) return false;
+  }
+  return true;
+}
+
 function evaluatePlacementResult(stage, roomCardsMap){
   if (
     typeof stage === 'string'
@@ -2388,8 +2411,11 @@ function evaluatePlacementResult(stage, roomCardsMap){
   const twoBlackWhiteOk = evaluateTwoBlackWhiteRoomSuccess(stage, roomCardsMap);
   const dualColorExtremePlusOk = evaluateDualColorExtremePlusSuccess(stage, getPlayedEntriesSorted(), roomCardsMap);
   const whitePizzaGapOk = evaluateWhitePizzaGapSuccess(stage, roomCardsMap);
+  const stage10LastCardAscendingOk = /^10-/.test(String(stage || ''))
+    ? evaluateStage10LastCardAscending(roomCardsMap)
+    : true;
 
-  return isAscending && conditionsOk && room6Ok && plusMinusOk && twoBlackWhiteOk && dualColorExtremePlusOk && whitePizzaGapOk;
+  return isAscending && conditionsOk && room6Ok && plusMinusOk && twoBlackWhiteOk && dualColorExtremePlusOk && whitePizzaGapOk && stage10LastCardAscendingOk;
 }
 
 function getOrderedRoomsWithCardsByRevealStart(roomCardsMap, stage = currentStage){
