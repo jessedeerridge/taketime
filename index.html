@@ -7729,6 +7729,24 @@ function renderRoomConditionHints(mission = currentStage){
         fontSize: 9.2
       });
     }
+    if (typeof mission === 'string' && mission.startsWith('10-')){
+      appendHintTable('各部屋の一番最後にプレイされたカードが短針から昇順になっていなければならない。', 0, 48, {
+        maxCharsPerLine: 12,
+        maxLines: 6,
+        boxW: 124,
+        lineH: 11,
+        fontSize: 9.3
+      });
+      if (mission === '10-4'){
+        appendHintTable('カードをプレイするたびに緑の針が1つ進む。この針が指す部屋にはカードをプレイできない。', 0, 92, {
+          maxCharsPerLine: 12,
+          maxLines: 7,
+          boxW: 130,
+          lineH: 11,
+          fontSize: 9.1
+        });
+      }
+    }
   }
 
   specifiedRooms.forEach((room) => {
@@ -7859,6 +7877,9 @@ function redrawAll(m){
     if (stageSvg.lastElementChild !== centerGreenHandG){
       stageSvg.appendChild(centerGreenHandG);
     }
+  }
+  if (roomConditionHints){
+    stageSvg.appendChild(roomConditionHints);
   }
 
   if (!hasStage){
