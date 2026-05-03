@@ -7798,7 +7798,7 @@ function redrawAll(m){
   if (renderStage !== lastGreenneedleStageCode){
     lastGreenneedleStageCode = renderStage;
     applyGreenHandRotation(greenneedle.initialDeg, { animate: false, useShortestPath: false });
-    if (/^10-/.test(renderStage)) publishGreenneedleRotation(greenneedle.initialDeg, { isFinal: true, force: true });
+    if (renderStage === '10-4') publishGreenneedleRotation(greenneedle.initialDeg, { isFinal: true, force: true });
   }
   const isStage24 = renderStage === '2-4';
 
@@ -7836,7 +7836,7 @@ function redrawAll(m){
     centerHourHandG.setAttribute('transform', 'translate(150,150) rotate(10)');
   }
   if (centerGreenHandG){
-    const showGreenHand = /^10-/.test(String(renderStage || ''));
+    const showGreenHand = String(renderStage || '') === '10-4';
     centerGreenHandG.style.display = showGreenHand ? '' : 'none';
   }
 
