@@ -7831,6 +7831,7 @@ function redrawAll(m){
   if (typeof m === 'string') currentStage = m;
   const hasStage = STAGE_CODES.includes(currentStage);
   const renderStage = hasStage ? currentStage : '';
+  stageSvg.style.visibility = hasStage ? 'visible' : 'hidden';
   if (renderStage !== lastGreenneedleStageCode){
     lastGreenneedleStageCode = renderStage;
     applyGreenHandRotation(greenneedle.initialDeg, { animate: false, useShortestPath: false });
@@ -7899,6 +7900,24 @@ function redrawAll(m){
   if (roomConditionHints){
     stageSvg.appendChild(roomConditionHints);
   }
+
+  const stageCoreHiddenIds = [
+    'outerRing',
+    'innerRingsBack',
+    'innerRing2Front',
+    'innerOrangeFill',
+    'innerRingsOrange',
+    'triBack',
+    'innerLightFill',
+    'outerStarBg',
+    'ring30StarBg',
+    'bowlFill',
+    'bowlPath'
+  ];
+  stageCoreHiddenIds.forEach((id) => {
+    const el = stageSvg.querySelector(`#${id}`);
+    if (el) el.style.display = hasStage ? '' : 'none';
+  });
 
   if (!hasStage){
     [stageMarksG, stageOutG, stageSpecifiedG, stageClockG].forEach(group => {
