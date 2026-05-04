@@ -2072,7 +2072,6 @@ function renderMyHand(){
     .filter((card) => card?.playerId === myId)
     .length;
 
-  let leftmostPlayableFound = false;
   const candidateCards = [];
   handData.cards.forEach((cardData) => {
     const cardId = makeCardId(myId, cardData);
@@ -2099,16 +2098,14 @@ function renderMyHand(){
     twoPlayerReservedCardIds = [];
   }
 
-  cardsToRender.forEach(({ cardData, cardId }) => {
-    const isLeftmostPlayable = !leftmostPlayableFound;
-    leftmostPlayableFound = true;
-    const canPlayThisCard = !isLeftmostOnlyStage(currentStage) || isLeftmostPlayable;
+  cardsToRender.forEach(({ cardData, cardId }, index) => {
+    const canPlayThisCard = canPlayCardAtHandIndex(currentStage, cardsToRender, index);
 
     const card = document.createElement('div');
     card.className = 'my-card';
     card.dataset.cardId = cardId;
 
-    if (shouldPulse){
+    if (shouldPulse && canPlayThisCard){
       card.classList.add('turn-pulse');
     }
     if (slideInCardIds?.has(cardId)){
@@ -2949,6 +2946,20 @@ function sortMyHandByNum(order = 'asc'){
 
 function isLeftmostOnlyStage(stage){
   return typeof stage === 'string' && stage.startsWith('4-');
+}
+
+function canPlayCardAtHandIndex(stage, candidateCards, index){
+  if (!isLeftmostOnlyStage(stage)) return true;
+  if (index === 0) return true;
+  if (
+    (stage === '4-1' || stage === '4-2')
+    && index === 1
+    && candidateCards.length >= 2
+    && candidateCards[0].cardData.num === candidateCards[1].cardData.num
+  ){
+    return true;
+  }
+  return false;
 }
 
 function paintChoiceCards(cardData){
