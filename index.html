@@ -7900,6 +7900,24 @@ function redrawAll(m){
     stageSvg.appendChild(roomConditionHints);
   }
 
+  const stageCoreHiddenIds = [
+    'outerRing',
+    'innerRingsBack',
+    'innerRing2Front',
+    'innerOrangeFill',
+    'innerRingsOrange',
+    'triBack',
+    'innerLightFill',
+    'outerStarBg',
+    'ring30StarBg',
+    'bowlFill',
+    'bowlPath'
+  ];
+  stageCoreHiddenIds.forEach((id) => {
+    const el = stageSvg.querySelector(`#${id}`);
+    if (el) el.style.display = hasStage ? '' : 'none';
+  });
+
   if (!hasStage){
     [stageMarksG, stageOutG, stageSpecifiedG, stageClockG].forEach(group => {
       if (!group) return;
