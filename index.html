@@ -7831,6 +7831,7 @@ function redrawAll(m){
   if (typeof m === 'string') currentStage = m;
   const hasStage = STAGE_CODES.includes(currentStage);
   const renderStage = hasStage ? currentStage : '';
+  stageSvg.style.visibility = hasStage ? 'visible' : 'hidden';
   if (renderStage !== lastGreenneedleStageCode){
     lastGreenneedleStageCode = renderStage;
     applyGreenHandRotation(greenneedle.initialDeg, { animate: false, useShortestPath: false });
