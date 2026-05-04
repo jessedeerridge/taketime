@@ -228,14 +228,14 @@
     flex-direction:column;
     align-items:center;
     justify-content:center;
-    gap:12px;
+    gap:18px;
     z-index:15;
     pointer-events:none;
   }
   .mission-unselected-panel.hidden{display:none;}
-  .mission-unselected-row{display:flex;gap:14px;}
+  .mission-unselected-row{display:flex;gap:22px;}
   .mission-circle-btn{
-    width:54px;height:54px;border-radius:50%;
+    width:70px;height:70px;border-radius:50%;
     border:2px solid #111;background:rgba(255,255,255,.92);
     color:#111;font-size:16px;font-weight:800;cursor:pointer;
     pointer-events:auto;
@@ -1983,6 +1983,31 @@ function subscribeStage(){
       clearTimeout(revealResultDelayTimer);
       revealResultDelayTimer = null;
     }
+    if (state.isHost && state.roomCode && currentStage){
+      const now = Date.now();
+      await Promise.all([
+        remove(ref(db, `rooms/${state.roomCode}/playedCards`)),
+        remove(ref(db, `rooms/${state.roomCode}/hands`)),
+        remove(ref(db, `rooms/${state.roomCode}/extraDeck`)),
+        set(ref(db, `rooms/${state.roomCode}/subgearCount`), 0),
+        set(ref(db, `rooms/${state.roomCode}/boardRotation`), {
+          deg: 0,
+          ts: now,
+          actorId: state.userId || '',
+          isFinal: true
+        }),
+        set(ref(db, `rooms/${state.roomCode}/centerNeedleRotation`), {
+          deg: getInitialCenterNeedleSettingsForMission(currentStage).deg,
+          ts: now,
+          actorId: state.userId || '',
+          isFinal: true
+        })
+      ]);
+      placedCardIds.clear();
+      pendingPlacedCardIds.clear();
+      await dealInitialHands();
+      await emitPhaseEvent('discussion');
+    }
 
     renderStageOptions();
     window.dispatchEvent(new CustomEvent('mission:change', { detail:{ value: currentStage }}));
@@ -3611,36 +3636,11 @@ async function setStage(code){
   window.dispatchEvent(new CustomEvent('mission:change', { detail:{ value: currentStage }}));
   syncMissionUnselectedUI();
 
-  if (state.isHost && state.roomCode){
+  if (state.roomCode){
     if (currentStage) await set(ref(db, `rooms/${state.roomCode}/stageCode`), currentStage);
     else await remove(ref(db, `rooms/${state.roomCode}/stageCode`));
   }
 
-  if (state.isHost && state.roomCode && currentStage){
-    const now = Date.now();
-    await Promise.all([
-      remove(ref(db, `rooms/${state.roomCode}/playedCards`)),
-      remove(ref(db, `rooms/${state.roomCode}/hands`)),
-      remove(ref(db, `rooms/${state.roomCode}/extraDeck`)),
-      set(ref(db, `rooms/${state.roomCode}/subgearCount`), 0),
-      set(ref(db, `rooms/${state.roomCode}/boardRotation`), {
-        deg: 0,
-        ts: now,
-        actorId: state.userId || '',
-        isFinal: true
-      }),
-      set(ref(db, `rooms/${state.roomCode}/centerNeedleRotation`), {
-        deg: getInitialCenterNeedleSettingsForMission(currentStage).deg,
-        ts: now,
-        actorId: state.userId || '',
-        isFinal: true
-      })
-    ]);
-    placedCardIds.clear();
-    pendingPlacedCardIds.clear();
-    await dealInitialHands();
-    await emitPhaseEvent('discussion');
-  }
 }
 
 btnOpenStagePop.addEventListener('click', () => {
