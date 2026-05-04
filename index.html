@@ -7875,6 +7875,12 @@ function redrawAll(m){
     const showGreenHand = String(renderStage || '') === '10-4';
     centerGreenHandG.style.display = showGreenHand ? '' : 'none';
   }
+  if (centerTopLineG){
+    centerTopLineG.style.display = hasStage ? '' : 'none';
+  }
+  if (centerTopDiamondG){
+    centerTopDiamondG.style.display = hasStage ? '' : 'none';
+  }
 
   applyMissionSkin(renderStage);
   applyCenterNeedleRotation(centerNeedleRotationDeg, { animate: false, useShortestPath: true });
