@@ -1114,6 +1114,13 @@
   </div>
   <div class="stage-option-grid" id="stageOptionGrid"></div>
 </div>
+<div id="missionMenuPop" class="stage-pop hidden">
+  <div class="stage-pop-header">
+    <div class="stage-pop-title">ミッション未選択</div>
+  </div>
+  <div class="stage-pop-main">ミッションを選択してください。</div>
+  <div class="stage-option-grid" id="missionMenuGrid"></div>
+</div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
@@ -1191,6 +1198,8 @@ const btnResetRoom = document.getElementById('btnResetRoom');
 const stagePop = document.getElementById('stagePop');
 const btnStagePopClose = document.getElementById('btnStagePopClose');
 const stageOptionGrid = document.getElementById('stageOptionGrid');
+const missionMenuPop = document.getElementById('missionMenuPop');
+const missionMenuGrid = document.getElementById('missionMenuGrid');
 const btnOpenStagePop = document.getElementById('btnOpenStagePop');
 const stageNameTag = document.getElementById('stageNameTag');
 const stageNameGear = document.getElementById('stageNameGear');
@@ -1263,6 +1272,7 @@ let hasBoardRotationSnapshot = false;
 let lastBoardRotationTs = 0;
 let lastBoardRotationPublishAt = 0;
 const ROTATION_SYNC_INTERVAL_MS = 16;
+const MISSION_MENU_BUTTONS = ['a','b','c','d','e','f','g','h'];
 const RIGHTARROW_ROOM_NAME = 'rightarrow';
 const LEFTARROW_ROOM_NAME = 'leftarrow';
 const RIGHTARROW_ROTATE_DELAY_MS = 1500;
@@ -1788,6 +1798,7 @@ function enterLobbyUI(){
   lobby.classList.remove('hidden');
   lobby.classList.add('entered');
   redrawAll(currentStage);
+  syncMissionMenuVisibility();
 }
 
 function subscribeRoom(){
@@ -1801,6 +1812,7 @@ function subscribeRoom(){
     hostSelectingPop.classList.toggle('hidden', !waiting);
 
     syncSeatUI();
+    syncMissionMenuVisibility();
   });
 }
 
@@ -1941,8 +1953,22 @@ function subscribeStage(){
     }
 
     renderStageOptions();
+    if (state.isHost && currentStage){
+      void hostApplyStageSetup();
+    }
     window.dispatchEvent(new CustomEvent('mission:change', { detail:{ value: currentStage }}));
+    syncMissionMenuVisibility();
   });
+}
+
+function syncMissionMenuVisibility(){
+  if (!state.joined || !state.roomCode){
+    missionMenuPop.classList.add('hidden');
+    return;
+  }
+  const shouldShow = !currentStage;
+  missionMenuPop.classList.toggle('hidden', !shouldShow);
+  if (shouldShow) renderMissionMenu();
 }
 
 function subscribePlayers(){
@@ -3521,6 +3547,7 @@ btnResetRoom.addEventListener('click', async () => {
   await Promise.all([
     remove(ref(db, `${base}/maxPlayers`)),
     remove(ref(db, `${base}/tables`)),
+    remove(ref(db, `${base}/stageCode`)),
     remove(ref(db, `${base}/hands`)),
     remove(ref(db, `${base}/playedCards`)),
     remove(ref(db, `${base}/extraDeck`))
@@ -3532,6 +3559,7 @@ btnResetRoom.addEventListener('click', async () => {
   startPop.classList.add('hidden');
   renderHands();
   syncSeatUI();
+  syncMissionMenuVisibility();
 });
 
 /* ===== ステージ選択UI ===== */
@@ -3551,6 +3579,25 @@ function renderStageOptions(){
   });
 }
 
+function renderMissionMenu(){
+  missionMenuGrid.innerHTML = '';
+  MISSION_MENU_BUTTONS.forEach((label) => {
+    const btn = document.createElement('button');
+    btn.className = 'btn stage-option-btn';
+    btn.textContent = `ボタン${label}`;
+    if (label === 'a'){
+      btn.addEventListener('click', () => {
+        missionMenuPop.classList.add('hidden');
+        renderStageOptions();
+        stagePop.classList.remove('hidden');
+      });
+    } else {
+      btn.disabled = true;
+    }
+    missionMenuGrid.appendChild(btn);
+  });
+}
+
 async function setStage(code){
   currentStage = STAGE_CODES.includes(code) ? code : '';
   resetBoardAndNeedleRotations();
@@ -3563,36 +3610,39 @@ async function setStage(code){
   revealPhaseAnnouncedForStage = '';
   window.dispatchEvent(new CustomEvent('mission:change', { detail:{ value: currentStage }}));
 
-  if (state.isHost && state.roomCode){
+  if (state.roomCode){
     if (currentStage) await set(ref(db, `rooms/${state.roomCode}/stageCode`), currentStage);
     else await remove(ref(db, `rooms/${state.roomCode}/stageCode`));
   }
 
-  if (state.isHost && state.roomCode && currentStage){
-    const now = Date.now();
-    await Promise.all([
-      remove(ref(db, `rooms/${state.roomCode}/playedCards`)),
-      remove(ref(db, `rooms/${state.roomCode}/hands`)),
-      remove(ref(db, `rooms/${state.roomCode}/extraDeck`)),
-      set(ref(db, `rooms/${state.roomCode}/subgearCount`), 0),
-      set(ref(db, `rooms/${state.roomCode}/boardRotation`), {
-        deg: 0,
-        ts: now,
-        actorId: state.userId || '',
-        isFinal: true
-      }),
-      set(ref(db, `rooms/${state.roomCode}/centerNeedleRotation`), {
-        deg: getInitialCenterNeedleSettingsForMission(currentStage).deg,
-        ts: now,
-        actorId: state.userId || '',
-        isFinal: true
-      })
-    ]);
-    placedCardIds.clear();
-    pendingPlacedCardIds.clear();
-    await dealInitialHands();
-    await emitPhaseEvent('discussion');
-  }
+  if (state.isHost && state.roomCode && currentStage) await hostApplyStageSetup();
+}
+
+async function hostApplyStageSetup(){
+  if (!state.isHost || !state.roomCode || !currentStage) return;
+  const now = Date.now();
+  await Promise.all([
+    remove(ref(db, `rooms/${state.roomCode}/playedCards`)),
+    remove(ref(db, `rooms/${state.roomCode}/hands`)),
+    remove(ref(db, `rooms/${state.roomCode}/extraDeck`)),
+    set(ref(db, `rooms/${state.roomCode}/subgearCount`), 0),
+    set(ref(db, `rooms/${state.roomCode}/boardRotation`), {
+      deg: 0,
+      ts: now,
+      actorId: state.userId || '',
+      isFinal: true
+    }),
+    set(ref(db, `rooms/${state.roomCode}/centerNeedleRotation`), {
+      deg: getInitialCenterNeedleSettingsForMission(currentStage).deg,
+      ts: now,
+      actorId: state.userId || '',
+      isFinal: true
+    })
+  ]);
+  placedCardIds.clear();
+  pendingPlacedCardIds.clear();
+  await dealInitialHands();
+  await emitPhaseEvent('discussion');
 }
 
 btnOpenStagePop.addEventListener('click', () => {
