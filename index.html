@@ -2029,16 +2029,27 @@ function renderMyHand(){
     twoPlayerReservedCardIds = [];
   }
 
-  cardsToRender.forEach(({ cardData, cardId }) => {
+  const leftCardNum = cardsToRender[0]?.cardData?.num;
+  const secondCardNum = cardsToRender[1]?.cardData?.num;
+  const isMission41Or42 = currentStage === '4-1' || currentStage === '4-2';
+  const canPlayFirstTwoBySameNumber = isMission41Or42
+    && leftCardNum != null
+    && secondCardNum != null
+    && leftCardNum === secondCardNum;
+
+  cardsToRender.forEach(({ cardData, cardId }, cardIndex) => {
     const isLeftmostPlayable = !leftmostPlayableFound;
     leftmostPlayableFound = true;
-    const canPlayThisCard = !isLeftmostOnlyStage(currentStage) || isLeftmostPlayable;
+    const isSecondPlayableBySpecialRule = canPlayFirstTwoBySameNumber && cardIndex === 1;
+    const canPlayThisCard = !isLeftmostOnlyStage(currentStage)
+      || isLeftmostPlayable
+      || isSecondPlayableBySpecialRule;
 
     const card = document.createElement('div');
     card.className = 'my-card';
     card.dataset.cardId = cardId;
 
-    if (shouldPulse){
+    if (shouldPulse && canPlayThisCard){
       card.classList.add('turn-pulse');
     }
     if (slideInCardIds?.has(cardId)){
