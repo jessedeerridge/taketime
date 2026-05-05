@@ -1465,7 +1465,8 @@ function canCurrentUserDragCard(){
 function syncMyHandPulseDom(){
   const shouldPulse = canCurrentUserDragCard() && !activeDrag;
   myHandEl.querySelectorAll('.my-card').forEach((cardEl) => {
-    cardEl.classList.toggle('turn-pulse', shouldPulse);
+    const isPlayable = cardEl.dataset.playable === '1';
+    cardEl.classList.toggle('turn-pulse', shouldPulse && isPlayable);
   });
 }
 
@@ -2048,6 +2049,7 @@ function renderMyHand(){
     const card = document.createElement('div');
     card.className = 'my-card';
     card.dataset.cardId = cardId;
+    card.dataset.playable = canPlayThisCard ? '1' : '0';
 
     if (shouldPulse && canPlayThisCard){
       card.classList.add('turn-pulse');
