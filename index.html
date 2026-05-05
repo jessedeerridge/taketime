@@ -221,6 +221,11 @@
     height:260px;
     margin:20px auto 0;
   }
+  .mission-unselected{position:absolute;inset:0;z-index:260;display:flex;align-items:center;justify-content:center;pointer-events:none;}
+  .mission-unselected.hidden{display:none;}
+  .mission-circle-layout{width:min(84vw,320px);display:flex;flex-direction:column;gap:12px;align-items:center;pointer-events:auto;}
+  .mission-circle-row{display:flex;gap:12px;justify-content:center;}
+  .mission-circle-btn{width:62px;height:62px;border-radius:50%;border:2px solid #111;background:rgba(255,255,255,.92);color:#111;font-size:18px;font-weight:700;cursor:pointer;}
   .player-circle{
     position:absolute;inset:0;
     width:100%;height:100%;
@@ -1035,9 +1040,27 @@
         <g id="playedCards" style="pointer-events:none"></g>
         <g id="roomTotals" style="pointer-events:none"></g>
         <g id="rotationHandles" transform="translate(150,150)"></g>
-        </svg>
+      </svg>
+      <div id="missionUnselected" class="mission-unselected hidden" aria-label="ミッション未選択ボタン">
+        <div class="mission-circle-layout">
+          <div class="mission-circle-row">
+            <button type="button" class="mission-circle-btn" data-mission-circle="a">a</button>
+            <button type="button" class="mission-circle-btn" data-mission-circle="b">b</button>
+          </div>
+          <div class="mission-circle-row">
+            <button type="button" class="mission-circle-btn" data-mission-circle="c">c</button>
+            <button type="button" class="mission-circle-btn" data-mission-circle="d">d</button>
+            <button type="button" class="mission-circle-btn" data-mission-circle="e">e</button>
+          </div>
+          <div class="mission-circle-row">
+            <button type="button" class="mission-circle-btn" data-mission-circle="f">f</button>
+            <button type="button" class="mission-circle-btn" data-mission-circle="g">g</button>
+            <button type="button" class="mission-circle-btn" data-mission-circle="h">h</button>
+          </div>
+        </div>
       </div>
     </div>
+  </div>
 
     <div class="my-hand-wrapper">
       <div class="my-hand-title">自分のカード</div>
@@ -1196,6 +1219,7 @@ const stageNameTag = document.getElementById('stageNameTag');
 const stageNameGear = document.getElementById('stageNameGear');
 const stageTopHint = document.getElementById('stageTopHint');
 const stageNameText = document.getElementById('stageNameText');
+const missionUnselected = document.getElementById('missionUnselected');
 const mainGearDividers = document.getElementById('mainGearDividers');
 const mainGearEyes = document.getElementById('mainGearEyes');
 const subgearEls = [1, 2, 3].map((idx) => document.getElementById(`subgear${idx}`));
@@ -1942,6 +1966,9 @@ function subscribeStage(){
     }
 
     renderStageOptions();
+    if (state.isHost && currentStage){
+      await prepareStageForRoom(currentStage);
+    }
     window.dispatchEvent(new CustomEvent('mission:change', { detail:{ value: currentStage }}));
   });
 }
@@ -3509,6 +3536,28 @@ async function dealInitialHands(){
   await set(ref(db, `rooms/${state.roomCode}/extraDeck`), { cards: extraDeckCards });
 }
 
+async function prepareStageForRoom(stageCode){
+  if (!state.isHost || !state.roomCode || !stageCode) return;
+  const now = Date.now();
+  await Promise.all([
+    remove(ref(db, `rooms/${state.roomCode}/playedCards`)),
+    remove(ref(db, `rooms/${state.roomCode}/hands`)),
+    remove(ref(db, `rooms/${state.roomCode}/extraDeck`)),
+    set(ref(db, `rooms/${state.roomCode}/subgearCount`), 0),
+    set(ref(db, `rooms/${state.roomCode}/boardRotation`), { deg: 0, ts: now, actorId: state.userId || '', isFinal: true }),
+    set(ref(db, `rooms/${state.roomCode}/centerNeedleRotation`), {
+      deg: getInitialCenterNeedleSettingsForMission(stageCode).deg,
+      ts: now,
+      actorId: state.userId || '',
+      isFinal: true
+    })
+  ]);
+  placedCardIds.clear();
+  pendingPlacedCardIds.clear();
+  await dealInitialHands();
+  await emitPhaseEvent('discussion');
+}
+
 hostSettingsBtn.addEventListener('click', () => {
   if (!state.isHost) return;
   startPop.classList.toggle('hidden');
@@ -3536,7 +3585,8 @@ btnResetRoom.addEventListener('click', async () => {
     remove(ref(db, `${base}/tables`)),
     remove(ref(db, `${base}/hands`)),
     remove(ref(db, `${base}/playedCards`)),
-    remove(ref(db, `${base}/extraDeck`))
+    remove(ref(db, `${base}/extraDeck`)),
+    remove(ref(db, `${base}/stageCode`))
   ]);
 
   placedCardIds.clear();
@@ -3576,39 +3626,21 @@ async function setStage(code){
   revealPhaseAnnouncedForStage = '';
   window.dispatchEvent(new CustomEvent('mission:change', { detail:{ value: currentStage }}));
 
-  if (state.isHost && state.roomCode){
+  if (state.roomCode){
     if (currentStage) await set(ref(db, `rooms/${state.roomCode}/stageCode`), currentStage);
     else await remove(ref(db, `rooms/${state.roomCode}/stageCode`));
   }
-
-  if (state.isHost && state.roomCode && currentStage){
-    const now = Date.now();
-    await Promise.all([
-      remove(ref(db, `rooms/${state.roomCode}/playedCards`)),
-      remove(ref(db, `rooms/${state.roomCode}/hands`)),
-      remove(ref(db, `rooms/${state.roomCode}/extraDeck`)),
-      set(ref(db, `rooms/${state.roomCode}/subgearCount`), 0),
-      set(ref(db, `rooms/${state.roomCode}/boardRotation`), {
-        deg: 0,
-        ts: now,
-        actorId: state.userId || '',
-        isFinal: true
-      }),
-      set(ref(db, `rooms/${state.roomCode}/centerNeedleRotation`), {
-        deg: getInitialCenterNeedleSettingsForMission(currentStage).deg,
-        ts: now,
-        actorId: state.userId || '',
-        isFinal: true
-      })
-    ]);
-    placedCardIds.clear();
-    pendingPlacedCardIds.clear();
-    await dealInitialHands();
-    await emitPhaseEvent('discussion');
-  }
+  await prepareStageForRoom(currentStage);
 }
 
 btnOpenStagePop.addEventListener('click', () => {
+  renderStageOptions();
+  startPop.classList.add('hidden');
+  stagePop.classList.remove('hidden');
+});
+missionUnselected?.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-mission-circle]');
+  if (!btn || btn.getAttribute('data-mission-circle') !== 'a') return;
   renderStageOptions();
   startPop.classList.add('hidden');
   stagePop.classList.remove('hidden');
@@ -7845,6 +7877,9 @@ function redrawAll(m){
   const hasStage = STAGE_CODES.includes(currentStage);
   const renderStage = hasStage ? currentStage : '';
   stageSvg.style.visibility = hasStage ? 'visible' : 'hidden';
+  if (missionUnselected){
+    missionUnselected.classList.toggle('hidden', !(state.joined && !hasStage));
+  }
   if (renderStage !== lastGreenneedleStageCode){
     lastGreenneedleStageCode = renderStage;
     applyGreenHandRotation(greenneedle.initialDeg, { animate: false, useShortestPath: false });
