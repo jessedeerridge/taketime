@@ -221,6 +221,26 @@
     height:260px;
     margin:20px auto 0;
   }
+  .mission-unselected-panel{
+    position:absolute;
+    inset:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:18px;
+    z-index:15;
+    pointer-events:none;
+  }
+  .mission-unselected-panel.hidden{display:none;}
+  .mission-unselected-row{display:flex;gap:22px;}
+  .mission-circle-btn{
+    width:70px;height:70px;border-radius:50%;
+    border:2px solid #111;background:rgba(255,255,255,.92);
+    color:#111;font-size:16px;font-weight:800;cursor:pointer;
+    pointer-events:auto;
+  }
+  .mission-circle-btn:hover{background:#fff;}
   .player-circle{
     position:absolute;inset:0;
     width:100%;height:100%;
@@ -854,6 +874,22 @@
 
     <div class="table-center">
       <div id="playerCircle" class="player-circle"></div>
+      <div id="missionUnselectedPanel" class="mission-unselected-panel hidden" aria-label="ミッション未選択ボタン">
+        <div class="mission-unselected-row">
+          <button class="mission-circle-btn" data-mission-btn="a">a</button>
+          <button class="mission-circle-btn" data-mission-btn="b">b</button>
+        </div>
+        <div class="mission-unselected-row">
+          <button class="mission-circle-btn" data-mission-btn="c">c</button>
+          <button class="mission-circle-btn" data-mission-btn="d">d</button>
+          <button class="mission-circle-btn" data-mission-btn="e">e</button>
+        </div>
+        <div class="mission-unselected-row">
+          <button class="mission-circle-btn" data-mission-btn="f">f</button>
+          <button class="mission-circle-btn" data-mission-btn="g">g</button>
+          <button class="mission-circle-btn" data-mission-btn="h">h</button>
+        </div>
+      </div>
 
       <div class="stage-board-wrap">
         <svg id="stageBoard" viewBox="0 0 300 300" role="img" aria-label="正円と6つの正三角形（角を丸め・内側配置／外形のみ黒線＋内側リング＋6等分＋R2-R3を30等分＋inner1/3に画像＋指定なし三角＋中心ダイヤ＋中心線＋外向き曲線三角テーパー＋金線X：底辺innerR接触＋指定部屋に新半円ノッチ［白塗り］＋カード最前面回転＋room6扇状＋1-2でroom4扇状/room3テキスト）">
@@ -1192,6 +1228,7 @@ const stagePop = document.getElementById('stagePop');
 const btnStagePopClose = document.getElementById('btnStagePopClose');
 const stageOptionGrid = document.getElementById('stageOptionGrid');
 const btnOpenStagePop = document.getElementById('btnOpenStagePop');
+const missionUnselectedPanel = document.getElementById('missionUnselectedPanel');
 const stageNameTag = document.getElementById('stageNameTag');
 const stageNameGear = document.getElementById('stageNameGear');
 const stageTopHint = document.getElementById('stageTopHint');
@@ -1743,6 +1780,12 @@ function syncHostStageReadyButton(){
   hostStageReadyBtn.classList.toggle('visible', shouldShow);
 }
 
+function syncMissionUnselectedUI(){
+  if (!missionUnselectedPanel) return;
+  const shouldShow = state.joined && !currentStage;
+  missionUnselectedPanel.classList.toggle('hidden', !shouldShow);
+}
+
 async function setSubgearCount(nextCount){
   if (deriveCurrentPhase(state.phaseState) !== 'discussion') return;
   const normalized = Math.max(0, Math.min(3, Number(nextCount) || 0));
@@ -1789,6 +1832,7 @@ function enterLobbyUI(){
   lobby.classList.remove('hidden');
   lobby.classList.add('entered');
   redrawAll(currentStage);
+  syncMissionUnselectedUI();
 }
 
 function subscribeRoom(){
@@ -1940,9 +1984,35 @@ function subscribeStage(){
       clearTimeout(revealResultDelayTimer);
       revealResultDelayTimer = null;
     }
+    if (state.isHost && state.roomCode && currentStage){
+      const now = Date.now();
+      await Promise.all([
+        remove(ref(db, `rooms/${state.roomCode}/playedCards`)),
+        remove(ref(db, `rooms/${state.roomCode}/hands`)),
+        remove(ref(db, `rooms/${state.roomCode}/extraDeck`)),
+        set(ref(db, `rooms/${state.roomCode}/subgearCount`), 0),
+        set(ref(db, `rooms/${state.roomCode}/boardRotation`), {
+          deg: 0,
+          ts: now,
+          actorId: state.userId || '',
+          isFinal: true
+        }),
+        set(ref(db, `rooms/${state.roomCode}/centerNeedleRotation`), {
+          deg: getInitialCenterNeedleSettingsForMission(currentStage).deg,
+          ts: now,
+          actorId: state.userId || '',
+          isFinal: true
+        })
+      ]);
+      placedCardIds.clear();
+      pendingPlacedCardIds.clear();
+      await dealInitialHands();
+      await emitPhaseEvent('discussion');
+    }
 
     renderStageOptions();
     window.dispatchEvent(new CustomEvent('mission:change', { detail:{ value: currentStage }}));
+    syncMissionUnselectedUI();
   });
 }
 
@@ -3536,7 +3606,8 @@ btnResetRoom.addEventListener('click', async () => {
     remove(ref(db, `${base}/tables`)),
     remove(ref(db, `${base}/hands`)),
     remove(ref(db, `${base}/playedCards`)),
-    remove(ref(db, `${base}/extraDeck`))
+    remove(ref(db, `${base}/extraDeck`)),
+    remove(ref(db, `${base}/stageCode`))
   ]);
 
   placedCardIds.clear();
@@ -3545,6 +3616,7 @@ btnResetRoom.addEventListener('click', async () => {
   startPop.classList.add('hidden');
   renderHands();
   syncSeatUI();
+  syncMissionUnselectedUI();
 });
 
 /* ===== ステージ選択UI ===== */
@@ -3575,40 +3647,24 @@ async function setStage(code){
   }
   revealPhaseAnnouncedForStage = '';
   window.dispatchEvent(new CustomEvent('mission:change', { detail:{ value: currentStage }}));
+  syncMissionUnselectedUI();
 
-  if (state.isHost && state.roomCode){
+  if (state.roomCode){
     if (currentStage) await set(ref(db, `rooms/${state.roomCode}/stageCode`), currentStage);
     else await remove(ref(db, `rooms/${state.roomCode}/stageCode`));
   }
 
-  if (state.isHost && state.roomCode && currentStage){
-    const now = Date.now();
-    await Promise.all([
-      remove(ref(db, `rooms/${state.roomCode}/playedCards`)),
-      remove(ref(db, `rooms/${state.roomCode}/hands`)),
-      remove(ref(db, `rooms/${state.roomCode}/extraDeck`)),
-      set(ref(db, `rooms/${state.roomCode}/subgearCount`), 0),
-      set(ref(db, `rooms/${state.roomCode}/boardRotation`), {
-        deg: 0,
-        ts: now,
-        actorId: state.userId || '',
-        isFinal: true
-      }),
-      set(ref(db, `rooms/${state.roomCode}/centerNeedleRotation`), {
-        deg: getInitialCenterNeedleSettingsForMission(currentStage).deg,
-        ts: now,
-        actorId: state.userId || '',
-        isFinal: true
-      })
-    ]);
-    placedCardIds.clear();
-    pendingPlacedCardIds.clear();
-    await dealInitialHands();
-    await emitPhaseEvent('discussion');
-  }
 }
 
 btnOpenStagePop.addEventListener('click', () => {
+  renderStageOptions();
+  startPop.classList.add('hidden');
+  stagePop.classList.remove('hidden');
+});
+missionUnselectedPanel?.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-mission-btn]');
+  if (!btn) return;
+  if (btn.dataset.missionBtn !== 'a') return;
   renderStageOptions();
   startPop.classList.add('hidden');
   stagePop.classList.remove('hidden');
