@@ -266,48 +266,19 @@
     display:grid;
     grid-template-columns:repeat(3, 74.4px);
     gap:8px;
-    pointer-events:auto;
+    pointer-events:none;
   }
   .mission-stage-selected.hidden{display:none;}
   .mission-stage-selected-btn{
-    position:relative;
-    overflow:visible;
     width:74.4px;
     height:74.4px;
     border:none;
     border-radius:50%;
-    padding:0;
-    appearance:none;
     background-color:transparent;
     background-size:contain;
     background-position:center;
     background-repeat:no-repeat;
-    cursor:help;
   }
-  .mission-stage-selected-pop{
-    display:none;
-    position:absolute;
-    left:0;
-    top:calc(100% + 6px);
-    z-index:2;
-    width:220px;
-    box-sizing:border-box;
-    border-radius:10px;
-    background:rgba(17,24,39,.94);
-    color:#fff;
-    padding:8px 10px;
-    font-size:12px;
-    line-height:1.45;
-    text-align:left;
-    white-space:normal;
-    box-shadow:0 8px 22px rgba(0,0,0,.28);
-    pointer-events:none;
-  }
-  .mission-stage-selected-btn:nth-child(3n+2) .mission-stage-selected-pop{left:50%;transform:translateX(-50%);}
-  .mission-stage-selected-btn:nth-child(3n) .mission-stage-selected-pop{left:auto;right:0;}
-  .mission-stage-selected-btn:hover .mission-stage-selected-pop,
-  .mission-stage-selected-btn:focus-visible .mission-stage-selected-pop,
-  .mission-stage-selected-btn.show-pop .mission-stage-selected-pop{display:block;}
   .mission-stage-selected-btn[data-mission-circle="c"]{background-image:url('c.png');}
   .mission-stage-selected-btn[data-mission-circle="d"]{background-image:url('d.png');}
   .mission-stage-selected-btn[data-mission-circle="e"]{background-image:url('e.png');}
@@ -2135,17 +2106,11 @@ function renderMissionStageSelectedButtons(){
   missionStageSelected.innerHTML = '';
   if (!shouldShow) return;
   activeKeys.forEach(key => {
-    const item = document.createElement('button');
+    const item = document.createElement('div');
     const description = MISSION_CIRCLE_DESCRIPTIONS[key] || '';
-    item.type = 'button';
     item.className = 'mission-stage-selected-btn';
     item.dataset.missionCircle = key;
     item.setAttribute('aria-label', `${key.toUpperCase()}: ${description}`);
-    item.setAttribute('aria-expanded', 'false');
-    const pop = document.createElement('span');
-    pop.className = 'mission-stage-selected-pop';
-    pop.textContent = description;
-    item.appendChild(pop);
     missionStageSelected.appendChild(item);
   });
 }
@@ -3959,24 +3924,6 @@ missionUnselected?.addEventListener('click', (e) => {
   if (/^[c-h]$/.test(key || '')){
     void toggleMissionCircle(key);
   }
-});
-missionStageSelected?.addEventListener('click', (e) => {
-  const btn = e.target.closest('.mission-stage-selected-btn');
-  if (!btn) return;
-  e.stopPropagation();
-  const nextOpen = !btn.classList.contains('show-pop');
-  missionStageSelected.querySelectorAll('.mission-stage-selected-btn.show-pop').forEach(openBtn => {
-    openBtn.classList.remove('show-pop');
-    openBtn.setAttribute('aria-expanded', 'false');
-  });
-  btn.classList.toggle('show-pop', nextOpen);
-  btn.setAttribute('aria-expanded', nextOpen ? 'true' : 'false');
-});
-document.addEventListener('click', () => {
-  missionStageSelected?.querySelectorAll('.mission-stage-selected-btn.show-pop').forEach(btn => {
-    btn.classList.remove('show-pop');
-    btn.setAttribute('aria-expanded', 'false');
-  });
 });
 btnStagePopClose.addEventListener('click', () => {
   stagePop.classList.add('hidden');
@@ -7999,6 +7946,26 @@ function renderRoomConditionHints(mission = currentStage){
     });
     tableWrap.appendChild(text);
   }
+
+  function appendActiveMissionCircleHintTables(){
+    const activeKeys = getActiveMissionCircleKeys();
+    if (!activeKeys.length) return;
+    activeKeys.forEach((key, idx) => {
+      const hintText = MISSION_CIRCLE_DESCRIPTIONS[key];
+      if (!hintText) return;
+      const col = idx % 2;
+      const row = Math.floor(idx / 2);
+      appendHintTable(hintText, col === 0 ? -76 : 76, -96 + (row * 68), {
+        maxCharsPerLine: 12,
+        maxLines: 10,
+        boxW: 124,
+        lineH: 11,
+        fontSize: 9.2
+      });
+    });
+  }
+
+  appendActiveMissionCircleHintTables();
 
   if (!hasInfinity){
     appendHintTable('合計値が24を超えてはいけない。', 0, 0, {
