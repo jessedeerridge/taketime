@@ -259,35 +259,55 @@
   .mission-circle-btn[data-mission-circle="g"]{background-image:url('g.png');}
   .mission-circle-btn[data-mission-circle="h"]{background-image:url('h.png');}
   .mission-stage-selected{
-    position:absolute;
-    left:0;
-    top:0;
-    z-index:255;
+    position:fixed;
+    left:4px;
+    top:64px;
+    z-index:270;
     display:grid;
     grid-template-columns:repeat(3, 74.4px);
     gap:8px;
-    pointer-events:none;
+    pointer-events:auto;
   }
   .mission-stage-selected.hidden{display:none;}
   .mission-stage-selected-btn{
     position:relative;
-    overflow:hidden;
+    overflow:visible;
     width:74.4px;
     height:74.4px;
     border:none;
     border-radius:50%;
+    padding:0;
+    appearance:none;
     background-color:transparent;
     background-size:contain;
     background-position:center;
     background-repeat:no-repeat;
+    cursor:help;
   }
-  .mission-stage-selected-btn::after{
-    content:'';
+  .mission-stage-selected-pop{
+    display:none;
     position:absolute;
-    inset:0;
-    border-radius:50%;
-    background:rgba(14,165,233,.58);
+    left:0;
+    top:calc(100% + 6px);
+    z-index:2;
+    width:220px;
+    box-sizing:border-box;
+    border-radius:10px;
+    background:rgba(17,24,39,.94);
+    color:#fff;
+    padding:8px 10px;
+    font-size:12px;
+    line-height:1.45;
+    text-align:left;
+    white-space:normal;
+    box-shadow:0 8px 22px rgba(0,0,0,.28);
+    pointer-events:none;
   }
+  .mission-stage-selected-btn:nth-child(3n+2) .mission-stage-selected-pop{left:50%;transform:translateX(-50%);}
+  .mission-stage-selected-btn:nth-child(3n) .mission-stage-selected-pop{left:auto;right:0;}
+  .mission-stage-selected-btn:hover .mission-stage-selected-pop,
+  .mission-stage-selected-btn:focus-visible .mission-stage-selected-pop,
+  .mission-stage-selected-btn.show-pop .mission-stage-selected-pop{display:block;}
   .mission-stage-selected-btn[data-mission-circle="c"]{background-image:url('c.png');}
   .mission-stage-selected-btn[data-mission-circle="d"]{background-image:url('d.png');}
   .mission-stage-selected-btn[data-mission-circle="e"]{background-image:url('e.png');}
@@ -2094,6 +2114,15 @@ function subscribeSubgearCount(){
   });
 }
 
+const MISSION_CIRCLE_DESCRIPTIONS = {
+  c: '公開できる回数が2つ減る',
+  d: '先に白カードを全て出さなければならない。',
+  e: '2枚以上置かれている部屋の10,11,12は-10される。',
+  f: '最初から最後までの差が12以内でなければならない。例1・・・12',
+  g: '選んだカードは次の手番のプレイヤーがプレイする場所を決める。オモテかウラかはカードの持ち主が決める。',
+  h: 'カードをプレイするたびに緑の針が1つ進む。この針が指す部屋にはカードをプレイできない。'
+};
+
 function getActiveMissionCircleKeys(){
   return ['c', 'd', 'e', 'f', 'g', 'h'].filter(key => !!missionCircleToggles[key]);
 }
@@ -2106,10 +2135,17 @@ function renderMissionStageSelectedButtons(){
   missionStageSelected.innerHTML = '';
   if (!shouldShow) return;
   activeKeys.forEach(key => {
-    const item = document.createElement('div');
+    const item = document.createElement('button');
+    const description = MISSION_CIRCLE_DESCRIPTIONS[key] || '';
+    item.type = 'button';
     item.className = 'mission-stage-selected-btn';
     item.dataset.missionCircle = key;
-    item.setAttribute('aria-label', key.toUpperCase());
+    item.setAttribute('aria-label', `${key.toUpperCase()}: ${description}`);
+    item.setAttribute('aria-expanded', 'false');
+    const pop = document.createElement('span');
+    pop.className = 'mission-stage-selected-pop';
+    pop.textContent = description;
+    item.appendChild(pop);
     missionStageSelected.appendChild(item);
   });
 }
@@ -3923,6 +3959,24 @@ missionUnselected?.addEventListener('click', (e) => {
   if (/^[c-h]$/.test(key || '')){
     void toggleMissionCircle(key);
   }
+});
+missionStageSelected?.addEventListener('click', (e) => {
+  const btn = e.target.closest('.mission-stage-selected-btn');
+  if (!btn) return;
+  e.stopPropagation();
+  const nextOpen = !btn.classList.contains('show-pop');
+  missionStageSelected.querySelectorAll('.mission-stage-selected-btn.show-pop').forEach(openBtn => {
+    openBtn.classList.remove('show-pop');
+    openBtn.setAttribute('aria-expanded', 'false');
+  });
+  btn.classList.toggle('show-pop', nextOpen);
+  btn.setAttribute('aria-expanded', nextOpen ? 'true' : 'false');
+});
+document.addEventListener('click', () => {
+  missionStageSelected?.querySelectorAll('.mission-stage-selected-btn.show-pop').forEach(btn => {
+    btn.classList.remove('show-pop');
+    btn.setAttribute('aria-expanded', 'false');
+  });
 });
 btnStagePopClose.addEventListener('click', () => {
   stagePop.classList.add('hidden');
