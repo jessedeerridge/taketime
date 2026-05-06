@@ -239,6 +239,14 @@
     color:transparent;
     font-size:0;
   }
+  .mission-circle-btn.mission-circle-on[data-mission-circle="c"],
+  .mission-circle-btn.mission-circle-on[data-mission-circle="d"],
+  .mission-circle-btn.mission-circle-on[data-mission-circle="e"],
+  .mission-circle-btn.mission-circle-on[data-mission-circle="f"],
+  .mission-circle-btn.mission-circle-on[data-mission-circle="g"],
+  .mission-circle-btn.mission-circle-on[data-mission-circle="h"]{
+    background-color:rgba(125,211,252,.45);
+  }
   .mission-circle-btn[data-mission-circle="c"]{background-image:url('c.png');}
   .mission-circle-btn[data-mission-circle="d"]{background-image:url('d.png');}
   .mission-circle-btn[data-mission-circle="e"]{background-image:url('e.png');}
@@ -1077,14 +1085,14 @@
             <button type="button" class="mission-circle-btn" data-mission-circle="b" aria-label="R">R</button>
           </div>
           <div class="mission-circle-row">
-            <button type="button" class="mission-circle-btn" data-mission-circle="c">c</button>
-            <button type="button" class="mission-circle-btn" data-mission-circle="d">d</button>
-            <button type="button" class="mission-circle-btn" data-mission-circle="e">e</button>
+            <button type="button" class="mission-circle-btn" data-mission-circle="c" aria-label="C" aria-pressed="false">c</button>
+            <button type="button" class="mission-circle-btn" data-mission-circle="d" aria-label="D" aria-pressed="false">d</button>
+            <button type="button" class="mission-circle-btn" data-mission-circle="e" aria-label="E" aria-pressed="false">e</button>
           </div>
           <div class="mission-circle-row">
-            <button type="button" class="mission-circle-btn" data-mission-circle="f">f</button>
-            <button type="button" class="mission-circle-btn" data-mission-circle="g">g</button>
-            <button type="button" class="mission-circle-btn" data-mission-circle="h">h</button>
+            <button type="button" class="mission-circle-btn" data-mission-circle="f" aria-label="F" aria-pressed="false">f</button>
+            <button type="button" class="mission-circle-btn" data-mission-circle="g" aria-label="G" aria-pressed="false">g</button>
+            <button type="button" class="mission-circle-btn" data-mission-circle="h" aria-label="H" aria-pressed="false">h</button>
           </div>
         </div>
       </div>
@@ -1245,6 +1253,7 @@ const stageNameGear = document.getElementById('stageNameGear');
 const stageTopHint = document.getElementById('stageTopHint');
 const stageNameText = document.getElementById('stageNameText');
 const missionUnselected = document.getElementById('missionUnselected');
+const missionCircleButtons = Array.from(document.querySelectorAll('[data-mission-circle]'));
 const mainGearDividers = document.getElementById('mainGearDividers');
 const mainGearEyes = document.getElementById('mainGearEyes');
 const subgearEls = [1, 2, 3].map((idx) => document.getElementById(`subgear${idx}`));
@@ -1280,6 +1289,7 @@ const ROOM_TOTAL_DISPLAY_DELAY_MS = 1200;
 const RESULT_POP_DELAY_AFTER_ROOM6_TOTAL_MS = 2000;
 const NEXT_BUTTON_DELAY_AFTER_RESULT_MS = 2000;
 let currentStage = '';
+let missionCircleToggles = {};
 
 let pendingSeatIndexToSteal = null;
 let pendingSeatPlayerIdToSteal = null;
@@ -2032,6 +2042,30 @@ function subscribeSubgearCount(){
     currentSubgearCount = Math.max(0, Math.min(3, Number(snap.val()) || 0));
     applySubgearCountToDom();
   });
+}
+
+function syncMissionCircleButtons(){
+  missionCircleButtons.forEach(btn => {
+    const key = btn.getAttribute('data-mission-circle');
+    const isToggleButton = /^[c-h]$/.test(key || '');
+    const isOn = isToggleButton && !!missionCircleToggles[key];
+    btn.classList.toggle('mission-circle-on', isOn);
+    if (isToggleButton) btn.setAttribute('aria-pressed', isOn ? 'true' : 'false');
+  });
+}
+
+function subscribeMissionCircleToggles(){
+  const togglesRef = ref(db, `rooms/${state.roomCode}/missionCircleToggles`);
+  onValue(togglesRef, snap => {
+    missionCircleToggles = snap.val() || {};
+    syncMissionCircleButtons();
+  });
+}
+
+async function toggleMissionCircle(key){
+  if (!state.roomCode || !/^[c-h]$/.test(key || '')) return;
+  const toggleRef = ref(db, `rooms/${state.roomCode}/missionCircleToggles/${key}`);
+  await runTransaction(toggleRef, current => !current);
 }
 
 function subscribeStage(){
@@ -3498,6 +3532,7 @@ btnJoin.addEventListener('click', async () => {
     subscribeStageSelectionEvents();
     subscribePhaseEvents();
     subscribeSubgearCount();
+    subscribeMissionCircleToggles();
     subscribeNextAction();
     subscribeBoardRotation();
     subscribeRightarrowRotationEvent();
@@ -3739,7 +3774,8 @@ btnResetRoom.addEventListener('click', async () => {
     remove(ref(db, `${base}/hands`)),
     remove(ref(db, `${base}/playedCards`)),
     remove(ref(db, `${base}/extraDeck`)),
-    remove(ref(db, `${base}/stageCode`))
+    remove(ref(db, `${base}/stageCode`)),
+    remove(ref(db, `${base}/missionCircleToggles`))
   ]);
 
   placedCardIds.clear();
@@ -3805,10 +3841,17 @@ btnOpenStagePop.addEventListener('click', () => {
 });
 missionUnselected?.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-mission-circle]');
-  if (!btn || btn.getAttribute('data-mission-circle') !== 'a') return;
-  renderStageOptions();
-  startPop.classList.add('hidden');
-  stagePop.classList.remove('hidden');
+  if (!btn) return;
+  const key = btn.getAttribute('data-mission-circle');
+  if (key === 'a'){
+    renderStageOptions();
+    startPop.classList.add('hidden');
+    stagePop.classList.remove('hidden');
+    return;
+  }
+  if (/^[c-h]$/.test(key || '')){
+    void toggleMissionCircle(key);
+  }
 });
 btnStagePopClose.addEventListener('click', () => {
   stagePop.classList.add('hidden');
@@ -8042,9 +8085,10 @@ function redrawAll(m){
   const hasStage = STAGE_CODES.includes(currentStage);
   const renderStage = hasStage ? currentStage : '';
   stageSvg.style.visibility = hasStage ? 'visible' : 'hidden';
+  const showMissionButtons = state.joined && currentStage === AFTER_STAGE_CODE;
   if (missionUnselected){
-    const showMissionButtons = state.joined && currentStage === AFTER_STAGE_CODE;
     missionUnselected.classList.toggle('hidden', !showMissionButtons);
+    if (showMissionButtons) syncMissionCircleButtons();
   }
   if (renderStage !== lastGreenneedleStageCode){
     lastGreenneedleStageCode = renderStage;
@@ -8072,7 +8116,7 @@ function redrawAll(m){
     });
   }
   stageNameText.textContent = renderStage;
-  const hideStageName = !renderStage || !state.joined;
+  const hideStageName = !renderStage || !state.joined || showMissionButtons;
   const hideStageGear = hideStageName || isStage24;
   stageNameTag.classList.toggle('hidden', hideStageName);
   stageNameGear.classList.toggle('hidden', hideStageGear);
