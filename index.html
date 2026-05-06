@@ -242,6 +242,12 @@
     pointer-events:auto;
   }
   .player-tag.me{ background:#111;color:#fff;border-color:#111; }
+  .player-next-btn{
+    position:absolute;left:50%;top:calc(100% + 6px);transform:translateX(-50%);
+    padding:5px 12px;border-radius:999px;border:1px solid #111;background:#fff;color:#111;
+    font-size:12px;font-weight:800;cursor:pointer;box-shadow:0 4px 10px rgba(0,0,0,.18);
+    pointer-events:auto;white-space:nowrap;
+  }
 
   .player-tag .mini-hand{
     position:absolute;left:50%;top:100%;
@@ -1253,6 +1259,7 @@ const STAGE_ROOM_SUCCESS_CONDITIONS = {
 const REVEAL_ROOM_INTERVAL_MS = 1200;
 const ROOM_TOTAL_DISPLAY_DELAY_MS = 1200;
 const RESULT_POP_DELAY_AFTER_ROOM6_TOTAL_MS = 2000;
+const NEXT_BUTTON_DELAY_AFTER_RESULT_MS = 2000;
 let currentStage = '';
 
 let pendingSeatIndexToSteal = null;
@@ -1268,6 +1275,7 @@ const MY_TAG_ONLY_OFFSET_PX = 20;
 let isStageTagPressed = false;
 let hostHandLockedByStage = false;
 let lastShownPhaseEventTs = 0;
+let lastSeenStageSelectionTs = 0;
 let revealPhaseAnnouncedForStage = '';
 let lastSeenPhaseTicks = { discussion: 0, placement: 0, reveal: 0 };
 let revealFlipProcessingKey = '';
@@ -1282,6 +1290,8 @@ const inFlightPlayedCardKeys = new Set();
 const placingCardIds = new Set();
 let hasPlayedCardsSnapshot = false;
 let currentSubgearCount = 0;
+let currentNextAction = null;
+let nextActionTimer = null;
 let boardRotationDeg = 0;
 let boardRotationVisualDeg = 0;
 let boardRotationDrag = null;
@@ -1486,6 +1496,90 @@ function canCurrentUserDragCard(){
   if (!currentStage) return false;
   if (state.currentPhase !== 'placement') return false;
   return isMyTurnInPlacement();
+}
+
+function getNextStageCode(stageCode){
+  const idx = STAGE_CODES.indexOf(stageCode);
+  if (idx === -1) return '';
+  return STAGE_CODES[idx + 1] || '';
+}
+
+function shouldShowNextButton(){
+  if (!currentNextAction || !state.joined) return false;
+  if (currentNextAction.consumedAt) return false;
+  if (!currentNextAction.stage || currentNextAction.stage !== currentStage) return false;
+  if (currentNextAction.success && !getNextStageCode(currentNextAction.stage)) return false;
+  return Date.now() >= Number(currentNextAction.showAt || 0);
+}
+
+function scheduleNextActionRender(){
+  if (nextActionTimer) clearTimeout(nextActionTimer);
+  nextActionTimer = null;
+  if (!currentNextAction) return;
+  const waitMs = Number(currentNextAction.showAt || 0) - Date.now();
+  if (waitMs > 0){
+    nextActionTimer = setTimeout(() => {
+      nextActionTimer = null;
+      if (latestPlayers.length) renderPlayerCircle(latestPlayers);
+    }, Math.max(20, waitMs));
+  }
+}
+
+async function publishRevealResultNextAction({ stageCode, success, revealTick }){
+  if (!state.roomCode || !stageCode || !revealTick) return;
+  const nextActionRef = ref(db, `rooms/${state.roomCode}/nextAction`);
+  const key = `${stageCode}:${revealTick}`;
+  const now = Date.now();
+  await runTransaction(nextActionRef, (current) => {
+    if (current && current.key === key) return current;
+    return {
+      key,
+      stage: stageCode,
+      success: !!success,
+      revealTick,
+      showAt: now + NEXT_BUTTON_DELAY_AFTER_RESULT_MS,
+      createdAt: now,
+      actorId: state.userId || ''
+    };
+  });
+}
+
+function subscribeNextAction(){
+  const nextActionRef = ref(db, `rooms/${state.roomCode}/nextAction`);
+  onValue(nextActionRef, snap => {
+    currentNextAction = snap.val() || null;
+    scheduleNextActionRender();
+    if (latestPlayers.length) renderPlayerCircle(latestPlayers);
+  });
+}
+
+async function handleNextMissionClick(){
+  if (!state.roomCode || !currentNextAction) return;
+  const action = currentNextAction;
+  const nextActionRef = ref(db, `rooms/${state.roomCode}/nextAction`);
+  const consumeResult = await runTransaction(nextActionRef, (current) => {
+    if (!current || current.key !== action.key || current.consumedAt) return;
+    return {
+      ...current,
+      consumedAt: Date.now(),
+      consumedBy: state.userId || ''
+    };
+  });
+  if (!consumeResult.committed) return;
+  const actionStage = String(action.stage || '');
+  if (!STAGE_CODES.includes(actionStage)) return;
+  const nextStage = action.success ? getNextStageCode(actionStage) : actionStage;
+  if (!nextStage) return;
+
+  if (action.success){
+    await setStage(nextStage);
+    return;
+  }
+
+  const failureCountRef = ref(db, `rooms/${state.roomCode}/stageFailureCounts/${actionStage}`);
+  const txResult = await runTransaction(failureCountRef, (current) => Math.max(0, Number(current) || 0) + 1);
+  const failureCount = Math.max(1, Number(txResult.snapshot.val()) || 1);
+  await setStage(actionStage, { retryFailureCount: failureCount });
 }
 
 function syncMyHandPulseDom(){
@@ -1926,6 +2020,10 @@ function subscribeStage(){
   onValue(stageRef, async snap => {
     const sharedStageRaw = snap.val();
     const sharedStage = STAGE_CODES_WITH_AFTER.includes(sharedStageRaw) ? sharedStageRaw : '';
+    if (sharedStage){
+      stagePop.classList.add('hidden');
+      startPop.classList.add('hidden');
+    }
 
     if (sharedStage === currentStage){
       if (state.isHost){
@@ -1969,6 +2067,18 @@ function subscribeStage(){
 
     renderStageOptions();
     window.dispatchEvent(new CustomEvent('mission:change', { detail:{ value: currentStage }}));
+  });
+}
+
+function subscribeStageSelectionEvents(){
+  const stageSelectionRef = ref(db, `rooms/${state.roomCode}/stageSelectionEvent`);
+  onValue(stageSelectionRef, snap => {
+    const evt = snap.val();
+    const ts = Number(evt?.ts || 0);
+    if (!ts || ts <= lastSeenStageSelectionTs) return;
+    lastSeenStageSelectionTs = ts;
+    stagePop.classList.add('hidden');
+    startPop.classList.add('hidden');
   });
 }
 
@@ -2552,6 +2662,7 @@ function maybeAnnounceRevealResult(){
 
   const success = evaluatePlacementResult(currentStage, roomCardsMap);
   showPhaseFlow(success ? '配置成功' : '配置失敗');
+  void publishRevealResultNextAction({ stageCode: currentStage, success, revealTick });
   revealResultAnnouncedKey = phaseKey;
 }
 
@@ -3270,6 +3381,18 @@ function renderPlayerCircle(players){
       tag.appendChild(miniHand);
     }
 
+    if (isMe && shouldShowNextButton()){
+      const nextBtn = document.createElement('button');
+      nextBtn.type = 'button';
+      nextBtn.className = 'player-next-btn';
+      nextBtn.textContent = 'Next';
+      nextBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        void handleNextMissionClick();
+      });
+      tag.appendChild(nextBtn);
+    }
+
     playerCircle.appendChild(tag);
   });
 
@@ -3347,8 +3470,10 @@ btnJoin.addEventListener('click', async () => {
     subscribeHands();
     subscribePlayedCards();
     subscribeStage();
+    subscribeStageSelectionEvents();
     subscribePhaseEvents();
     subscribeSubgearCount();
+    subscribeNextAction();
     subscribeBoardRotation();
     subscribeRightarrowRotationEvent();
     subscribeCenterNeedleRotation();
@@ -3535,14 +3660,16 @@ async function dealInitialHands(){
   await set(ref(db, `rooms/${state.roomCode}/extraDeck`), { cards: extraDeckCards });
 }
 
-async function prepareStageForRoom(stageCode){
+async function prepareStageForRoom(stageCode, { subgearCount = 0 } = {}){
   if (!state.roomCode || !stageCode) return;
   const now = Date.now();
+  const normalizedSubgearCount = Math.max(0, Math.min(3, Number(subgearCount) || 0));
   await Promise.all([
     remove(ref(db, `rooms/${state.roomCode}/playedCards`)),
     remove(ref(db, `rooms/${state.roomCode}/hands`)),
     remove(ref(db, `rooms/${state.roomCode}/extraDeck`)),
-    set(ref(db, `rooms/${state.roomCode}/subgearCount`), 0),
+    remove(ref(db, `rooms/${state.roomCode}/nextAction`)),
+    set(ref(db, `rooms/${state.roomCode}/subgearCount`), normalizedSubgearCount),
     set(ref(db, `rooms/${state.roomCode}/boardRotation`), { deg: 0, ts: now, actorId: state.userId || '', isFinal: true }),
     set(ref(db, `rooms/${state.roomCode}/centerNeedleRotation`), {
       deg: getInitialCenterNeedleSettingsForMission(stageCode).deg,
@@ -3619,7 +3746,7 @@ function renderStageOptions(){
   });
 }
 
-async function setStage(code){
+async function setStage(code, { retryFailureCount = null } = {}){
   currentStage = STAGE_CODES_WITH_AFTER.includes(code) ? code : '';
   resetBoardAndNeedleRotations();
   if (currentStage) localStorage.setItem(STAGE_KEY, currentStage);
@@ -3634,8 +3761,16 @@ async function setStage(code){
   if (state.roomCode){
     if (currentStage) await set(ref(db, `rooms/${state.roomCode}/stageCode`), currentStage);
     else await remove(ref(db, `rooms/${state.roomCode}/stageCode`));
+    await set(ref(db, `rooms/${state.roomCode}/stageSelectionEvent`), {
+      stage: currentStage,
+      ts: Date.now(),
+      actorId: state.userId || ''
+    });
+    if (retryFailureCount == null){
+      await remove(ref(db, `rooms/${state.roomCode}/stageFailureCounts`));
+    }
   }
-  await prepareStageForRoom(currentStage);
+  await prepareStageForRoom(currentStage, { subgearCount: retryFailureCount == null ? 0 : retryFailureCount });
 }
 
 btnOpenStagePop.addEventListener('click', () => {
