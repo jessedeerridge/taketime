@@ -1331,6 +1331,7 @@ const RESULT_POP_DELAY_AFTER_ROOM6_TOTAL_MS = 2000;
 const NEXT_BUTTON_DELAY_AFTER_RESULT_MS = 2000;
 let currentStage = '';
 let missionCircleToggles = {};
+let stageSelectionSource = 'settings';
 
 let pendingSeatIndexToSteal = null;
 let pendingSeatPlayerIdToSteal = null;
@@ -2046,10 +2047,15 @@ function subscribePhaseEvents(){
   onValue(phaseRef, snap => {
     const evt = snap.val();
     if (!evt || !evt.label || !evt.ts) return;
+    const evtType = evt.type || '';
+    if (evtType && lastSeenPhaseTicks[evtType] != null && evt.ts <= lastSeenPhaseTicks[evtType]){
+      lastShownPhaseEventTs = Math.max(lastShownPhaseEventTs, evt.ts);
+      return;
+    }
     if (evt.ts <= lastShownPhaseEventTs) return;
     lastShownPhaseEventTs = evt.ts;
-    if (evt.type && lastSeenPhaseTicks[evt.type] != null){
-      lastSeenPhaseTicks[evt.type] = Math.max(lastSeenPhaseTicks[evt.type], evt.ts);
+    if (evtType && lastSeenPhaseTicks[evtType] != null){
+      lastSeenPhaseTicks[evtType] = Math.max(lastSeenPhaseTicks[evtType], evt.ts);
     }
     showPhaseFlow(evt.label);
   });
@@ -3870,16 +3876,18 @@ function renderStageOptions(){
       + (isX4 ? ' stage-option-x4' : '');
     btn.textContent = code;
     btn.addEventListener('click', () => {
+      const preserveMissionCircleToggles = stageSelectionSource === 'mission';
       currentStage = code;
       renderStageOptions();
       stagePop.classList.add('hidden');
-      void setStage(code);
+      stageSelectionSource = 'settings';
+      void setStage(code, { preserveMissionCircleToggles });
     });
     stageOptionGrid.appendChild(btn);
   });
 }
 
-async function setStage(code, { retryFailureCount = null } = {}){
+async function setStage(code, { retryFailureCount = null, preserveMissionCircleToggles = true } = {}){
   currentStage = STAGE_CODES_WITH_AFTER.includes(code) ? code : '';
   resetBoardAndNeedleRotations();
   if (currentStage) localStorage.setItem(STAGE_KEY, currentStage);
@@ -3892,6 +3900,11 @@ async function setStage(code, { retryFailureCount = null } = {}){
   window.dispatchEvent(new CustomEvent('mission:change', { detail:{ value: currentStage }}));
 
   if (state.roomCode){
+    if (!preserveMissionCircleToggles){
+      missionCircleToggles = {};
+      syncMissionCircleButtons();
+      await remove(ref(db, `rooms/${state.roomCode}/missionCircleToggles`));
+    }
     if (currentStage) await set(ref(db, `rooms/${state.roomCode}/stageCode`), currentStage);
     else await remove(ref(db, `rooms/${state.roomCode}/stageCode`));
     await set(ref(db, `rooms/${state.roomCode}/stageSelectionEvent`), {
@@ -3907,6 +3920,7 @@ async function setStage(code, { retryFailureCount = null } = {}){
 }
 
 btnOpenStagePop.addEventListener('click', () => {
+  stageSelectionSource = 'settings';
   renderStageOptions();
   startPop.classList.add('hidden');
   stagePop.classList.remove('hidden');
@@ -3916,6 +3930,7 @@ missionUnselected?.addEventListener('click', (e) => {
   if (!btn) return;
   const key = btn.getAttribute('data-mission-circle');
   if (key === 'a'){
+    stageSelectionSource = 'mission';
     renderStageOptions();
     startPop.classList.add('hidden');
     stagePop.classList.remove('hidden');
