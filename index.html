@@ -446,6 +446,8 @@
   .stage-pop.hidden{display:none;}
   .start-pop-header,
   .stage-pop-header{display:flex;justify-content:space-between;align-items:center;gap:8px;}
+  .stage-pop-header{justify-content:center;}
+  .stage-pop-header #btnStagePopClose{position:absolute;top:10px;right:12px;}
   .start-pop-title,
   .stage-pop-title{font-size:14px;font-weight:600;}
   .start-pop-main,
@@ -455,7 +457,9 @@
   .start-pop-actions{flex-wrap:nowrap;align-items:center;}
   .start-pop-actions .btn{white-space:nowrap;}
   .stage-option-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;max-height:48vh;overflow:auto;}
+  .stage-option-btn{border-radius:50%;aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;padding:0;font-weight:700;}
   .stage-option-btn.active{background:#111;color:#fff;border-color:#111;}
+  .stage-option-btn.stage-option-x4{background:#0b1f4d;border-color:#0b1f4d;color:#fff;}
 
   #roomInfoLobby, #lobby h2, #lobby p {display:none;}
   #lobby.entered{
@@ -1129,11 +1133,7 @@
 
 <div id="stagePop" class="stage-pop hidden">
   <div class="stage-pop-header">
-    <div class="stage-pop-title">ステージ選択</div>
     <button id="btnStagePopClose" class="btn ghost" style="padding:2px 6px;font-size:12px;">×</button>
-  </div>
-  <div class="stage-pop-main">
-    表示するステージ番号を選んでください。
   </div>
   <div class="stage-option-grid" id="stageOptionGrid"></div>
 </div>
@@ -1240,6 +1240,8 @@ const ROLE_HELP = [
 const STAGE_CODES = Array.from({ length: 10 }, (_, rowIndex) =>
   Array.from({ length: 4 }, (_, colIndex) => `${rowIndex + 1}-${colIndex + 1}`)
 ).flat();
+const AFTER_STAGE_CODE = 'After';
+const STAGE_CODES_WITH_AFTER = [...STAGE_CODES, AFTER_STAGE_CODE];
 const STAGE_KEY = 'stageCode';
 const USER_NAME_KEY = 'takeTimeUserName';
 const STAGE_ROOM_SUCCESS_CONDITIONS = {
@@ -3600,9 +3602,13 @@ btnResetRoom.addEventListener('click', async () => {
 /* ===== ステージ選択UI ===== */
 function renderStageOptions(){
   stageOptionGrid.innerHTML = '';
-  STAGE_CODES.forEach(code => {
+  const optionCodes = state.isHost ? STAGE_CODES_WITH_AFTER : STAGE_CODES;
+  optionCodes.forEach(code => {
     const btn = document.createElement('button');
-    btn.className = 'btn stage-option-btn' + (code === currentStage ? ' active' : '');
+    const isX4 = /-4$/.test(code);
+    btn.className = 'btn stage-option-btn'
+      + (code === currentStage ? ' active' : '')
+      + (isX4 ? ' stage-option-x4' : '');
     btn.textContent = code;
     btn.addEventListener('click', () => {
       currentStage = code;
@@ -3615,7 +3621,7 @@ function renderStageOptions(){
 }
 
 async function setStage(code){
-  currentStage = STAGE_CODES.includes(code) ? code : '';
+  currentStage = STAGE_CODES_WITH_AFTER.includes(code) ? code : '';
   resetBoardAndNeedleRotations();
   if (currentStage) localStorage.setItem(STAGE_KEY, currentStage);
   else localStorage.removeItem(STAGE_KEY);
@@ -3639,6 +3645,7 @@ btnOpenStagePop.addEventListener('click', () => {
   stagePop.classList.remove('hidden');
 });
 missionUnselected?.addEventListener('click', (e) => {
+  if (!state.isHost) return;
   const btn = e.target.closest('[data-mission-circle]');
   if (!btn || btn.getAttribute('data-mission-circle') !== 'a') return;
   renderStageOptions();
@@ -7878,7 +7885,8 @@ function redrawAll(m){
   const renderStage = hasStage ? currentStage : '';
   stageSvg.style.visibility = hasStage ? 'visible' : 'hidden';
   if (missionUnselected){
-    missionUnselected.classList.toggle('hidden', !(state.joined && !hasStage));
+    const showMissionButtons = state.joined && (!hasStage || currentStage === AFTER_STAGE_CODE);
+    missionUnselected.classList.toggle('hidden', !showMissionButtons);
   }
   if (renderStage !== lastGreenneedleStageCode){
     lastGreenneedleStageCode = renderStage;
