@@ -2080,15 +2080,11 @@ function subscribePhaseEvents(){
     const evtType = evt.type || '';
     const evtStage = String(evt.stage || '');
     if (evtStage && currentStage && evtStage !== currentStage) return;
-    if (evtType && lastSeenPhaseTicks[evtType] != null && evt.ts <= lastSeenPhaseTicks[evtType]){
-      lastShownPhaseEventTs = Math.max(lastShownPhaseEventTs, evt.ts);
+    if (evtType && lastSeenPhaseTicks[evtType] != null){
       return;
     }
     if (evt.ts <= lastShownPhaseEventTs) return;
     lastShownPhaseEventTs = evt.ts;
-    if (evtType && lastSeenPhaseTicks[evtType] != null){
-      lastSeenPhaseTicks[evtType] = Math.max(lastSeenPhaseTicks[evtType], evt.ts);
-    }
     showPhaseFlow(evt.label);
   });
 
