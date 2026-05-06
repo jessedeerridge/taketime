@@ -2307,7 +2307,8 @@ function maybeAnnounceRevealPhase(){
   if (!totalExpectedCards) return;
 
   if (placedCount >= totalExpectedCards){
-    const key = `${state.roomCode}:${currentStage}`;
+    const placementTick = Number(state.phaseState?.placementTick || 0);
+    const key = `${state.roomCode}:${currentStage}:${placementTick}`;
     if (revealPhaseAnnouncedForStage === key) return;
     revealPhaseAnnouncedForStage = key;
     emitPhaseEvent('reveal');
