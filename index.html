@@ -1787,7 +1787,7 @@ function showPhaseFlow(text){
 }
 
 async function emitPhaseEvent(type){
-  if (!state.roomCode || !state.isHost) return;
+  if (!state.roomCode) return;
   const labels = {
     discussion: '議論フェーズ',
     placement: '配置フェーズ',
@@ -1968,9 +1968,6 @@ function subscribeStage(){
     }
 
     renderStageOptions();
-    if (currentStage){
-      await prepareStageForRoom(currentStage);
-    }
     window.dispatchEvent(new CustomEvent('mission:change', { detail:{ value: currentStage }}));
   });
 }
@@ -3539,7 +3536,7 @@ async function dealInitialHands(){
 }
 
 async function prepareStageForRoom(stageCode){
-  if (!state.isHost || !state.roomCode || !stageCode) return;
+  if (!state.roomCode || !stageCode) return;
   const now = Date.now();
   await Promise.all([
     remove(ref(db, `rooms/${state.roomCode}/playedCards`)),
