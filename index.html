@@ -279,6 +279,32 @@
     background-position:center;
     background-repeat:no-repeat;
   }
+  .mission-stage-hints{
+    position:fixed;
+    left:4px;
+    top:64px;
+    z-index:280;
+    display:grid;
+    grid-template-columns:repeat(3, 74.4px);
+    gap:8px;
+    pointer-events:none;
+  }
+  .mission-stage-hints.hidden{display:none;}
+  .mission-stage-hint-table{
+    justify-self:center;
+    align-self:center;
+    min-width:56px;
+    border-radius:10px;
+    background:rgba(31, 41, 55, 0.72);
+    color:#fff;
+    padding:3px 1px;
+    font-size:9.2px;
+    font-weight:700;
+    line-height:11px;
+    text-align:center;
+    white-space:pre;
+    box-sizing:border-box;
+  }
   .mission-stage-selected-btn[data-mission-circle="c"]{background-image:url('c.png');}
   .mission-stage-selected-btn[data-mission-circle="d"]{background-image:url('d.png');}
   .mission-stage-selected-btn[data-mission-circle="e"]{background-image:url('e.png');}
@@ -936,6 +962,7 @@
     <div class="table-center">
       <div id="playerCircle" class="player-circle"></div>
       <div id="missionStageSelected" class="mission-stage-selected hidden" aria-label="オンのミッションボタン"></div>
+      <div id="missionStageHints" class="mission-stage-hints hidden" aria-label="オンのミッション説明"></div>
 
       <div class="stage-board-wrap">
         <svg id="stageBoard" viewBox="0 0 300 300" role="img" aria-label="正円と6つの正三角形（角を丸め・内側配置／外形のみ黒線＋内側リング＋6等分＋R2-R3を30等分＋inner1/3に画像＋指定なし三角＋中心ダイヤ＋中心線＋外向き曲線三角テーパー＋金線X：底辺innerR接触＋指定部屋に新半円ノッチ［白塗り］＋カード最前面回転＋room6扇状＋1-2でroom4扇状/room3テキスト）">
@@ -1294,6 +1321,7 @@ const stageTopHint = document.getElementById('stageTopHint');
 const stageNameText = document.getElementById('stageNameText');
 const missionUnselected = document.getElementById('missionUnselected');
 const missionStageSelected = document.getElementById('missionStageSelected');
+const missionStageHints = document.getElementById('missionStageHints');
 const missionCircleButtons = Array.from(document.querySelectorAll('#missionUnselected [data-mission-circle]'));
 const mainGearDividers = document.getElementById('mainGearDividers');
 const mainGearEyes = document.getElementById('mainGearEyes');
@@ -1767,6 +1795,7 @@ function updateStageTagPressState(isPressed){
   if (isStageTagPressed === isPressed) return;
   isStageTagPressed = isPressed;
   renderRoomConditionHints(currentStage);
+  renderMissionStageHintTables();
 }
 
 function syncStageTopHint(mission = currentStage){
@@ -2121,6 +2150,42 @@ function renderMissionStageSelectedButtons(){
   });
 }
 
+function wrapMissionStageHintText(hintText, maxCharsPerLine = 12, maxLines = 10){
+  const lines = String(hintText || '')
+    .split('\n')
+    .flatMap((chunk) => {
+      if (!chunk) return [''];
+      const wrapped = [];
+      for (let idx = 0; idx < chunk.length; idx += maxCharsPerLine){
+        wrapped.push(chunk.slice(idx, idx + maxCharsPerLine));
+      }
+      return wrapped;
+    });
+  const renderLines = lines.slice(0, maxLines);
+  if (lines.length > maxLines){
+    const lastIdx = renderLines.length - 1;
+    renderLines[lastIdx] = `${renderLines[lastIdx].slice(0, Math.max(0, maxCharsPerLine - 1))}…`;
+  }
+  return renderLines;
+}
+
+function renderMissionStageHintTables(){
+  if (!missionStageHints) return;
+  const activeKeys = getActiveMissionCircleKeys();
+  const shouldShow = isStageTagPressed && state.joined && STAGE_CODES.includes(currentStage) && activeKeys.length > 0;
+  missionStageHints.classList.toggle('hidden', !shouldShow);
+  missionStageHints.innerHTML = '';
+  if (!shouldShow) return;
+  activeKeys.forEach(key => {
+    const hintText = MISSION_CIRCLE_DESCRIPTIONS[key];
+    if (!hintText) return;
+    const table = document.createElement('div');
+    table.className = 'mission-stage-hint-table';
+    table.textContent = wrapMissionStageHintText(hintText).join('\n');
+    missionStageHints.appendChild(table);
+  });
+}
+
 function syncMissionCircleButtons(){
   missionCircleButtons.forEach(btn => {
     const key = btn.getAttribute('data-mission-circle');
@@ -2130,6 +2195,7 @@ function syncMissionCircleButtons(){
     if (isToggleButton) btn.setAttribute('aria-pressed', isOn ? 'true' : 'false');
   });
   renderMissionStageSelectedButtons();
+  renderMissionStageHintTables();
 }
 
 function subscribeMissionCircleToggles(){
@@ -7962,26 +8028,6 @@ function renderRoomConditionHints(mission = currentStage){
     tableWrap.appendChild(text);
   }
 
-  function appendActiveMissionCircleHintTables(){
-    const activeKeys = getActiveMissionCircleKeys();
-    if (!activeKeys.length) return;
-    activeKeys.forEach((key, idx) => {
-      const hintText = MISSION_CIRCLE_DESCRIPTIONS[key];
-      if (!hintText) return;
-      const col = idx % 2;
-      const row = Math.floor(idx / 2);
-      appendHintTable(hintText, col === 0 ? -76 : 76, -96 + (row * 68), {
-        maxCharsPerLine: 12,
-        maxLines: 10,
-        boxW: 124,
-        lineH: 11,
-        fontSize: 9.2
-      });
-    });
-  }
-
-  appendActiveMissionCircleHintTables();
-
   if (!hasInfinity){
     appendHintTable('合計値が24を超えてはいけない。', 0, 0, {
       maxCharsPerLine: 10,
@@ -8199,6 +8245,7 @@ function redrawAll(m){
     if (showMissionButtons) syncMissionCircleButtons();
   }
   renderMissionStageSelectedButtons();
+  renderMissionStageHintTables();
   if (renderStage !== lastGreenneedleStageCode){
     lastGreenneedleStageCode = renderStage;
     applyGreenHandRotation(greenneedle.initialDeg, { animate: false, useShortestPath: false });
@@ -8229,7 +8276,10 @@ function redrawAll(m){
   const hideStageGear = hideStageName || isStage24;
   stageNameTag.classList.toggle('hidden', hideStageName);
   stageNameGear.classList.toggle('hidden', hideStageGear);
-  if (hideStageName) isStageTagPressed = false;
+  if (hideStageName){
+    isStageTagPressed = false;
+    renderMissionStageHintTables();
+  }
   syncStageTopHint(renderStage);
   renderMainGearVisual();
   applySubgearCountToDom();
