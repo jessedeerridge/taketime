@@ -1925,7 +1925,7 @@ function subscribeStage(){
   const stageRef = ref(db, `rooms/${state.roomCode}/stageCode`);
   onValue(stageRef, async snap => {
     const sharedStageRaw = snap.val();
-    const sharedStage = STAGE_CODES.includes(sharedStageRaw) ? sharedStageRaw : '';
+    const sharedStage = STAGE_CODES_WITH_AFTER.includes(sharedStageRaw) ? sharedStageRaw : '';
 
     if (sharedStage === currentStage){
       if (state.isHost){
@@ -1968,7 +1968,7 @@ function subscribeStage(){
     }
 
     renderStageOptions();
-    if (state.isHost && currentStage){
+    if (currentStage){
       await prepareStageForRoom(currentStage);
     }
     window.dispatchEvent(new CustomEvent('mission:change', { detail:{ value: currentStage }}));
@@ -3556,7 +3556,9 @@ async function prepareStageForRoom(stageCode){
   ]);
   placedCardIds.clear();
   pendingPlacedCardIds.clear();
-  await dealInitialHands();
+  if (stageCode !== AFTER_STAGE_CODE){
+    await dealInitialHands();
+  }
   await emitPhaseEvent('discussion');
 }
 
@@ -3645,7 +3647,6 @@ btnOpenStagePop.addEventListener('click', () => {
   stagePop.classList.remove('hidden');
 });
 missionUnselected?.addEventListener('click', (e) => {
-  if (!state.isHost) return;
   const btn = e.target.closest('[data-mission-circle]');
   if (!btn || btn.getAttribute('data-mission-circle') !== 'a') return;
   renderStageOptions();
@@ -7885,7 +7886,7 @@ function redrawAll(m){
   const renderStage = hasStage ? currentStage : '';
   stageSvg.style.visibility = hasStage ? 'visible' : 'hidden';
   if (missionUnselected){
-    const showMissionButtons = state.joined && (!hasStage || currentStage === AFTER_STAGE_CODE);
+    const showMissionButtons = state.joined && currentStage === AFTER_STAGE_CODE;
     missionUnselected.classList.toggle('hidden', !showMissionButtons);
   }
   if (renderStage !== lastGreenneedleStageCode){
