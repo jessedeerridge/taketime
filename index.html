@@ -1981,6 +1981,59 @@ function showPhaseFlow(text){
   phaseFlowPop.classList.add('run');
 }
 
+function clearLocalAfterStageRuntime(){
+  state.hands = {};
+  state.playedCards = {};
+  state.phaseState = {};
+  state.currentPhase = '';
+  currentNextAction = null;
+  lastPlayedCardKeys = new Set();
+  placedCardIds.clear();
+  pendingPlacedCardIds.clear();
+  inFlightPlayedCardKeys.clear();
+  placingCardIds.clear();
+  lastSeenPhaseTicks = { discussion: 0, placement: 0, reveal: 0 };
+  lastShownPhaseEventTs = 0;
+  revealPhaseAnnouncedForStage = '';
+  revealResultAnnouncedKey = '';
+  revealFlipProcessingKey = '';
+  if (nextActionTimer){
+    clearTimeout(nextActionTimer);
+    nextActionTimer = null;
+  }
+  if (revealFlipRetryTimer){
+    clearTimeout(revealFlipRetryTimer);
+    revealFlipRetryTimer = null;
+  }
+  if (roomTotalsRefreshTimer){
+    clearTimeout(roomTotalsRefreshTimer);
+    roomTotalsRefreshTimer = null;
+  }
+  if (revealResultDelayTimer){
+    clearTimeout(revealResultDelayTimer);
+    revealResultDelayTimer = null;
+  }
+  if (phaseFlowPop){
+    phaseFlowPop.classList.remove('run');
+    phaseFlowPop.textContent = '';
+  }
+  renderHands();
+}
+
+async function clearAfterStageRuntimeInRoom(){
+  if (!state.roomCode) return;
+  const base = `rooms/${state.roomCode}`;
+  await Promise.all([
+    remove(ref(db, `${base}/playedCards`)),
+    remove(ref(db, `${base}/hands`)),
+    remove(ref(db, `${base}/extraDeck`)),
+    remove(ref(db, `${base}/nextAction`)),
+    remove(ref(db, `${base}/phaseEvent`)),
+    remove(ref(db, `${base}/phaseState`)),
+    set(ref(db, `${base}/subgearCount`), 0)
+  ]);
+}
+
 async function emitPhaseEvent(type){
   if (!state.roomCode) return;
   const labels = {
@@ -1999,6 +2052,12 @@ async function emitPhaseEvent(type){
     stage: currentStage || '',
     [`${type}Tick`]: ts
   };
+  if (type === 'discussion'){
+    phaseStateUpdates.placementTick = null;
+    phaseStateUpdates.revealTick = null;
+  }else if (type === 'placement'){
+    phaseStateUpdates.revealTick = null;
+  }
   await update(ref(db, `rooms/${state.roomCode}/phaseState`), phaseStateUpdates);
 }
 
@@ -2234,6 +2293,9 @@ function subscribeStage(){
     }
 
     currentStage = sharedStage;
+    if (currentStage === AFTER_STAGE_CODE){
+      clearLocalAfterStageRuntime();
+    }
     lastAutoSortedHandSignature = '';
     resetBoardAndNeedleRotations();
     if (currentStage) localStorage.setItem(STAGE_KEY, currentStage);
@@ -3868,6 +3930,11 @@ async function dealInitialHands(){
 
 async function prepareStageForRoom(stageCode, { subgearCount = 0 } = {}){
   if (!state.roomCode || !stageCode) return;
+  if (stageCode === AFTER_STAGE_CODE){
+    clearLocalAfterStageRuntime();
+    await clearAfterStageRuntimeInRoom();
+    return;
+  }
   const now = Date.now();
   const normalizedSubgearCount = Math.max(0, Math.min(3, Number(subgearCount) || 0));
   await Promise.all([
@@ -3886,9 +3953,7 @@ async function prepareStageForRoom(stageCode, { subgearCount = 0 } = {}){
   ]);
   placedCardIds.clear();
   pendingPlacedCardIds.clear();
-  if (stageCode !== AFTER_STAGE_CODE){
-    await dealInitialHands();
-  }
+  await dealInitialHands();
   await emitPhaseEvent('discussion');
 }
 
@@ -3958,6 +4023,10 @@ function renderStageOptions(){
 async function setStage(code, { retryFailureCount = null, preserveMissionCircleToggles = true } = {}){
   currentStage = STAGE_CODES_WITH_AFTER.includes(code) ? code : '';
   resetBoardAndNeedleRotations();
+  if (currentStage === AFTER_STAGE_CODE){
+    clearLocalAfterStageRuntime();
+    await clearAfterStageRuntimeInRoom();
+  }
   if (currentStage) localStorage.setItem(STAGE_KEY, currentStage);
   else localStorage.removeItem(STAGE_KEY);
   if (state.isHost){
@@ -3984,7 +4053,9 @@ async function setStage(code, { retryFailureCount = null, preserveMissionCircleT
       await remove(ref(db, `rooms/${state.roomCode}/stageFailureCounts`));
     }
   }
-  await prepareStageForRoom(currentStage, { subgearCount: retryFailureCount == null ? 0 : retryFailureCount });
+  if (currentStage !== AFTER_STAGE_CODE){
+    await prepareStageForRoom(currentStage, { subgearCount: retryFailureCount == null ? 0 : retryFailureCount });
+  }
 }
 
 btnOpenStagePop.addEventListener('click', () => {
