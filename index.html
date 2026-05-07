@@ -1785,6 +1785,43 @@ function syncMyHandPulseDom(){
   });
 }
 
+function isMissionCircleActive(key, toggles = missionCircleToggles){
+  return !!toggles?.[String(key || '').toLowerCase()];
+}
+
+function getMissionCFacePenalty(toggles = missionCircleToggles){
+  return isMissionCircleActive('c', toggles) ? 2 : 0;
+}
+
+function isMissionDBlackCardLocked(cards = [], cardData = null, toggles = missionCircleToggles){
+  if (!isMissionCircleActive('d', toggles)) return false;
+  if (String(cardData?.color || 'white') !== 'black') return false;
+  return (Array.isArray(cards) ? cards : []).some((card) => String(card?.color || 'white') === 'white');
+}
+
+function getMissionDVisibleHandCards(cards = [], playerId = state.userId, roomData = null){
+  const handCards = Array.isArray(cards) ? cards : [];
+  const roomTables = roomData?.tables || state.tables || {};
+  const roomPlayedCards = roomData?.playedCards || state.playedCards || {};
+  const seatedPlayerIds = Object.values(roomTables)
+    .filter((seat) => seat?.playerId)
+    .map((seat) => seat.playerId);
+  const isTwoPlayerMode = seatedPlayerIds.length === 2;
+  const totalPlacedCount = Object.values(roomPlayedCards)
+    .filter((card) => card?.playerId && seatedPlayerIds.includes(card.playerId))
+    .length;
+  const playerPlacedCount = Object.values(roomPlayedCards)
+    .filter((card) => card?.playerId === playerId)
+    .length;
+  const reserveCount = handCards.slice(-2).length;
+  return shouldKeepTwoPlayerReserveHidden({
+    isTwoPlayerMode,
+    reserveCount,
+    playerPlacedCount,
+    totalPlacedCount
+  }) ? handCards.slice(0, -2) : handCards;
+}
+
 function randomInt(max){
   return Math.floor(Math.random() * max);
 }
@@ -2118,8 +2155,12 @@ function getMainGearDivisionCount(){
   return 4;
 }
 
-function getFacePlacementLimit(){
+function getRawFacePlacementLimit(){
   return getMainGearDivisionCount() + currentSubgearCount;
+}
+
+function getFacePlacementLimit(){
+  return Math.max(0, getRawFacePlacementLimit() - getMissionCFacePenalty());
 }
 
 function getCurrentFacePlacementCount(){
@@ -2135,8 +2176,8 @@ function canPlaceFaceCard(){
 }
 
 function syncGearEyeState(){
-  const usedCount = getCurrentFacePlacementCount();
-  const visibleCount = getFacePlacementLimit();
+  const usedCount = getMissionCFacePenalty() + getCurrentFacePlacementCount();
+  const visibleCount = getRawFacePlacementLimit();
   const eyeSlots = [
     ...Array.from(mainGearEyes?.querySelectorAll('.eyeSlot') || []),
     ...subgearEyeEls.filter((el, idx) => !!el && idx < currentSubgearCount)
@@ -3028,6 +3069,7 @@ function renderMyHand(){
     twoPlayerReservedCardIds = [];
   }
 
+  const hasWhiteCardInHandForMissionD = cardsToRender.some(({ cardData }) => String(cardData?.color || 'white') === 'white');
   const leftCardNum = cardsToRender[0]?.cardData?.num;
   const secondCardNum = cardsToRender[1]?.cardData?.num;
   const isMission41Or42 = currentStage === '4-1' || currentStage === '4-2';
@@ -3040,9 +3082,12 @@ function renderMyHand(){
     const isLeftmostPlayable = !leftmostPlayableFound;
     leftmostPlayableFound = true;
     const isSecondPlayableBySpecialRule = canPlayFirstTwoBySameNumber && cardIndex === 1;
-    const canPlayThisCard = !isLeftmostOnlyStage(currentStage)
+    const blockedByMissionD = hasWhiteCardInHandForMissionD
+      && isMissionDBlackCardLocked(cardsToRender.map((entry) => entry.cardData), cardData);
+    const canPlayThisCard = (!isLeftmostOnlyStage(currentStage)
       || isLeftmostPlayable
-      || isSecondPlayableBySpecialRule;
+      || isSecondPlayableBySpecialRule)
+      && !blockedByMissionD;
 
     const card = document.createElement('div');
     card.className = 'my-card';
@@ -3732,9 +3777,19 @@ async function placeDroppedCard(cardData, room, face = 'face'){
         removeIndex = myHand.findIndex((c) => c && c.num === cardData.num && c.color === cardData.color);
       }
       if (removeIndex === -1) return;
+      const stageCode = String(roomData.stageCode || currentStage || '');
+      const missionTogglesInTx = roomData.missionCircleToggles || {};
+      if (isMissionDBlackCardLocked(getMissionDVisibleHandCards(myHand, state.userId, roomData), cardData, missionTogglesInTx)) return;
+      if (face === 'face'){
+        const faceCount = Object.values(roomData.playedCards || {}).reduce((sum, card) => (card && card.face !== 'back') ? sum + 1 : sum, 0);
+        const seatedCount = getSeatedPlayerIdsFromTables(roomData.tables || {}).length;
+        const mainGearCount = seatedCount <= 2 ? 2 : (seatedCount === 3 ? 3 : 4);
+        const subgearCount = Math.max(0, Math.min(3, Number(roomData.subgearCount) || 0));
+        const faceLimit = Math.max(0, mainGearCount + subgearCount - getMissionCFacePenalty(missionTogglesInTx));
+        if (stageCode === '2-4' || faceCount >= faceLimit) return;
+      }
 
       myHand.splice(removeIndex, 1);
-      const stageCode = String(roomData.stageCode || currentStage || '');
       const boardRotInTx = Number(roomData.boardRotation?.deg ?? boardRotationDeg);
       const blockedRoomsInTx = getGreenneedleBlockedRoomsFromDeg(
         Number(roomData.greenneedleRotation?.deg ?? greenHandRotationDeg),
@@ -3785,7 +3840,7 @@ async function placeDroppedCard(cardData, room, face = 'face'){
       roomData.hands = {
         ...hands,
         [state.userId]: {
-          cards: myHand
+          cards: orderHandForStage(myHand, stageCode)
         }
       };
       if (/^10-/.test(stageCode)){
@@ -3844,14 +3899,31 @@ function getStageSortOrder(stage = currentStage){
 
 function sortCardsByNum(cards = [], order = 'asc'){
   return cards.slice().sort((a, b) => {
+    const ac = String(a?.color || 'white');
+    const bc = String(b?.color || 'white');
+    if (ac !== bc) return ac === 'white' ? -1 : 1;
     const an = Number(a?.num || 0);
     const bn = Number(b?.num || 0);
     if (an !== bn) return order === 'desc' ? (bn - an) : (an - bn);
-    const ac = String(a?.color || 'white');
-    const bc = String(b?.color || 'white');
-    if (ac === bc) return 0;
-    return ac === 'white' ? -1 : 1;
+    return 0;
   });
+}
+
+function orderWhiteThenBlackRandom(cards = []){
+  const whiteCards = [];
+  const blackCards = [];
+  (Array.isArray(cards) ? cards : []).forEach((card) => {
+    if (String(card?.color || 'white') === 'black') blackCards.push(card);
+    else whiteCards.push(card);
+  });
+  return [...whiteCards, ...blackCards];
+}
+
+function orderHandForStage(cards = [], stage = currentStage){
+  const order = getStageSortOrder(stage);
+  if (order) return sortCardsByNum(cards, order);
+  if (stage === '4-3' || stage === '4-4') return orderWhiteThenBlackRandom(cards);
+  return cards.slice();
 }
 
 function getCardsSignature(cards = []){
@@ -3862,13 +3934,16 @@ function getCardsSignature(cards = []){
   }).join('||');
 }
 
+function shouldAutoOrderHandForStage(stage = currentStage){
+  return !!getStageSortOrder(stage) || stage === '4-3' || stage === '4-4';
+}
+
 function ensureMyHandStageOrder(){
-  const order = getStageSortOrder(currentStage);
-  if (!order || !state.roomCode || !state.userId) return;
+  if (!shouldAutoOrderHandForStage(currentStage) || !state.roomCode || !state.userId) return;
   const cards = state.hands?.[state.userId]?.cards;
   if (!Array.isArray(cards) || cards.length <= 1) return;
 
-  const sorted = sortCardsByNum(cards, order);
+  const sorted = orderHandForStage(cards, currentStage);
   const currentSig = getCardsSignature(cards);
   const sortedSig = getCardsSignature(sorted);
   if (currentSig === sortedSig || lastAutoSortedHandSignature === currentSig) return;
@@ -3877,7 +3952,7 @@ function ensureMyHandStageOrder(){
   const cardsRef = ref(db, `rooms/${state.roomCode}/hands/${state.userId}/cards`);
   runTransaction(cardsRef, (dbCards) => {
     if (!Array.isArray(dbCards) || dbCards.length <= 1) return dbCards;
-    const next = sortCardsByNum(dbCards, order);
+    const next = orderHandForStage(dbCards, currentStage);
     return getCardsSignature(dbCards) === getCardsSignature(next) ? dbCards : next;
   }).catch((err) => {
     console.error('手札の自動並び替えに失敗しました', err);
@@ -3962,6 +4037,7 @@ function startCardDrag(ev, cardData){
   if (activeDrag) return;
   if (!canCurrentUserDragCard()) return;
   if (state.isHost && hostHandLockedByStage && currentStage) return;
+  if (isMissionDBlackCardLocked(getMissionDVisibleHandCards(state.hands?.[state.userId]?.cards || []), cardData)) return;
   const srcEl = ev.currentTarget;
   if (!(srcEl instanceof HTMLElement)) return;
   const srcRect = srcEl.getBoundingClientRect();
@@ -4525,7 +4601,7 @@ async function dealInitialHands(){
     const start = index * cardsPerPlayer;
     const end = start + cardsPerPlayer;
     hands[player.playerId] = {
-      cards: selected12.slice(start, end)
+      cards: orderHandForStage(selected12.slice(start, end), currentStage)
     };
   });
 
