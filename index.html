@@ -559,6 +559,14 @@
   .stage-option-btn{border-radius:50%;aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;padding:0;font-weight:700;}
   .stage-option-btn.active{background:#111;color:#fff;border-color:#111;}
   .stage-option-btn.stage-option-x4{background:#0b1f4d;border-color:#0b1f4d;color:#fff;}
+  .stage-option-btn.mission-completed{
+    border:3px solid #111;
+    box-shadow:0 0 0 1px rgba(17,17,17,.18);
+  }
+  .stage-option-btn.mission-completed.stage-option-x4{
+    border:3px solid #d4af37;
+    box-shadow:0 0 0 1px rgba(212,175,55,.35);
+  }
   .stage-option-btn.mission-incomplete{
     background:#f3f4f6;
     color:#9ca3af;
@@ -1777,6 +1785,22 @@ function getMissionCompleteNameKey(raw){
 
 function isMissionCompletedByMe(stageCode){
   return STAGE_CODES.includes(stageCode) && myCompletedMissionStages.has(stageCode);
+}
+
+function getNextSequentialMissionStage(){
+  let completedPrefixCount = 0;
+  for (const stageCode of STAGE_CODES){
+    if (!isMissionCompletedByMe(stageCode)) break;
+    completedPrefixCount += 1;
+  }
+  if (!completedPrefixCount) return '';
+  return STAGE_CODES[completedPrefixCount] || '';
+}
+
+function shouldDimMissionStage(stageCode){
+  if (!STAGE_CODES.includes(stageCode)) return false;
+  if (isMissionCompletedByMe(stageCode)) return false;
+  return stageCode !== getNextSequentialMissionStage();
 }
 
 function collectCompletionPlayers(players = latestPlayers){
@@ -4128,10 +4152,12 @@ function renderStageOptions(){
   optionCodes.forEach(code => {
     const btn = document.createElement('button');
     const isX4 = /-4$/.test(code);
-    const isIncompleteMission = STAGE_CODES.includes(code) && !isMissionCompletedByMe(code);
+    const isCompletedMission = isMissionCompletedByMe(code);
+    const isIncompleteMission = shouldDimMissionStage(code);
     btn.className = 'btn stage-option-btn'
       + (code === currentStage ? ' active' : '')
       + (isX4 ? ' stage-option-x4' : '')
+      + (isCompletedMission ? ' mission-completed' : '')
       + (isIncompleteMission ? ' mission-incomplete' : '');
     btn.textContent = code;
     btn.addEventListener('click', () => {
