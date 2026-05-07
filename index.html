@@ -559,6 +559,19 @@
   .stage-option-btn{border-radius:50%;aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;padding:0;font-weight:700;}
   .stage-option-btn.active{background:#111;color:#fff;border-color:#111;}
   .stage-option-btn.stage-option-x4{background:#0b1f4d;border-color:#0b1f4d;color:#fff;}
+  .stage-option-btn.mission-incomplete{
+    background:#f3f4f6;
+    color:#9ca3af;
+    border-color:#e5e7eb;
+    font-weight:500;
+    opacity:.48;
+  }
+  .stage-option-btn.mission-incomplete.active{
+    background:#f3f4f6;
+    color:#9ca3af;
+    border-color:#d1d5db;
+    box-shadow:inset 0 0 0 1px #d1d5db;
+  }
 
   #roomInfoLobby, #lobby h2, #lobby p {display:none;}
   #lobby.entered{
@@ -1360,6 +1373,7 @@ const RESULT_POP_DELAY_AFTER_ROOM6_TOTAL_MS = 2000;
 const NEXT_BUTTON_DELAY_AFTER_RESULT_MS = 2000;
 let currentStage = '';
 let missionCircleToggles = {};
+let myCompletedMissionStages = new Set();
 let stageSelectionSource = 'settings';
 
 let pendingSeatIndexToSteal = null;
@@ -1750,6 +1764,53 @@ function normalizeRoomCode(raw){
   const trimmed = (raw || '').trim().toUpperCase();
   if (trimmed) return trimmed;
   return generateRoomCode(5);
+}
+
+function getMissionCompletePlayerName(raw){
+  const trimmed = String(raw || '').trim();
+  return (trimmed || '名無し').slice(0, 4);
+}
+
+function getMissionCompleteNameKey(raw){
+  return encodeURIComponent(getMissionCompletePlayerName(raw)).replace(/\./g, '%2E');
+}
+
+function isMissionCompletedByMe(stageCode){
+  return STAGE_CODES.includes(stageCode) && myCompletedMissionStages.has(stageCode);
+}
+
+function collectCompletionPlayers(players = latestPlayers){
+  const byName = new Map();
+  (Array.isArray(players) ? players : []).forEach((player) => {
+    const name = getMissionCompletePlayerName(player?.name);
+    byName.set(name, name);
+  });
+  if (!byName.size && state.userName){
+    const name = getMissionCompletePlayerName(state.userName);
+    byName.set(name, name);
+  }
+  return Array.from(byName.values());
+}
+
+async function recordMissionCompletionForPlayers(stageCode, players = latestPlayers){
+  if (!STAGE_CODES.includes(stageCode)) return;
+  const names = collectCompletionPlayers(players);
+  if (!names.length) return;
+
+  const now = Date.now();
+  const updates = {};
+  names.forEach((name) => {
+    const nameKey = getMissionCompleteNameKey(name);
+    const basePath = `taketimemissioncompletenames/${nameKey}`;
+    updates[`${basePath}/name`] = name;
+    updates[`${basePath}/stages/${stageCode}`] = {
+      stage: stageCode,
+      completedAt: now,
+      roomCode: state.roomCode || ''
+    };
+  });
+
+  await update(ref(db), updates);
 }
 
 function setJoinButtonBusy(isBusy){
@@ -2265,6 +2326,22 @@ function subscribeMissionCircleToggles(){
   onValue(togglesRef, snap => {
     missionCircleToggles = snap.val() || {};
     syncMissionCircleButtons();
+  });
+}
+
+function subscribeMyMissionCompletions(){
+  const nameKey = getMissionCompleteNameKey(state.userName);
+  const completeRef = ref(db, `taketimemissioncompletenames/${nameKey}`);
+  onValue(completeRef, snap => {
+    const data = snap.val() || {};
+    const stages = data.stages || {};
+    myCompletedMissionStages = new Set(
+      Object.entries(stages)
+        .filter(([, value]) => !!value)
+        .map(([stageCode]) => stageCode)
+        .filter((stageCode) => STAGE_CODES.includes(stageCode))
+    );
+    renderStageOptions();
   });
 }
 
@@ -2967,6 +3044,11 @@ function maybeAnnounceRevealResult(){
 
   const success = evaluatePlacementResult(currentStage, roomCardsMap);
   showPhaseFlow(success ? '配置成功' : '配置失敗');
+  if (success){
+    void recordMissionCompletionForPlayers(currentStage).catch((err) => {
+      console.error('ミッション達成ステージの保存に失敗しました', err);
+    });
+  }
   void publishRevealResultNextAction({ stageCode: currentStage, success, revealTick });
   revealResultAnnouncedKey = phaseKey;
 }
@@ -3781,6 +3863,7 @@ btnJoin.addEventListener('click', async () => {
     subscribePhaseEvents();
     subscribeSubgearCount();
     subscribeMissionCircleToggles();
+    subscribeMyMissionCompletions();
     subscribeNextAction();
     subscribeBoardRotation();
     subscribeRightarrowRotationEvent();
@@ -4045,9 +4128,11 @@ function renderStageOptions(){
   optionCodes.forEach(code => {
     const btn = document.createElement('button');
     const isX4 = /-4$/.test(code);
+    const isIncompleteMission = STAGE_CODES.includes(code) && !isMissionCompletedByMe(code);
     btn.className = 'btn stage-option-btn'
       + (code === currentStage ? ' active' : '')
-      + (isX4 ? ' stage-option-x4' : '');
+      + (isX4 ? ' stage-option-x4' : '')
+      + (isIncompleteMission ? ' mission-incomplete' : '');
     btn.textContent = code;
     btn.addEventListener('click', () => {
       const preserveMissionCircleToggles = stageSelectionSource === 'mission';
