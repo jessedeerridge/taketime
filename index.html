@@ -1431,7 +1431,7 @@ const RESULT_POP_DELAY_AFTER_ROOM6_TOTAL_MS = 2000;
 const NEXT_BUTTON_DELAY_AFTER_RESULT_MS = 2000;
 let currentStage = '';
 let missionCircleToggles = {};
-let myCompletedMissionStages = new Set();
+let myCompletedMissionSelectionsByStage = new Map();
 let stageSelectionSource = 'settings';
 
 let pendingSeatIndexToSteal = null;
@@ -1898,22 +1898,28 @@ async function registerManualMissionCompletion(){
   try {
     const now = Date.now();
     const updates = {};
+    const selectionKey = getCurrentMissionSelectionKey();
+    const selectedMissions = getMissionSelectionKeysFromKey(selectionKey);
     names.forEach((name) => {
       const nameKey = getMissionCompleteNameKey(name);
       const basePath = `taketimemissioncompletenames/${nameKey}`;
       updates[`${basePath}/name`] = name;
       stageCodes.forEach((stageCode) => {
-        updates[`${basePath}/stages/${stageCode}`] = {
+        const payload = {
           stage: stageCode,
+          selectionKey,
+          selectedMissions,
           completedAt: now,
           roomCode: state.roomCode || '',
           manual: true,
           actorId: state.userId || ''
         };
+        updates[`${basePath}/stages/${stageCode}`] = payload;
+        updates[`${basePath}/stageSelections/${stageCode}/${selectionKey}`] = payload;
       });
     });
     await update(ref(db), updates);
-    setDbPopStatus(`${names.length}人に${stageCodes.length}ステージを登録しました。`, 'ok');
+    setDbPopStatus(`${names.length}人に${stageCodes.length}ステージ（${getMissionSelectionLabel(selectionKey)}）を登録しました。`, 'ok');
   } catch (error) {
     console.error(error);
     setDbPopStatus('登録に失敗しました。', 'error');
@@ -1923,8 +1929,14 @@ async function registerManualMissionCompletion(){
   }
 }
 
-function isMissionCompletedByMe(stageCode){
-  return STAGE_CODES.includes(stageCode) && myCompletedMissionStages.has(stageCode);
+function isMissionCompletedByMe(stageCode, selectionKey = getCurrentMissionSelectionKey()){
+  if (!STAGE_CODES.includes(stageCode)) return false;
+  const completedSelections = myCompletedMissionSelectionsByStage.get(stageCode);
+  if (!completedSelections || !completedSelections.size) return false;
+  const targetSelectionKey = normalizeMissionSelectionKey(selectionKey);
+  return Array.from(completedSelections).some((completedSelectionKey) => (
+    isMissionSelectionSuperset(completedSelectionKey, targetSelectionKey)
+  ));
 }
 
 function getNextSequentialMissionStage(){
@@ -1963,15 +1975,21 @@ async function recordMissionCompletionForPlayers(stageCode, players = latestPlay
 
   const now = Date.now();
   const updates = {};
+  const selectionKey = getCurrentMissionSelectionKey();
+  const selectedMissions = getMissionSelectionKeysFromKey(selectionKey);
   names.forEach((name) => {
     const nameKey = getMissionCompleteNameKey(name);
     const basePath = `taketimemissioncompletenames/${nameKey}`;
-    updates[`${basePath}/name`] = name;
-    updates[`${basePath}/stages/${stageCode}`] = {
+    const payload = {
       stage: stageCode,
+      selectionKey,
+      selectedMissions,
       completedAt: now,
       roomCode: state.roomCode || ''
     };
+    updates[`${basePath}/name`] = name;
+    updates[`${basePath}/stages/${stageCode}`] = payload;
+    updates[`${basePath}/stageSelections/${stageCode}/${selectionKey}`] = payload;
   });
 
   await update(ref(db), updates);
@@ -2422,6 +2440,50 @@ function getActiveMissionCircleKeys(){
   return ['c', 'd', 'e', 'f', 'g', 'h'].filter(key => !!missionCircleToggles[key]);
 }
 
+const MISSION_SELECTION_NONE_KEY = 'none';
+
+function normalizeMissionSelectionKeys(keys){
+  const seen = new Set();
+  return (Array.isArray(keys) ? keys : [])
+    .map((key) => String(key || '').toLowerCase())
+    .filter((key) => /^[c-h]$/.test(key))
+    .filter((key) => {
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort();
+}
+
+function getMissionSelectionKeyFromKeys(keys){
+  const normalizedKeys = normalizeMissionSelectionKeys(keys);
+  return normalizedKeys.length ? normalizedKeys.join('') : MISSION_SELECTION_NONE_KEY;
+}
+
+function getCurrentMissionSelectionKey(){
+  return getMissionSelectionKeyFromKeys(getActiveMissionCircleKeys());
+}
+
+function getMissionSelectionKeysFromKey(selectionKey){
+  const rawKey = String(selectionKey || '');
+  if (!rawKey || rawKey === MISSION_SELECTION_NONE_KEY) return [];
+  return normalizeMissionSelectionKeys(rawKey.split(''));
+}
+
+function normalizeMissionSelectionKey(selectionKey){
+  return getMissionSelectionKeyFromKeys(getMissionSelectionKeysFromKey(selectionKey));
+}
+
+function isMissionSelectionSuperset(completedSelectionKey, targetSelectionKey){
+  const completedKeys = new Set(getMissionSelectionKeysFromKey(completedSelectionKey));
+  return getMissionSelectionKeysFromKey(targetSelectionKey).every((key) => completedKeys.has(key));
+}
+
+function getMissionSelectionLabel(selectionKey = getCurrentMissionSelectionKey()){
+  const keys = getMissionSelectionKeysFromKey(selectionKey);
+  return keys.length ? keys.map((key) => key.toUpperCase()).join('+') : '未選択';
+}
+
 function renderMissionStageSelectedButtons(){
   if (!missionStageSelected) return;
   const activeKeys = getActiveMissionCircleKeys();
@@ -2492,7 +2554,17 @@ function subscribeMissionCircleToggles(){
   onValue(togglesRef, snap => {
     missionCircleToggles = snap.val() || {};
     syncMissionCircleButtons();
+    renderStageOptions();
   });
+}
+
+function addMissionCompletionSelection(completionMap, stageCode, selectionKey){
+  if (!STAGE_CODES.includes(stageCode)) return;
+  const normalizedSelectionKey = normalizeMissionSelectionKey(selectionKey);
+  if (!completionMap.has(stageCode)){
+    completionMap.set(stageCode, new Set());
+  }
+  completionMap.get(stageCode).add(normalizedSelectionKey);
 }
 
 function subscribeMyMissionCompletions(){
@@ -2500,13 +2572,27 @@ function subscribeMyMissionCompletions(){
   const completeRef = ref(db, `taketimemissioncompletenames/${nameKey}`);
   onValue(completeRef, snap => {
     const data = snap.val() || {};
-    const stages = data.stages || {};
-    myCompletedMissionStages = new Set(
-      Object.entries(stages)
-        .filter(([, value]) => !!value)
-        .map(([stageCode]) => stageCode)
-        .filter((stageCode) => STAGE_CODES.includes(stageCode))
-    );
+    const nextCompletionMap = new Map();
+
+    const legacyStages = data.stages || {};
+    Object.entries(legacyStages).forEach(([stageCode, value]) => {
+      if (!value) return;
+      const selectionKey = typeof value === 'object' && value?.selectionKey
+        ? value.selectionKey
+        : MISSION_SELECTION_NONE_KEY;
+      addMissionCompletionSelection(nextCompletionMap, stageCode, selectionKey);
+    });
+
+    const stageSelections = data.stageSelections || {};
+    Object.entries(stageSelections).forEach(([stageCode, selections]) => {
+      if (!selections || typeof selections !== 'object') return;
+      Object.entries(selections).forEach(([selectionKey, value]) => {
+        if (!value) return;
+        addMissionCompletionSelection(nextCompletionMap, stageCode, selectionKey);
+      });
+    });
+
+    myCompletedMissionSelectionsByStage = nextCompletionMap;
     renderStageOptions();
   });
 }
@@ -4332,7 +4418,7 @@ function renderStageOptions(){
       + (isIncompleteMission ? ' mission-incomplete' : '');
     btn.textContent = code;
     btn.addEventListener('click', () => {
-      const preserveMissionCircleToggles = stageSelectionSource === 'mission';
+      const preserveMissionCircleToggles = stageSelectionSource === 'mission' || getActiveMissionCircleKeys().length > 0;
       currentStage = code;
       renderStageOptions();
       stagePop.classList.add('hidden');
