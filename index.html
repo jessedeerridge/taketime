@@ -534,28 +534,42 @@
   }
 
   .start-pop,
-  .stage-pop{
+  .stage-pop,
+  .db-pop{
     position:fixed;background:#fff;border:1px solid #ddd;border-radius:12px;
     box-shadow:0 12px 28px rgba(0,0,0,.16);padding:10px 12px;z-index:240;min-width:260px;
     display:flex;flex-direction:column;gap:8px;
   }
   .start-pop{right:16px;bottom:72px;}
   .stage-pop{right:66px;bottom:72px;min-width:220px;}
+  .db-pop{right:16px;bottom:72px;min-width:280px;}
   .start-pop.hidden,
-  .stage-pop.hidden{display:none;}
+  .stage-pop.hidden,
+  .db-pop.hidden{display:none;}
   .start-pop-header,
-  .stage-pop-header{display:flex;justify-content:space-between;align-items:center;gap:8px;}
+  .stage-pop-header,
+  .db-pop-header{display:flex;justify-content:space-between;align-items:center;gap:8px;}
   .stage-pop-header{justify-content:center;}
   .stage-pop-header #btnStagePopClose{position:absolute;top:10px;right:12px;}
   .start-pop-title,
-  .stage-pop-title{font-size:14px;font-weight:600;}
+  .stage-pop-title,
+  .db-pop-title{font-size:14px;font-weight:600;}
   .start-pop-main,
-  .stage-pop-main{font-size:13px;line-height:1.5;}
+  .stage-pop-main,
+  .db-pop-main{font-size:13px;line-height:1.5;}
   .start-pop-actions,
-  .stage-pop-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:4px;flex-wrap:wrap;}
+  .stage-pop-actions,
+  .db-pop-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:4px;flex-wrap:wrap;}
   .start-pop-actions{flex-wrap:nowrap;align-items:center;}
   .start-pop-actions .btn{white-space:nowrap;}
   .stage-option-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;max-height:48vh;overflow:auto;}
+  .db-pop-field{display:flex;flex-direction:column;gap:4px;}
+  .db-pop-field label{font-size:12px;font-weight:700;}
+  .db-pop-field input,
+  .db-pop-field select{padding:8px;border:1px solid #ddd;border-radius:6px;font-size:16px;background:#fff;}
+  .db-pop-status{min-height:18px;font-size:12px;font-weight:700;}
+  .db-pop-status.ok{color:#15803d;}
+  .db-pop-status.error{color:#b91c1c;}
   .stage-option-btn{border-radius:50%;aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;padding:0;font-weight:700;}
   .stage-option-btn.active{background:#111;color:#fff;border-color:#111;}
   .stage-option-btn.stage-option-x4{background:#0b1f4d;border-color:#0b1f4d;color:#fff;}
@@ -1250,6 +1264,7 @@
   <div class="start-pop-actions">
     <button id="btnOpenStagePop" class="btn">ステージ</button>
     <button id="btnResetRoom" class="btn ghost">リセット</button>
+    <button id="btnOpenDbPop" class="btn ghost">DB</button>
   </div>
 </div>
 
@@ -1258,6 +1273,27 @@
     <button id="btnStagePopClose" class="btn ghost" style="padding:2px 6px;font-size:12px;">×</button>
   </div>
   <div class="stage-option-grid" id="stageOptionGrid"></div>
+</div>
+
+<div id="dbPop" class="db-pop hidden">
+  <div class="db-pop-header">
+    <div class="db-pop-title">DB登録</div>
+    <button id="btnDbPopClose" class="btn ghost" style="padding:2px 6px;font-size:12px;">×</button>
+  </div>
+  <div class="db-pop-main">
+    <div class="db-pop-field">
+      <label for="dbNameInput">名前</label>
+      <input id="dbNameInput" maxlength="4" placeholder="登録する名前" autocomplete="off" />
+    </div>
+    <div class="db-pop-field">
+      <label for="dbStageSelect">達成ステージ</label>
+      <select id="dbStageSelect"></select>
+    </div>
+    <div id="dbPopStatus" class="db-pop-status" aria-live="polite"></div>
+  </div>
+  <div class="db-pop-actions">
+    <button id="btnDbRegister" class="btn primary">登録</button>
+  </div>
 </div>
 
 <script type="module">
@@ -1332,6 +1368,13 @@ const hostStageReadyBtn = document.getElementById('hostStageReadyBtn');
 const startPop = document.getElementById('startPop');
 const btnStartPopClose = document.getElementById('btnStartPopClose');
 const btnResetRoom = document.getElementById('btnResetRoom');
+const btnOpenDbPop = document.getElementById('btnOpenDbPop');
+const dbPop = document.getElementById('dbPop');
+const btnDbPopClose = document.getElementById('btnDbPopClose');
+const dbNameInput = document.getElementById('dbNameInput');
+const dbStageSelect = document.getElementById('dbStageSelect');
+const btnDbRegister = document.getElementById('btnDbRegister');
+const dbPopStatus = document.getElementById('dbPopStatus');
 
 const stagePop = document.getElementById('stagePop');
 const btnStagePopClose = document.getElementById('btnStagePopClose');
@@ -1783,6 +1826,66 @@ function getMissionCompleteNameKey(raw){
   return encodeURIComponent(getMissionCompletePlayerName(raw)).replace(/\./g, '%2E');
 }
 
+function setDbPopStatus(message = '', type = ''){
+  dbPopStatus.textContent = message;
+  dbPopStatus.classList.toggle('ok', type === 'ok');
+  dbPopStatus.classList.toggle('error', type === 'error');
+}
+
+function renderDbStageOptions(){
+  dbStageSelect.innerHTML = '';
+  STAGE_CODES.forEach((code) => {
+    const option = document.createElement('option');
+    option.value = code;
+    option.textContent = code;
+    dbStageSelect.appendChild(option);
+  });
+  if (STAGE_CODES.includes(currentStage)){
+    dbStageSelect.value = currentStage;
+  }
+}
+
+async function registerManualMissionCompletion(){
+  if (!state.isHost) return;
+  const rawName = String(dbNameInput.value || '').trim();
+  if (!rawName){
+    setDbPopStatus('名前を入力してください。', 'error');
+    return;
+  }
+  const name = getMissionCompletePlayerName(rawName);
+  const stageCode = dbStageSelect.value;
+  if (!STAGE_CODES.includes(stageCode)){
+    setDbPopStatus('達成ステージを選択してください。', 'error');
+    return;
+  }
+
+  btnDbRegister.disabled = true;
+  btnDbRegister.style.opacity = '.7';
+  setDbPopStatus('登録中...', '');
+  try {
+    const nameKey = getMissionCompleteNameKey(name);
+    const basePath = `taketimemissioncompletenames/${nameKey}`;
+    const now = Date.now();
+    await update(ref(db), {
+      [`${basePath}/name`]: name,
+      [`${basePath}/stages/${stageCode}`]: {
+        stage: stageCode,
+        completedAt: now,
+        roomCode: state.roomCode || '',
+        manual: true,
+        actorId: state.userId || ''
+      }
+    });
+    setDbPopStatus(`${name} に ${stageCode} を登録しました。`, 'ok');
+  } catch (error) {
+    console.error(error);
+    setDbPopStatus('登録に失敗しました。', 'error');
+  } finally {
+    btnDbRegister.disabled = false;
+    btnDbRegister.style.opacity = '1';
+  }
+}
+
 function isMissionCompletedByMe(stageCode){
   return STAGE_CODES.includes(stageCode) && myCompletedMissionStages.has(stageCode);
 }
@@ -1924,6 +2027,8 @@ function updateHostUI(){
   } else {
     hostSettingsBtn.classList.remove('visible');
     startPop.classList.add('hidden');
+    stagePop.classList.add('hidden');
+    dbPop.classList.add('hidden');
     hostHandLockedByStage = false;
   }
   syncHostStageReadyButton();
@@ -2383,6 +2488,7 @@ function subscribeStage(){
     if (sharedStage){
       stagePop.classList.add('hidden');
       startPop.classList.add('hidden');
+      dbPop.classList.add('hidden');
     }
 
     if (sharedStage === currentStage){
@@ -2479,6 +2585,7 @@ function subscribeStageSelectionEvents(){
     lastSeenStageSelectionTs = ts;
     stagePop.classList.add('hidden');
     startPop.classList.add('hidden');
+    dbPop.classList.add('hidden');
     if (state.isHost && evt?.stage && evt.stage === currentStage){
       hostHandLockedByStage = true;
       syncHostStageReadyButton();
@@ -4108,6 +4215,7 @@ hostSettingsBtn.addEventListener('click', () => {
   if (!state.isHost) return;
   startPop.classList.toggle('hidden');
   stagePop.classList.add('hidden');
+  dbPop.classList.add('hidden');
 });
 
 hostStageReadyBtn.addEventListener('click', async () => {
@@ -4121,6 +4229,31 @@ hostStageReadyBtn.addEventListener('click', async () => {
 btnStartPopClose.addEventListener('click', () => {
   startPop.classList.add('hidden');
 });
+
+btnOpenDbPop.addEventListener('click', () => {
+  if (!state.isHost) return;
+  renderDbStageOptions();
+  dbNameInput.value = state.userName || '';
+  setDbPopStatus('', '');
+  startPop.classList.add('hidden');
+  stagePop.classList.add('hidden');
+  dbPop.classList.remove('hidden');
+  dbNameInput.focus();
+});
+
+btnDbPopClose.addEventListener('click', () => {
+  dbPop.classList.add('hidden');
+  if (state.isHost) startPop.classList.remove('hidden');
+});
+
+btnDbRegister.addEventListener('click', () => {
+  void registerManualMissionCompletion();
+});
+
+dbNameInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') void registerManualMissionCompletion();
+});
+
 
 btnResetRoom.addEventListener('click', async () => {
   if (!state.isHost || !state.roomCode) return;
@@ -4141,6 +4274,7 @@ btnResetRoom.addEventListener('click', async () => {
   pendingPlacedCardIds.clear();
   state.seatedTable = null;
   startPop.classList.add('hidden');
+  dbPop.classList.add('hidden');
   renderHands();
   syncSeatUI();
 });
@@ -4215,6 +4349,7 @@ btnOpenStagePop.addEventListener('click', () => {
   stageSelectionSource = 'settings';
   renderStageOptions();
   startPop.classList.add('hidden');
+  dbPop.classList.add('hidden');
   stagePop.classList.remove('hidden');
   if (state.isHost) void setStageSelectionOpen(true);
 });
@@ -4237,6 +4372,7 @@ missionUnselected?.addEventListener('click', (e) => {
 btnStagePopClose.addEventListener('click', () => {
   stagePop.classList.add('hidden');
   if (state.isHost){
+    dbPop.classList.add('hidden');
     startPop.classList.remove('hidden');
     void setStageSelectionOpen(false);
   }
