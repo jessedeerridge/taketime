@@ -542,7 +542,7 @@
   }
   .start-pop{right:16px;bottom:72px;}
   .stage-pop{right:66px;bottom:72px;min-width:220px;}
-  .db-pop{right:16px;bottom:72px;min-width:280px;}
+  .db-pop{right:16px;bottom:72px;min-width:300px;max-width:calc(100vw - 32px);}
   .start-pop.hidden,
   .stage-pop.hidden,
   .db-pop.hidden{display:none;}
@@ -566,7 +566,13 @@
   .db-pop-field{display:flex;flex-direction:column;gap:4px;}
   .db-pop-field label{font-size:12px;font-weight:700;}
   .db-pop-field input,
-  .db-pop-field select{padding:8px;border:1px solid #ddd;border-radius:6px;font-size:16px;background:#fff;}
+  .db-pop-field textarea{padding:8px;border:1px solid #ddd;border-radius:6px;font-size:16px;background:#fff;}
+  .db-pop-field textarea{min-height:84px;resize:vertical;line-height:1.4;}
+  .db-pop-hint{font-size:11px;color:#666;line-height:1.4;}
+  .db-stage-check-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;max-height:38vh;overflow:auto;padding:2px;}
+  .db-stage-check{display:flex;align-items:center;justify-content:center;gap:4px;border:1px solid #ddd;border-radius:8px;padding:6px 4px;font-size:12px;font-weight:700;cursor:pointer;user-select:none;}
+  .db-stage-check input{width:14px;height:14px;margin:0;accent-color:#111;}
+  .db-stage-check:has(input:checked){background:#111;color:#fff;border-color:#111;}
   .db-pop-status{min-height:18px;font-size:12px;font-weight:700;}
   .db-pop-status.ok{color:#15803d;}
   .db-pop-status.error{color:#b91c1c;}
@@ -1283,11 +1289,12 @@
   <div class="db-pop-main">
     <div class="db-pop-field">
       <label for="dbNameInput">名前</label>
-      <input id="dbNameInput" maxlength="4" placeholder="登録する名前" autocomplete="off" />
+      <textarea id="dbNameInput" placeholder="例：たろう&#10;はなこ&#10;ゆう" autocomplete="off"></textarea>
+      <div class="db-pop-hint">改行・カンマ・スペース区切りで複数登録できます。</div>
     </div>
     <div class="db-pop-field">
-      <label for="dbStageSelect">達成ステージ</label>
-      <select id="dbStageSelect"></select>
+      <label>達成ステージ</label>
+      <div id="dbStageChecks" class="db-stage-check-grid"></div>
     </div>
     <div id="dbPopStatus" class="db-pop-status" aria-live="polite"></div>
   </div>
@@ -1372,7 +1379,7 @@ const btnOpenDbPop = document.getElementById('btnOpenDbPop');
 const dbPop = document.getElementById('dbPop');
 const btnDbPopClose = document.getElementById('btnDbPopClose');
 const dbNameInput = document.getElementById('dbNameInput');
-const dbStageSelect = document.getElementById('dbStageSelect');
+const dbStageChecks = document.getElementById('dbStageChecks');
 const btnDbRegister = document.getElementById('btnDbRegister');
 const dbPopStatus = document.getElementById('dbPopStatus');
 
@@ -1832,30 +1839,56 @@ function setDbPopStatus(message = '', type = ''){
   dbPopStatus.classList.toggle('error', type === 'error');
 }
 
+function parseManualCompletionNames(raw){
+  const seen = new Set();
+  return String(raw || '')
+    .split(/[\s,、，;；]+/)
+    .map((name) => getMissionCompletePlayerName(name))
+    .filter((name) => name !== '名無し')
+    .filter((name) => {
+      const key = getMissionCompleteNameKey(name);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+function getSelectedDbStages(){
+  return Array.from(dbStageChecks.querySelectorAll('input[type="checkbox"]:checked'))
+    .map((input) => input.value)
+    .filter((code) => STAGE_CODES.includes(code));
+}
+
 function renderDbStageOptions(){
-  dbStageSelect.innerHTML = '';
+  dbStageChecks.innerHTML = '';
   STAGE_CODES.forEach((code) => {
-    const option = document.createElement('option');
-    option.value = code;
-    option.textContent = code;
-    dbStageSelect.appendChild(option);
+    const label = document.createElement('label');
+    label.className = 'db-stage-check';
+
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.value = code;
+    input.checked = code === currentStage;
+
+    const text = document.createElement('span');
+    text.textContent = code;
+
+    label.appendChild(input);
+    label.appendChild(text);
+    dbStageChecks.appendChild(label);
   });
-  if (STAGE_CODES.includes(currentStage)){
-    dbStageSelect.value = currentStage;
-  }
 }
 
 async function registerManualMissionCompletion(){
   if (!state.isHost) return;
-  const rawName = String(dbNameInput.value || '').trim();
-  if (!rawName){
-    setDbPopStatus('名前を入力してください。', 'error');
+  const names = parseManualCompletionNames(dbNameInput.value);
+  if (!names.length){
+    setDbPopStatus('名前を1つ以上入力してください。', 'error');
     return;
   }
-  const name = getMissionCompletePlayerName(rawName);
-  const stageCode = dbStageSelect.value;
-  if (!STAGE_CODES.includes(stageCode)){
-    setDbPopStatus('達成ステージを選択してください。', 'error');
+  const stageCodes = getSelectedDbStages();
+  if (!stageCodes.length){
+    setDbPopStatus('達成ステージを1つ以上選択してください。', 'error');
     return;
   }
 
@@ -1863,20 +1896,24 @@ async function registerManualMissionCompletion(){
   btnDbRegister.style.opacity = '.7';
   setDbPopStatus('登録中...', '');
   try {
-    const nameKey = getMissionCompleteNameKey(name);
-    const basePath = `taketimemissioncompletenames/${nameKey}`;
     const now = Date.now();
-    await update(ref(db), {
-      [`${basePath}/name`]: name,
-      [`${basePath}/stages/${stageCode}`]: {
-        stage: stageCode,
-        completedAt: now,
-        roomCode: state.roomCode || '',
-        manual: true,
-        actorId: state.userId || ''
-      }
+    const updates = {};
+    names.forEach((name) => {
+      const nameKey = getMissionCompleteNameKey(name);
+      const basePath = `taketimemissioncompletenames/${nameKey}`;
+      updates[`${basePath}/name`] = name;
+      stageCodes.forEach((stageCode) => {
+        updates[`${basePath}/stages/${stageCode}`] = {
+          stage: stageCode,
+          completedAt: now,
+          roomCode: state.roomCode || '',
+          manual: true,
+          actorId: state.userId || ''
+        };
+      });
     });
-    setDbPopStatus(`${name} に ${stageCode} を登録しました。`, 'ok');
+    await update(ref(db), updates);
+    setDbPopStatus(`${names.length}人に${stageCodes.length}ステージを登録しました。`, 'ok');
   } catch (error) {
     console.error(error);
     setDbPopStatus('登録に失敗しました。', 'error');
@@ -4251,7 +4288,7 @@ btnDbRegister.addEventListener('click', () => {
 });
 
 dbNameInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') void registerManualMissionCompletion();
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) void registerManualMissionCompletion();
 });
 
 
