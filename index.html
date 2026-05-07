@@ -2782,9 +2782,8 @@ function startMissionCircleDrag(ev){
   const srcEl = ev.currentTarget;
   if (!(srcEl instanceof HTMLElement)) return;
   const key = String(srcEl.getAttribute('data-mission-circle') || '').toLowerCase();
-  if (!/^[c-h]$/.test(key) || activeMissionCircleDrag) return;
+  if (!/^[c-h]$/.test(key) || activeMissionCircleDrag || missionCircleToggles[key]) return;
   ev.preventDefault();
-  const wasSelected = !!missionCircleToggles[key];
   const rect = srcEl.getBoundingClientRect();
   const startX = ev.clientX;
   const startY = ev.clientY;
@@ -2808,8 +2807,7 @@ function startMissionCircleDrag(ev){
     const movedDistance = Math.hypot(up.clientX - startX, up.clientY - startY);
     const isClickRelease = movedDistance <= 4;
     const shouldSelect = up.type !== 'pointercancel' && !isClickRelease && isPointInsideMissionSelectButton(up.clientX, up.clientY);
-    const shouldUnselect = up.type !== 'pointercancel' && isClickRelease && wasSelected;
-    if (shouldSelect || shouldUnselect || !isClickRelease){
+    if (shouldSelect || !isClickRelease){
       suppressMissionCircleClickUntil = Date.now() + 350;
     }
     activeMissionCircleDrag.ghost.remove();
@@ -2819,11 +2817,11 @@ function startMissionCircleDrag(ev){
     window.removeEventListener('pointermove', onMove);
     window.removeEventListener('pointerup', onUp);
     window.removeEventListener('pointercancel', onUp);
-    if (shouldSelect || shouldUnselect){
+    if (shouldSelect){
       try {
-        await setMissionCircleSelected(droppedKey, shouldSelect);
+        await setMissionCircleSelected(droppedKey, true);
       } catch (err){
-        console.error(shouldSelect ? 'ミッション選択に失敗しました' : 'ミッション選択解除に失敗しました', err);
+        console.error('ミッション選択に失敗しました', err);
       }
     }
   };
