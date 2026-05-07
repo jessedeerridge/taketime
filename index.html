@@ -1376,6 +1376,7 @@ let isStageTagPressed = false;
 let hostHandLockedByStage = false;
 let lastShownPhaseEventTs = 0;
 let lastSeenStageSelectionTs = 0;
+let lastSeenStageSelectionOpenTs = 0;
 let revealPhaseAnnouncedForStage = '';
 let lastSeenPhaseTicks = { discussion: 0, placement: 0, reveal: 0 };
 let revealFlipProcessingKey = '';
@@ -2328,6 +2329,43 @@ function subscribeStage(){
 
     renderStageOptions();
     window.dispatchEvent(new CustomEvent('mission:change', { detail:{ value: currentStage }}));
+  });
+}
+
+async function setStageSelectionOpen(isOpen){
+  if (!state.roomCode) return;
+  const payload = {
+    open: !!isOpen,
+    ts: Date.now(),
+    actorId: state.userId || ''
+  };
+  await set(ref(db, `rooms/${state.roomCode}/stageSelectionOpen`), payload);
+}
+
+function subscribeStageSelectionOpen(){
+  const stageSelectionOpenRef = ref(db, `rooms/${state.roomCode}/stageSelectionOpen`);
+  onValue(stageSelectionOpenRef, snap => {
+    const evt = snap.val() || {};
+    const ts = Number(evt?.ts || 0);
+    if (ts && ts <= lastSeenStageSelectionOpenTs) return;
+    if (ts) lastSeenStageSelectionOpenTs = ts;
+
+    const openedByHost = !!evt?.open
+      && !!evt?.actorId
+      && (!state.room?.hostId || evt.actorId === state.room.hostId);
+
+    if (openedByHost && !state.isHost && state.joined){
+      stageSelectionSource = 'settings';
+      renderStageOptions();
+      startPop.classList.add('hidden');
+      stagePop.classList.remove('hidden');
+      return;
+    }
+
+    if (!evt?.open){
+      stagePop.classList.add('hidden');
+      if (!state.isHost) startPop.classList.add('hidden');
+    }
   });
 }
 
@@ -3713,6 +3751,7 @@ btnJoin.addEventListener('click', async () => {
 
     state.joined = true;
     hasBoardRotationSnapshot = false;
+    lastSeenStageSelectionOpenTs = 0;
     lastBoardRotationTs = 0;
     hasCenterNeedleSnapshot = false;
     lastCenterNeedleTs = 0;
@@ -3737,6 +3776,7 @@ btnJoin.addEventListener('click', async () => {
     subscribeHands();
     subscribePlayedCards();
     subscribeStage();
+    subscribeStageSelectionOpen();
     subscribeStageSelectionEvents();
     subscribePhaseEvents();
     subscribeSubgearCount();
@@ -3986,6 +4026,7 @@ btnResetRoom.addEventListener('click', async () => {
     remove(ref(db, `${base}/playedCards`)),
     remove(ref(db, `${base}/extraDeck`)),
     remove(ref(db, `${base}/stageCode`)),
+    remove(ref(db, `${base}/stageSelectionOpen`)),
     remove(ref(db, `${base}/missionCircleToggles`))
   ]);
 
@@ -4049,6 +4090,7 @@ async function setStage(code, { retryFailureCount = null, preserveMissionCircleT
       ts: Date.now(),
       actorId: state.userId || ''
     });
+    await setStageSelectionOpen(false);
     if (retryFailureCount == null){
       await remove(ref(db, `rooms/${state.roomCode}/stageFailureCounts`));
     }
@@ -4063,6 +4105,7 @@ btnOpenStagePop.addEventListener('click', () => {
   renderStageOptions();
   startPop.classList.add('hidden');
   stagePop.classList.remove('hidden');
+  if (state.isHost) void setStageSelectionOpen(true);
 });
 missionUnselected?.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-mission-circle]');
@@ -4073,6 +4116,7 @@ missionUnselected?.addEventListener('click', (e) => {
     renderStageOptions();
     startPop.classList.add('hidden');
     stagePop.classList.remove('hidden');
+    if (state.isHost) void setStageSelectionOpen(true);
     return;
   }
   if (/^[c-h]$/.test(key || '')){
@@ -4081,7 +4125,10 @@ missionUnselected?.addEventListener('click', (e) => {
 });
 btnStagePopClose.addEventListener('click', () => {
   stagePop.classList.add('hidden');
-  if (state.isHost) startPop.classList.remove('hidden');
+  if (state.isHost){
+    startPop.classList.remove('hidden');
+    void setStageSelectionOpen(false);
+  }
 });
 window.addEventListener('resize', () => {
   updateMyHandPosition();
