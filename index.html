@@ -227,7 +227,6 @@
   .mission-circle-row{display:flex;gap:24px;justify-content:center;}
   .mission-circle-btn{position:relative;overflow:hidden;width:93px;height:93px;border-radius:50%;border:2px solid #111;background:rgba(255,255,255,.92);color:#111;font-size:27px;font-weight:700;cursor:pointer;background-size:contain;background-position:center;background-repeat:no-repeat;}
   .mission-circle-btn[data-mission-circle="a"]{background:#fff;color:#111;}
-  .mission-circle-btn[data-mission-circle="b"]{background:#facc15;color:#111;}
   .mission-circle-btn[data-mission-circle="c"],
   .mission-circle-btn[data-mission-circle="d"],
   .mission-circle-btn[data-mission-circle="e"],
@@ -1209,7 +1208,6 @@
         <div class="mission-circle-layout">
           <div class="mission-circle-row">
             <button type="button" class="mission-circle-btn" data-mission-circle="a" aria-label="S">S</button>
-            <button type="button" class="mission-circle-btn" data-mission-circle="b" aria-label="R">R</button>
           </div>
           <div class="mission-circle-row">
             <button type="button" class="mission-circle-btn" data-mission-circle="c" aria-label="C" aria-pressed="false">c</button>
@@ -1471,6 +1469,7 @@ let hostHandLockedByStage = false;
 let lastShownPhaseEventTs = 0;
 let lastSeenStageSelectionTs = 0;
 let lastSeenStageSelectionOpenTs = 0;
+let isStageSelectionOpenByHost = false;
 let revealPhaseAnnouncedForStage = '';
 let lastSeenPhaseTicks = { discussion: 0, placement: 0, reveal: 0 };
 let revealFlipProcessingKey = '';
@@ -2141,7 +2140,9 @@ function updateHostUI(){
   } else {
     hostSettingsBtn.classList.remove('visible');
     startPop.classList.add('hidden');
-    stagePop.classList.add('hidden');
+    if (!isStageSelectionOpenByHost){
+      stagePop.classList.add('hidden');
+    }
     dbPop.classList.add('hidden');
     hostHandLockedByStage = false;
   }
@@ -2952,15 +2953,19 @@ function subscribeStageSelectionOpen(){
       && !!evt?.actorId
       && (!state.room?.hostId || evt.actorId === state.room.hostId);
 
-    if (openedByHost && !state.isHost && state.joined){
+    isStageSelectionOpenByHost = openedByHost;
+
+    if (openedByHost && state.joined){
       stageSelectionSource = 'settings';
       renderStageOptions();
       startPop.classList.add('hidden');
+      dbPop.classList.add('hidden');
       stagePop.classList.remove('hidden');
       return;
     }
 
     if (!evt?.open){
+      isStageSelectionOpenByHost = false;
       stagePop.classList.add('hidden');
       if (!state.isHost) startPop.classList.add('hidden');
     }
