@@ -618,6 +618,16 @@
     border-color:#d1d5db;
     box-shadow:inset 0 0 0 1px #d1d5db;
   }
+  .stage-option-btn.mission-disabled,
+  .stage-option-btn.mission-disabled.active,
+  .stage-option-btn.mission-disabled.stage-option-x4{
+    background:#e5e7eb;
+    color:#9ca3af;
+    border-color:#d1d5db;
+    box-shadow:none;
+    opacity:.55;
+    cursor:not-allowed;
+  }
 
   #roomInfoLobby, #lobby h2, #lobby p {display:none;}
   #lobby.entered{
@@ -1209,7 +1219,6 @@
         <div class="mission-circle-layout">
           <div class="mission-circle-row">
             <button type="button" class="mission-circle-btn" data-mission-circle="a" aria-label="S">S</button>
-            <button type="button" class="mission-circle-btn" data-mission-circle="b" aria-label="R">R</button>
           </div>
           <div class="mission-circle-row">
             <button type="button" class="mission-circle-btn" data-mission-circle="c" aria-label="C" aria-pressed="false">c</button>
@@ -1791,6 +1800,20 @@ function isMissionCircleActive(key, toggles = missionCircleToggles){
 
 function getMissionCFacePenalty(toggles = missionCircleToggles){
   return isMissionCircleActive('c', toggles) ? 2 : 0;
+}
+
+function isMissionGGreenneedleActive(toggles = missionCircleToggles){
+  return isMissionCircleActive('g', toggles);
+}
+
+function isGreenneedleActiveForStage(stage = currentStage, toggles = missionCircleToggles){
+  const stageCode = String(stage || '');
+  return stageCode === '10-4' || (STAGE_CODES.includes(stageCode) && isMissionGGreenneedleActive(toggles));
+}
+
+function isStageDisabledByMissionG(stageCode, toggles = missionCircleToggles){
+  const code = String(stageCode || '');
+  return isMissionGGreenneedleActive(toggles) && (/^8-[1-4]$/.test(code) || code === '10-4');
 }
 
 function isMissionDBlackCardLocked(cards = [], cardData = null, toggles = missionCircleToggles){
@@ -2494,8 +2517,8 @@ const MISSION_CIRCLE_DESCRIPTIONS = {
   c: '公開できる回数が2つ減る',
   d: '先に白カードを全て出さなければならない。',
   e: '2枚以上置かれている部屋の10,11,12は-10される。',
-  f: '最初から最後までの差が12以内でなければならない。例1・・・12',
-  g: '選んだカードは次の手番のプレイヤーがプレイする場所を決める。オモテかウラかはカードの持ち主が決める。',
+  f: '部屋の最終の値が最小の部屋と最大の部屋の差が12以内でなければならない。',
+  g: 'ステージ上に緑の針を設置する。この針が指す部屋にはカードをプレイできない。',
   h: 'カードをプレイするたびに緑の針が1つ進む。この針が指す部屋にはカードをプレイできない。'
 };
 
@@ -2619,6 +2642,7 @@ function subscribeMissionCircleToggles(){
     missionCircleToggles = snap.val() || {};
     syncMissionCircleButtons();
     renderStageOptions();
+    redrawAll(currentStage);
   });
 }
 
@@ -3420,6 +3444,22 @@ function evaluateTenSeriesLastCardAscending(stage, roomCardsMap){
   return true;
 }
 
+function evaluateMissionFRoomValueRange(stage, roomCardsMap, toggles = missionCircleToggles){
+  if (!isMissionCircleActive('f', toggles)) return true;
+
+  const roomValues = [];
+  for (let room = 1; room <= 6; room++){
+    const cards = roomCardsMap.get(room) || [];
+    if (!cards.length) continue;
+    roomValues.push(getRoomResultValue(stage, cards));
+  }
+  if (!roomValues.length) return false;
+
+  const minValue = Math.min(...roomValues);
+  const maxValue = Math.max(...roomValues);
+  return (maxValue - minValue) <= 12;
+}
+
 function evaluatePlacementResult(stage, roomCardsMap){
   if (
     typeof stage === 'string'
@@ -3463,8 +3503,9 @@ function evaluatePlacementResult(stage, roomCardsMap){
   const dualColorExtremePlusOk = evaluateDualColorExtremePlusSuccess(stage, getPlayedEntriesSorted(), roomCardsMap);
   const whitePizzaGapOk = evaluateWhitePizzaGapSuccess(stage, roomCardsMap);
   const tenSeriesLastCardAscendingOk = evaluateTenSeriesLastCardAscending(stage, roomCardsMap);
+  const missionFRoomValueRangeOk = evaluateMissionFRoomValueRange(stage, roomCardsMap);
 
-  return isAscending && conditionsOk && room6Ok && plusMinusOk && twoBlackWhiteOk && dualColorExtremePlusOk && whitePizzaGapOk && tenSeriesLastCardAscendingOk;
+  return isAscending && conditionsOk && room6Ok && plusMinusOk && twoBlackWhiteOk && dualColorExtremePlusOk && whitePizzaGapOk && tenSeriesLastCardAscendingOk && missionFRoomValueRangeOk;
 }
 
 function getOrderedRoomsWithCardsByRevealStart(roomCardsMap, stage = currentStage){
@@ -3794,7 +3835,8 @@ async function placeDroppedCard(cardData, room, face = 'face'){
       const blockedRoomsInTx = getGreenneedleBlockedRoomsFromDeg(
         Number(roomData.greenneedleRotation?.deg ?? greenHandRotationDeg),
         stageCode,
-        boardRotInTx
+        boardRotInTx,
+        missionTogglesInTx
       );
       if (blockedRoomsInTx && blockedRoomsInTx.has(Number(room))) return;
       if (isBDeckRoomForMission(stageCode, room)){
@@ -3843,7 +3885,7 @@ async function placeDroppedCard(cardData, room, face = 'face'){
           cards: orderHandForStage(myHand, stageCode)
         }
       };
-      if (/^10-/.test(stageCode)){
+      if (isGreenneedleActiveForStage(stageCode, missionTogglesInTx)){
         roomData.greenneedleRotation = {
           deg: normalizeDeg(Number(roomData.greenneedleRotation?.deg ?? greenHandRotationDeg) + greenneedle.stepDeg),
           ts: placedAt,
@@ -3857,7 +3899,7 @@ async function placeDroppedCard(cardData, room, face = 'face'){
     if (!txResult.committed){
       throw new Error('カード配置トランザクションがコミットされませんでした');
     }
-    if (/^10-/.test(String(currentStage || ''))){
+    if (isGreenneedleActiveForStage(currentStage)){
       applyGreenHandRotation(normalizeDeg(greenHandRotationDeg + greenneedle.stepDeg), { animate: true, useShortestPath: true });
     }
     placedCardIds.add(cardData.id);
@@ -4715,13 +4757,21 @@ function renderStageOptions(){
     const isX4 = /-4$/.test(code);
     const isCompletedMission = isMissionCompletedByMe(code);
     const isIncompleteMission = shouldDimMissionStage(code);
+    const isDisabledByMissionG = isStageDisabledByMissionG(code);
     btn.className = 'btn stage-option-btn'
       + (code === currentStage ? ' active' : '')
       + (isX4 ? ' stage-option-x4' : '')
       + (isCompletedMission ? ' mission-completed' : '')
-      + (isIncompleteMission ? ' mission-incomplete' : '');
+      + (isIncompleteMission ? ' mission-incomplete' : '')
+      + (isDisabledByMissionG ? ' mission-disabled' : '');
     btn.textContent = code;
+    btn.disabled = isDisabledByMissionG;
+    if (isDisabledByMissionG){
+      btn.setAttribute('aria-disabled', 'true');
+      btn.title = 'G選択中は選択できません';
+    }
     btn.addEventListener('click', () => {
+      if (isDisabledByMissionG) return;
       const preserveMissionCircleToggles = stageSelectionSource === 'mission' || getActiveMissionCircleKeys().length > 0;
       currentStage = code;
       renderStageOptions();
@@ -4890,16 +4940,16 @@ function getNearestGreenSnapDeg(deg){
   return normalizeDeg(best);
 }
 
-function getGreenneedleBlockedRooms(stage = currentStage){
-  if (String(stage || '') !== '10-4') return null;
+function getGreenneedleBlockedRooms(stage = currentStage, toggles = missionCircleToggles){
+  if (!isGreenneedleActiveForStage(stage, toggles)) return null;
   const logicalDeg = normalizeDeg(greenHandRotationDeg - boardRotationDeg + 90);
   const idxA = ((Math.floor(logicalDeg / 60) % 6) + 6) % 6;
   const idxB = (idxA + 3) % 6;
   return new Set([idxA + 1, idxB + 1]);
 }
 
-function getGreenneedleBlockedRoomsFromDeg(deg, stage = currentStage, boardRot = boardRotationDeg){
-  if (String(stage || '') !== '10-4') return null;
+function getGreenneedleBlockedRoomsFromDeg(deg, stage = currentStage, boardRot = boardRotationDeg, toggles = missionCircleToggles){
+  if (!isGreenneedleActiveForStage(stage, toggles)) return null;
   const logicalDeg = normalizeDeg(deg - boardRot + 90);
   const idxA = ((Math.floor(logicalDeg / 60) % 6) + 6) % 6;
   const idxB = (idxA + 3) % 6;
@@ -8966,7 +9016,7 @@ function renderRoomConditionHints(mission = currentStage){
         lineH: 11,
         fontSize: 9.3
       });
-      if (mission === '10-4'){
+      if (isGreenneedleActiveForStage(mission)){
         appendHintTable('カードをプレイするたびに緑の針が1つ進む。この針が指す部屋にはカードをプレイできない。', 0, 106, {
           maxCharsPerLine: 12,
           maxLines: 7,
@@ -8975,6 +9025,14 @@ function renderRoomConditionHints(mission = currentStage){
           fontSize: 9.1
         });
       }
+    } else if (isGreenneedleActiveForStage(mission)){
+      appendHintTable('カードをプレイするたびに緑の針が1つ進む。この針が指す部屋にはカードをプレイできない。', 0, 48, {
+        maxCharsPerLine: 12,
+        maxLines: 7,
+        boxW: 130,
+        lineH: 11,
+        fontSize: 9.1
+      });
     }
   }
 
@@ -9051,10 +9109,11 @@ function redrawAll(m){
   }
   renderMissionStageSelectedButtons();
   renderMissionStageHintTables();
-  if (renderStage !== lastGreenneedleStageCode){
-    lastGreenneedleStageCode = renderStage;
+  const greenneedleRenderKey = `${renderStage}:${isGreenneedleActiveForStage(renderStage) ? 'on' : 'off'}`;
+  if (greenneedleRenderKey !== lastGreenneedleStageCode){
+    lastGreenneedleStageCode = greenneedleRenderKey;
     applyGreenHandRotation(greenneedle.initialDeg, { animate: false, useShortestPath: false });
-    if (renderStage === '10-4') publishGreenneedleRotation(greenneedle.initialDeg, { isFinal: true, force: true });
+    if (isGreenneedleActiveForStage(renderStage)) publishGreenneedleRotation(greenneedle.initialDeg, { isFinal: true, force: true });
   }
   const isStage24 = renderStage === '2-4';
 
@@ -9095,7 +9154,7 @@ function redrawAll(m){
     centerHourHandG.setAttribute('transform', 'translate(150,150) rotate(10)');
   }
   if (centerGreenHandG){
-    const showGreenHand = String(renderStage || '') === '10-4';
+    const showGreenHand = isGreenneedleActiveForStage(renderStage);
     centerGreenHandG.style.display = showGreenHand ? '' : 'none';
   }
 
@@ -9114,7 +9173,7 @@ function redrawAll(m){
       stageSvg.appendChild(centerTopDiamondG);
     }
   }
-  if (centerGreenHandG && /^10-/.test(String(renderStage || ''))){
+  if (centerGreenHandG && isGreenneedleActiveForStage(renderStage)){
     if (stageSvg.lastElementChild !== centerGreenHandG){
       stageSvg.appendChild(centerGreenHandG);
     }
@@ -9193,7 +9252,7 @@ function redrawAll(m){
     stageSvg.appendChild(centerTopLineG);
     stageSvg.appendChild(centerTopDiamondG);
   }
-  if (centerGreenHandG && /^10-/.test(String(renderStage || ''))){
+  if (centerGreenHandG && isGreenneedleActiveForStage(renderStage)){
     stageSvg.appendChild(centerGreenHandG);
   }
   const roomConditionHintsG = stageSvg.querySelector('#roomConditionHints');
