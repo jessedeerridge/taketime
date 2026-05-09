@@ -345,6 +345,57 @@
     pointer-events:auto;
   }
   .player-tag.me{ background:#111;color:#fff;border-color:#111; }
+  .player-tag.mission-g-circle::before{
+    content:'';
+    position:absolute;
+    left:50%;top:50%;
+    width:92px;height:92px;
+    border:3px solid #111;
+    border-radius:50%;
+    transform:translate(-50%,-50%);
+    pointer-events:none;
+    box-sizing:border-box;
+  }
+  .player-tag.nextplayercircle::before{
+    border-width:4px;
+    box-shadow:0 0 0 5px rgba(17,17,17,.12);
+  }
+  .mission-g-pending-mini{
+    position:absolute;
+    left:50%;top:100%;
+    transform:translate(-50%,18px);
+    width:24px;height:33px;
+    border-radius:5px;
+    font-size:10px;
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 2px 6px rgba(0,0,0,.15);
+    box-sizing:border-box;
+    pointer-events:none;
+  }
+  .mission-g-pending-mini.back-white,
+  .mission-g-received-card.back-white{
+    background:
+      repeating-linear-gradient(
+        135deg,
+        #ffffff 0px,
+        #ffffff 4px,
+        #e5e7eb 4px,
+        #e5e7eb 8px
+      );
+    border:1px solid #cfcfcf;
+  }
+  .mission-g-pending-mini.back-black,
+  .mission-g-received-card.back-black{
+    background:
+      repeating-linear-gradient(
+        135deg,
+        var(--black-card) 0px,
+        var(--black-card) 4px,
+        var(--black-card-stripe) 4px,
+        var(--black-card-stripe) 8px
+      );
+    border:1px solid var(--black-card-border-soft);
+  }
   .player-next-btn{
     position:absolute;left:50%;top:calc(100% + 12px);transform:translateX(-50%);
     padding:5px 12px;border-radius:999px;border:1px solid #111;background:#fff;color:#111;
@@ -409,6 +460,7 @@
   .my-hand-title{display:none;}
   .my-hand{
     --hand-offset-y:0px;
+    position:relative;
     display:flex;
     justify-content:center;
     gap:8px;
@@ -430,6 +482,19 @@
     padding-bottom:1px;
   }
   .my-card.dragging{opacity:.45;cursor:grabbing;}
+  .mission-g-received-card{
+    position:absolute;
+    right:0;
+    top:-70px;
+    width:60px;height:90px;
+    border-radius:8px;border:1px solid #ddd;background:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:600;
+    box-shadow:0 6px 18px rgba(0,0,0,.24);
+    z-index:6;
+    cursor:grab;
+    touch-action:none;
+    box-sizing:border-box;
+  }
   .flying-play-card{
     position:fixed;
     margin:0;
@@ -1476,6 +1541,7 @@ const placedCardIds = new Set();
 const pendingPlacedCardIds = new Set();
 let activeDrag = null;
 let dragHoverRoom = null;
+let dragHoverPlayerId = null;
 let cardChoiceResolver = null;
 const MY_TAG_ONLY_OFFSET_PX = 20;
 let isStageTagPressed = false;
@@ -1651,6 +1717,10 @@ function getActiveTurnPlayerIds(){
     .filter((p) => p?.id)
     .map((p) => p.id);
   if (!playerIds.length) return [];
+  const missionGTransfer = getMissionGTransfer(state.room || {});
+  if (missionGTransfer?.recipientId && playerIds.includes(missionGTransfer.recipientId)){
+    return [missionGTransfer.recipientId];
+  }
   const playablePlayerIds = playerIds.filter((playerId) => {
     const cards = state.hands?.[playerId]?.cards;
     return Array.isArray(cards) && cards.length > 0;
@@ -1681,6 +1751,10 @@ function getActiveTurnPlayerIdsFromRoomData(roomData){
   if (phase !== 'placement') return [];
   const playerIds = getSeatedPlayerIdsFromTables(roomData?.tables || {});
   if (!playerIds.length) return [];
+  const missionGTransfer = getMissionGTransfer(roomData || {});
+  if (missionGTransfer?.recipientId && playerIds.includes(missionGTransfer.recipientId)){
+    return [missionGTransfer.recipientId];
+  }
   const playablePlayerIds = playerIds.filter((playerId) => {
     const cards = roomData?.hands?.[playerId]?.cards;
     return Array.isArray(cards) && cards.length > 0;
@@ -1704,6 +1778,42 @@ function canCurrentUserDragCard(){
   if (!currentStage) return false;
   if (state.currentPhase !== 'placement') return false;
   return isMyTurnInPlacement();
+}
+
+function isMissionGActive(toggles = missionCircleToggles){
+  return isMissionCircleActive('g', toggles);
+}
+
+function getMissionGTransfer(roomData = state.room || {}){
+  const transfer = roomData?.missionGTransfer;
+  if (!transfer || typeof transfer !== 'object') return null;
+  if (!transfer.id || !transfer.ownerId || !transfer.recipientId || !transfer.card) return null;
+  return transfer;
+}
+
+function getMissionGTransferForMe(roomData = state.room || {}){
+  const transfer = getMissionGTransfer(roomData);
+  return transfer && transfer.recipientId === state.userId ? transfer : null;
+}
+
+function getMissionGNextPlayerId(actorId = state.userId, roomData = state.room || {}){
+  const playerIds = getSeatedPlayerIdsFromTables(roomData?.tables || state.tables || {});
+  if (!actorId || playerIds.length < 2) return '';
+  const startIdx = playerIds.indexOf(actorId);
+  if (startIdx === -1) return '';
+  for (let step = 1; step <= playerIds.length; step++){
+    const candidate = playerIds[(startIdx + step) % playerIds.length];
+    if (candidate && candidate !== actorId) return candidate;
+  }
+  return '';
+}
+
+function canSendMissionGCard(){
+  return isMissionGActive() && canCurrentUserDragCard() && !getMissionGTransfer();
+}
+
+function canPlaceMissionGTransfer(){
+  return !!getMissionGTransferForMe() && state.currentPhase === 'placement';
 }
 
 function getNextStageCode(stageCode){
@@ -2354,6 +2464,7 @@ async function clearAfterStageRuntimeInRoom(){
     remove(ref(db, `${base}/nextAction`)),
     remove(ref(db, `${base}/phaseEvent`)),
     remove(ref(db, `${base}/phaseState`)),
+    remove(ref(db, `${base}/missionGTransfer`)),
     set(ref(db, `${base}/subgearCount`), 0)
   ]);
 }
@@ -2406,6 +2517,8 @@ function subscribeRoom(){
     hostSelectingPop.classList.toggle('hidden', !waiting);
 
     syncSeatUI();
+    renderHands();
+    if (latestPlayers.length) renderPlayerCircle(latestPlayers);
   });
 }
 
@@ -3062,7 +3175,8 @@ function renderMyHand(){
     && phaseStage === currentStage;
   const shouldLockHand = state.isHost && hostHandLockedByStage && !!currentStage;
   const shouldHideInDiscussion = !state.isHost && !!currentStage && !isPlacementForCurrentStage;
-  const canDragNow = canCurrentUserDragCard() && !shouldLockHand && !shouldHideInDiscussion;
+  const missionGTransferForMe = getMissionGTransferForMe();
+  const canDragNow = canCurrentUserDragCard() && !missionGTransferForMe && !shouldLockHand && !shouldHideInDiscussion;
   const shouldPulse = canDragNow && !activeDrag;
 
   const seatedPlayerIds = Object.values(state.tables || {})
@@ -3158,6 +3272,33 @@ function renderMyHand(){
 
     myHandEl.appendChild(card);
   });
+
+  if (missionGTransferForMe && !shouldHideInDiscussion){
+    const receivedCard = document.createElement('div');
+    receivedCard.className = 'mission-g-received-card';
+    const cardData = missionGTransferForMe.card || {};
+    if (missionGTransferForMe.face === 'back'){
+      receivedCard.textContent = '';
+      receivedCard.classList.add(cardData.color === 'black' ? 'back-black' : 'back-white');
+    } else {
+      setCardNumberDom(receivedCard, cardData.num);
+      receivedCard.style.background = cardData.color === 'black' ? '#0b1530' : '#fff';
+      receivedCard.style.color = cardData.color === 'black' ? '#fff' : '#111';
+      receivedCard.style.border = cardData.color === 'black' ? '1px solid #0b1530' : '1px solid #ddd';
+    }
+    if (canPlaceMissionGTransfer()){
+      receivedCard.addEventListener('pointerdown', (ev) => startCardDrag(ev, {
+        ...cardData,
+        id: missionGTransferForMe.cardId || cardData.id || missionGTransferForMe.id,
+        missionGTransferId: missionGTransferForMe.id,
+        missionGFace: missionGTransferForMe.face,
+        missionGOwnerId: missionGTransferForMe.ownerId
+      }));
+    } else {
+      receivedCard.style.cursor = 'default';
+    }
+    myHandEl.appendChild(receivedCard);
+  }
 }
 
 function shouldKeepTwoPlayerReserveHidden({
@@ -3235,7 +3376,7 @@ function maybeAnnounceRevealPhase(){
   const remainingCards = seatedPlayerIds.reduce((sum, pid) => {
     const cards = state.hands[pid]?.cards;
     return sum + (Array.isArray(cards) ? cards.length : 0);
-  }, 0);
+  }, 0) + (getMissionGTransfer() ? 1 : 0);
   const placedCount = Object.values(state.playedCards || {})
     .filter((card) => card?.playerId && seatedPlayerIds.includes(card.playerId))
     .length;
@@ -3792,6 +3933,33 @@ function canPlaceCardInRoom(cardData, room, stage = currentStage){
   return true;
 }
 
+function findMissionGDropPlayer(clientX, clientY){
+  const nextPlayerId = getMissionGNextPlayerId();
+  if (!nextPlayerId) return '';
+  const tag = playerCircle.querySelector(`.player-tag.nextplayercircle[data-player-id="${nextPlayerId}"]`);
+  if (!tag) return '';
+  const rect = tag.getBoundingClientRect();
+  const pad = 24;
+  return (clientX >= rect.left - pad && clientX <= rect.right + pad && clientY >= rect.top - pad && clientY <= rect.bottom + pad)
+    ? nextPlayerId
+    : '';
+}
+
+function applyCardVisual(el, cardData, face = 'face'){
+  if (!(el instanceof HTMLElement)) return;
+  el.classList.remove('back-white', 'back-black');
+  const color = cardData?.color || 'white';
+  if (face === 'back'){
+    el.textContent = '';
+    el.classList.add(color === 'black' ? 'back-black' : 'back-white');
+    return;
+  }
+  setCardNumberDom(el, cardData?.num);
+  el.style.background = color === 'black' ? '#0b1530' : '#fff';
+  el.style.color = color === 'black' ? '#fff' : '#111';
+  el.style.border = color === 'black' ? '1px solid #0b1530' : '1px solid #ddd';
+}
+
 function findDropRoom(clientX, clientY, cardData = activeDrag?.cardData){
   const { centerR, guideR } = getGuideMetrics();
   const { x: centerX, y: centerY, rect } = getBoardCenterClient();
@@ -3812,6 +3980,53 @@ function findDropRoom(clientX, clientY, cardData = activeDrag?.cardData){
   return null;
 }
 
+async function createMissionGTransfer(cardData, recipientId, face = 'face'){
+  if (!state.roomCode || !recipientId) return;
+  const createdAt = Date.now();
+  const roomRef = ref(db, `rooms/${state.roomCode}`);
+  await runTransaction(roomRef, (roomData) => {
+    if (!roomData || typeof roomData !== 'object') return roomData;
+    if (deriveCurrentPhase(roomData?.phaseState || {}) !== 'placement') return;
+    if (!isMissionGActive(roomData.missionCircleToggles || {})) return;
+    if (getMissionGTransfer(roomData)) return;
+    const activeTurnPlayerIds = getActiveTurnPlayerIdsFromRoomData(roomData);
+    if (activeTurnPlayerIds.length && !activeTurnPlayerIds.includes(state.userId)) return;
+    const expectedRecipientId = getMissionGNextPlayerId(state.userId, roomData);
+    if (!expectedRecipientId || expectedRecipientId !== recipientId) return;
+
+    const hands = (roomData.hands && typeof roomData.hands === 'object') ? roomData.hands : {};
+    const myHand = (hands[state.userId] && Array.isArray(hands[state.userId].cards))
+      ? hands[state.userId].cards.slice()
+      : [];
+    let removeIndex = -1;
+    if (cardData?.uid){
+      removeIndex = myHand.findIndex((c) => c && c.uid === cardData.uid);
+    }
+    if (removeIndex === -1){
+      removeIndex = myHand.findIndex((c) => c && c.num === cardData.num && c.color === cardData.color);
+    }
+    if (removeIndex === -1) return;
+    const [transferCard] = myHand.splice(removeIndex, 1);
+    const transferId = `${state.userId}_${cardData.id}_${createdAt}`;
+    roomData.missionGTransfer = {
+      id: transferId,
+      cardId: cardData.id,
+      ownerId: state.userId,
+      recipientId,
+      face,
+      card: transferCard,
+      createdAt
+    };
+    roomData.hands = {
+      ...hands,
+      [state.userId]: {
+        cards: orderHandForStage(myHand, String(roomData.stageCode || currentStage || ''))
+      }
+    };
+    return roomData;
+  }, { applyLocally: false });
+}
+
 async function placeDroppedCard(cardData, room, face = 'face'){
   if (!state.roomCode) return;
   if (!(room >= 1 && room <= 6)) return;
@@ -3826,22 +4041,30 @@ async function placeDroppedCard(cardData, room, face = 'face'){
       if (activeTurnPlayerIds.length && !activeTurnPlayerIds.includes(state.userId)) return;
 
       const hands = (roomData.hands && typeof roomData.hands === 'object') ? roomData.hands : {};
+      const missionGTransfer = getMissionGTransfer(roomData);
+      const isMissionGPlacement = !!cardData?.missionGTransferId
+        && missionGTransfer?.id === cardData.missionGTransferId
+        && missionGTransfer?.recipientId === state.userId;
       const myHand = (hands[state.userId] && Array.isArray(hands[state.userId].cards))
         ? hands[state.userId].cards.slice()
         : [];
-      if (!myHand.length) return;
-
       let removeIndex = -1;
-      if (cardData?.uid){
-        removeIndex = myHand.findIndex((c) => c && c.uid === cardData.uid);
-      }
-      if (removeIndex === -1){
-        removeIndex = myHand.findIndex((c) => c && c.num === cardData.num && c.color === cardData.color);
-      }
-      if (removeIndex === -1) return;
       const stageCode = String(roomData.stageCode || currentStage || '');
       const missionTogglesInTx = roomData.missionCircleToggles || {};
-      if (isMissionDBlackCardLocked(getMissionDVisibleHandCards(myHand, state.userId, roomData), cardData, missionTogglesInTx)) return;
+      if (isMissionGPlacement){
+        face = missionGTransfer.face === 'back' ? 'back' : 'face';
+        cardData = { ...missionGTransfer.card, id: missionGTransfer.cardId || cardData.id };
+      } else {
+        if (!myHand.length) return;
+        if (cardData?.uid){
+          removeIndex = myHand.findIndex((c) => c && c.uid === cardData.uid);
+        }
+        if (removeIndex === -1){
+          removeIndex = myHand.findIndex((c) => c && c.num === cardData.num && c.color === cardData.color);
+        }
+        if (removeIndex === -1) return;
+        if (isMissionDBlackCardLocked(getMissionDVisibleHandCards(myHand, state.userId, roomData), cardData, missionTogglesInTx)) return;
+      }
       if (face === 'face'){
         const faceCount = Object.values(roomData.playedCards || {}).reduce((sum, card) => (card && card.face !== 'back') ? sum + 1 : sum, 0);
         const seatedCount = getSeatedPlayerIdsFromTables(roomData.tables || {}).length;
@@ -3851,7 +4074,7 @@ async function placeDroppedCard(cardData, room, face = 'face'){
         if (stageCode === '2-4' || faceCount >= faceLimit) return;
       }
 
-      myHand.splice(removeIndex, 1);
+      if (!isMissionGPlacement) myHand.splice(removeIndex, 1);
       const boardRotInTx = Number(roomData.boardRotation?.deg ?? boardRotationDeg);
       const blockedRoomsInTx = getGreenneedleBlockedRoomsFromDeg(
         Number(roomData.greenneedleRotation?.deg ?? greenHandRotationDeg),
@@ -3876,7 +4099,8 @@ async function placeDroppedCard(cardData, room, face = 'face'){
         color: cardData.color,
         face,
         room,
-        playerId: state.userId,
+        playerId: isMissionGPlacement ? missionGTransfer.ownerId : state.userId,
+        placedBy: state.userId,
         placedAt,
         boardRotationAtPlacement: boardRotationDeg
       };
@@ -3899,12 +4123,16 @@ async function placeDroppedCard(cardData, room, face = 'face'){
         ...(roomData.playedCards || {}),
         [key]: playedCard
       };
-      roomData.hands = {
-        ...hands,
-        [state.userId]: {
-          cards: orderHandForStage(myHand, stageCode)
-        }
-      };
+      if (isMissionGPlacement){
+        delete roomData.missionGTransfer;
+      } else {
+        roomData.hands = {
+          ...hands,
+          [state.userId]: {
+            cards: orderHandForStage(myHand, stageCode)
+          }
+        };
+      }
       if (isGreenneedleActiveForMission(stageCode)){
         roomData.greenneedleRotation = {
           deg: normalizeDeg(Number(roomData.greenneedleRotation?.deg ?? greenHandRotationDeg) + greenneedle.stepDeg),
@@ -4097,9 +4325,15 @@ window.addEventListener('keydown', (ev) => {
 function startCardDrag(ev, cardData){
   ev.preventDefault();
   if (activeDrag) return;
-  if (!canCurrentUserDragCard()) return;
-  if (state.isHost && hostHandLockedByStage && currentStage) return;
-  if (isMissionDBlackCardLocked(getMissionDVisibleHandCards(state.hands?.[state.userId]?.cards || []), cardData)) return;
+  const isMissionGPlacement = !!cardData?.missionGTransferId;
+  const isMissionGSend = !isMissionGPlacement && canSendMissionGCard();
+  if (isMissionGPlacement){
+    if (!canPlaceMissionGTransfer()) return;
+  } else {
+    if (!canCurrentUserDragCard()) return;
+    if (state.isHost && hostHandLockedByStage && currentStage) return;
+    if (isMissionDBlackCardLocked(getMissionDVisibleHandCards(state.hands?.[state.userId]?.cards || []), cardData)) return;
+  }
   const srcEl = ev.currentTarget;
   if (!(srcEl instanceof HTMLElement)) return;
   const srcRect = srcEl.getBoundingClientRect();
@@ -4125,10 +4359,12 @@ function startCardDrag(ev, cardData){
   ghost.style.transition = 'none';
   document.body.appendChild(ghost);
 
-  activeDrag = { pointerId: ev.pointerId, srcEl, ghost, cardData };
+  activeDrag = { pointerId: ev.pointerId, srcEl, ghost, cardData, mode: isMissionGSend ? 'mission-g-send' : (isMissionGPlacement ? 'mission-g-place' : 'normal') };
   syncMyHandPulseDom();
-  dragHoverRoom = findDropRoom(ev.clientX, ev.clientY);
+  dragHoverRoom = activeDrag.mode === 'mission-g-send' ? null : findDropRoom(ev.clientX, ev.clientY);
+  dragHoverPlayerId = activeDrag.mode === 'mission-g-send' ? findMissionGDropPlayer(ev.clientX, ev.clientY) : null;
   renderRoomGuideCircles();
+  if (latestPlayers.length) renderPlayerCircle(latestPlayers);
 
   const ghostHalfW = srcRect.width / 2;
   const ghostHalfH = srcRect.height / 2;
@@ -4140,15 +4376,25 @@ function startCardDrag(ev, cardData){
   const onMove = (mv) => {
     if (!activeDrag || mv.pointerId !== activeDrag.pointerId) return;
     move(mv.clientX, mv.clientY);
-    const nextHoverRoom = findDropRoom(mv.clientX, mv.clientY);
-    if (nextHoverRoom !== dragHoverRoom){
-      dragHoverRoom = nextHoverRoom;
-      renderRoomGuideCircles();
+    if (activeDrag.mode === 'mission-g-send'){
+      const nextHoverPlayerId = findMissionGDropPlayer(mv.clientX, mv.clientY);
+      if (nextHoverPlayerId !== dragHoverPlayerId){
+        dragHoverPlayerId = nextHoverPlayerId;
+        if (latestPlayers.length) renderPlayerCircle(latestPlayers);
+      }
+    } else {
+      const nextHoverRoom = findDropRoom(mv.clientX, mv.clientY);
+      if (nextHoverRoom !== dragHoverRoom){
+        dragHoverRoom = nextHoverRoom;
+        renderRoomGuideCircles();
+      }
     }
   };
   const onUp = async (up) => {
     if (!activeDrag || up.pointerId !== activeDrag.pointerId) return;
-    const dropRoom = findDropRoom(up.clientX, up.clientY);
+    const dragMode = activeDrag.mode;
+    const dropRoom = dragMode === 'mission-g-send' ? null : findDropRoom(up.clientX, up.clientY);
+    const dropPlayerId = dragMode === 'mission-g-send' ? findMissionGDropPlayer(up.clientX, up.clientY) : '';
     const droppedCardData = activeDrag.cardData;
     activeDrag.srcEl.classList.remove('dragging');
     activeDrag.srcEl.style.visibility = '';
@@ -4156,17 +4402,26 @@ function startCardDrag(ev, cardData){
     activeDrag = null;
     syncMyHandPulseDom();
     dragHoverRoom = null;
+    dragHoverPlayerId = null;
     renderRoomGuideCircles();
+    if (latestPlayers.length) renderPlayerCircle(latestPlayers);
     window.removeEventListener('pointermove', onMove);
     window.removeEventListener('pointerup', onUp);
     window.removeEventListener('pointercancel', onUp);
-    if (dropRoom){
-      if (placingCardIds.has(droppedCardData.id)) return;
-      placingCardIds.add(droppedCardData.id);
-      pendingPlacedCardIds.add(droppedCardData.id);
-      renderHands();
+    if (dropPlayerId){
       try {
         const choice = await openCardChoice(droppedCardData);
+        await createMissionGTransfer(droppedCardData, dropPlayerId, choice);
+      } catch (err){
+        console.error('Gカード受け渡しに失敗しました', err);
+      }
+    } else if (dropRoom){
+      if (placingCardIds.has(droppedCardData.id)) return;
+      placingCardIds.add(droppedCardData.id);
+      if (!droppedCardData.missionGTransferId) pendingPlacedCardIds.add(droppedCardData.id);
+      renderHands();
+      try {
+        const choice = droppedCardData.missionGTransferId ? (droppedCardData.missionGFace || 'face') : await openCardChoice(droppedCardData);
         await placeDroppedCard(droppedCardData, dropRoom, choice);
       } catch (err){
         console.error('カード配置に失敗しました', err);
@@ -4340,6 +4595,12 @@ function renderPlayerCircle(players){
 
     const tag = document.createElement('div');
     tag.className = 'player-tag' + (isMe ? ' me' : '');
+    const missionGNextPlayerId = canSendMissionGCard() ? getMissionGNextPlayerId() : '';
+    if (!isMe && canSendMissionGCard()) tag.classList.add('mission-g-circle');
+    if (!isMe && p.id === missionGNextPlayerId){
+      tag.classList.add('nextplayercircle');
+      if (dragHoverPlayerId === p.id) tag.classList.add('turn-pulse');
+    }
     tag.dataset.playerId = p.id;
     tag.textContent = p.name;
     tag.style.left = centerNudgePx === 0
@@ -4385,6 +4646,14 @@ function renderPlayerCircle(players){
       });
 
       tag.appendChild(miniHand);
+    }
+
+    const missionGTransfer = getMissionGTransfer();
+    if (missionGTransfer && missionGTransfer.recipientId === p.id && missionGTransfer.recipientId !== state.userId){
+      const pendingMini = document.createElement('div');
+      pendingMini.className = 'mission-g-pending-mini';
+      applyCardVisual(pendingMini, missionGTransfer.card || {}, missionGTransfer.face === 'back' ? 'back' : 'face');
+      tag.appendChild(pendingMini);
     }
 
     if (isMe && shouldShowNextButton()){
@@ -4756,6 +5025,7 @@ btnResetRoom.addEventListener('click', async () => {
     remove(ref(db, `${base}/extraDeck`)),
     remove(ref(db, `${base}/stageCode`)),
     remove(ref(db, `${base}/stageSelectionOpen`)),
+    remove(ref(db, `${base}/missionGTransfer`)),
     remove(ref(db, `${base}/missionCircleToggles`))
   ]);
 
@@ -7991,7 +8261,7 @@ function renderRoomGuideCircles(mission = currentStage){
   const dragOpacity = Math.max(0, Math.min(1, parseFloat(csGuide.getPropertyValue('--roomGuideDragOpacity')) || 0.2));
   const dragHoverOpacity = Math.max(0, Math.min(1, parseFloat(csGuide.getPropertyValue('--roomGuideDragHoverOpacity')) || 0.34));
   const normalOpacity = Math.max(0, Math.min(1, parseFloat(csGuide.getPropertyValue('--roomGuideNormalOpacity')) || 1));
-  const isDragging = !!activeDrag;
+  const isDragging = !!activeDrag && activeDrag.mode !== 'mission-g-send';
 
   for(let room=1; room<=6; room++){
     const midDeg = (room-1)*60 + 30;
