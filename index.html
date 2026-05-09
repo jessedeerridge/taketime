@@ -617,6 +617,20 @@
     border-color:#d1d5db;
     box-shadow:inset 0 0 0 1px #d1d5db;
   }
+  .stage-option-btn.mission-h-disabled{
+    background:#e5e7eb;
+    color:#9ca3af;
+    border-color:#d1d5db;
+    opacity:.5;
+    cursor:not-allowed;
+    filter:grayscale(1);
+  }
+  .stage-option-btn.mission-h-disabled.active{
+    background:#e5e7eb;
+    color:#9ca3af;
+    border-color:#d1d5db;
+    box-shadow:none;
+  }
 
   #roomInfoLobby, #lobby h2, #lobby p {display:none;}
   #lobby.entered{
@@ -2504,6 +2518,20 @@ function getActiveMissionCircleKeys(){
   return ['c', 'd', 'e', 'f', 'g', 'h'].filter(key => !!missionCircleToggles[key]);
 }
 
+function isMissionHActive(){
+  return !!missionCircleToggles.h;
+}
+
+function isStageDisabledByMissionH(stageCode){
+  const stage = String(stageCode || '');
+  return isMissionHActive() && (/^8-[1-4]$/.test(stage) || stage === '10-4');
+}
+
+function isGreenneedleActiveForMission(stage = currentStage){
+  const stageCode = String(stage || '');
+  return stageCode === '10-4' || (STAGE_CODES.includes(stageCode) && isMissionHActive());
+}
+
 const MISSION_SELECTION_NONE_KEY = 'none';
 
 function normalizeMissionSelectionKeys(keys){
@@ -2620,6 +2648,7 @@ function subscribeMissionCircleToggles(){
     missionCircleToggles = snap.val() || {};
     syncMissionCircleButtons();
     renderStageOptions();
+    redrawAll(currentStage);
   });
 }
 
@@ -3848,7 +3877,7 @@ async function placeDroppedCard(cardData, room, face = 'face'){
           cards: orderHandForStage(myHand, stageCode)
         }
       };
-      if (/^10-/.test(stageCode)){
+      if (isGreenneedleActiveForMission(stageCode)){
         roomData.greenneedleRotation = {
           deg: normalizeDeg(Number(roomData.greenneedleRotation?.deg ?? greenHandRotationDeg) + greenneedle.stepDeg),
           ts: placedAt,
@@ -3862,7 +3891,7 @@ async function placeDroppedCard(cardData, room, face = 'face'){
     if (!txResult.committed){
       throw new Error('カード配置トランザクションがコミットされませんでした');
     }
-    if (/^10-/.test(String(currentStage || ''))){
+    if (isGreenneedleActiveForMission(currentStage)){
       applyGreenHandRotation(normalizeDeg(greenHandRotationDeg + greenneedle.stepDeg), { animate: true, useShortestPath: true });
     }
     placedCardIds.add(cardData.id);
@@ -4720,20 +4749,28 @@ function renderStageOptions(){
     const isX4 = /-4$/.test(code);
     const isCompletedMission = isMissionCompletedByMe(code);
     const isIncompleteMission = shouldDimMissionStage(code);
+    const isMissionHDisabled = isStageDisabledByMissionH(code);
     btn.className = 'btn stage-option-btn'
       + (code === currentStage ? ' active' : '')
       + (isX4 ? ' stage-option-x4' : '')
       + (isCompletedMission ? ' mission-completed' : '')
-      + (isIncompleteMission ? ' mission-incomplete' : '');
+      + (isIncompleteMission ? ' mission-incomplete' : '')
+      + (isMissionHDisabled ? ' mission-h-disabled' : '');
     btn.textContent = code;
-    btn.addEventListener('click', () => {
-      const preserveMissionCircleToggles = stageSelectionSource === 'mission' || getActiveMissionCircleKeys().length > 0;
-      currentStage = code;
-      renderStageOptions();
-      stagePop.classList.add('hidden');
-      stageSelectionSource = 'settings';
-      void setStage(code, { preserveMissionCircleToggles });
-    });
+    if (isMissionHDisabled){
+      btn.disabled = true;
+      btn.setAttribute('aria-disabled', 'true');
+      btn.title = 'H選択中は選択できません';
+    } else {
+      btn.addEventListener('click', () => {
+        const preserveMissionCircleToggles = stageSelectionSource === 'mission' || getActiveMissionCircleKeys().length > 0;
+        currentStage = code;
+        renderStageOptions();
+        stagePop.classList.add('hidden');
+        stageSelectionSource = 'settings';
+        void setStage(code, { preserveMissionCircleToggles });
+      });
+    }
     stageOptionGrid.appendChild(btn);
   });
 }
@@ -4896,7 +4933,7 @@ function getNearestGreenSnapDeg(deg){
 }
 
 function getGreenneedleBlockedRooms(stage = currentStage){
-  if (String(stage || '') !== '10-4') return null;
+  if (!isGreenneedleActiveForMission(stage)) return null;
   const logicalDeg = normalizeDeg(greenHandRotationDeg - boardRotationDeg + 90);
   const idxA = ((Math.floor(logicalDeg / 60) % 6) + 6) % 6;
   const idxB = (idxA + 3) % 6;
@@ -4904,7 +4941,7 @@ function getGreenneedleBlockedRooms(stage = currentStage){
 }
 
 function getGreenneedleBlockedRoomsFromDeg(deg, stage = currentStage, boardRot = boardRotationDeg){
-  if (String(stage || '') !== '10-4') return null;
+  if (!isGreenneedleActiveForMission(stage)) return null;
   const logicalDeg = normalizeDeg(deg - boardRot + 90);
   const idxA = ((Math.floor(logicalDeg / 60) % 6) + 6) % 6;
   const idxB = (idxA + 3) % 6;
@@ -9056,10 +9093,11 @@ function redrawAll(m){
   }
   renderMissionStageSelectedButtons();
   renderMissionStageHintTables();
-  if (renderStage !== lastGreenneedleStageCode){
-    lastGreenneedleStageCode = renderStage;
+  const greenneedleRenderKey = `${renderStage}:${isMissionHActive() ? 'h' : 'base'}`;
+  if (greenneedleRenderKey !== lastGreenneedleStageCode){
+    lastGreenneedleStageCode = greenneedleRenderKey;
     applyGreenHandRotation(greenneedle.initialDeg, { animate: false, useShortestPath: false });
-    if (renderStage === '10-4') publishGreenneedleRotation(greenneedle.initialDeg, { isFinal: true, force: true });
+    if (isGreenneedleActiveForMission(renderStage)) publishGreenneedleRotation(greenneedle.initialDeg, { isFinal: true, force: true });
   }
   const isStage24 = renderStage === '2-4';
 
@@ -9100,7 +9138,7 @@ function redrawAll(m){
     centerHourHandG.setAttribute('transform', 'translate(150,150) rotate(10)');
   }
   if (centerGreenHandG){
-    const showGreenHand = String(renderStage || '') === '10-4';
+    const showGreenHand = isGreenneedleActiveForMission(renderStage);
     centerGreenHandG.style.display = showGreenHand ? '' : 'none';
   }
 
@@ -9119,7 +9157,7 @@ function redrawAll(m){
       stageSvg.appendChild(centerTopDiamondG);
     }
   }
-  if (centerGreenHandG && /^10-/.test(String(renderStage || ''))){
+  if (centerGreenHandG && isGreenneedleActiveForMission(renderStage)){
     if (stageSvg.lastElementChild !== centerGreenHandG){
       stageSvg.appendChild(centerGreenHandG);
     }
@@ -9198,7 +9236,7 @@ function redrawAll(m){
     stageSvg.appendChild(centerTopLineG);
     stageSvg.appendChild(centerTopDiamondG);
   }
-  if (centerGreenHandG && /^10-/.test(String(renderStage || ''))){
+  if (centerGreenHandG && isGreenneedleActiveForMission(renderStage)){
     stageSvg.appendChild(centerGreenHandG);
   }
   const roomConditionHintsG = stageSvg.querySelector('#roomConditionHints');
