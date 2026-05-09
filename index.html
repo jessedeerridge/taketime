@@ -366,7 +366,9 @@
     transform:translate(-50%,18px);
     width:24px;height:33px;
     border-radius:5px;
-    font-size:10px;
+    font-size:13px;
+    font-weight:700;
+    line-height:1;
     display:flex;align-items:center;justify-content:center;
     box-shadow:0 2px 6px rgba(0,0,0,.15);
     box-sizing:border-box;
@@ -510,9 +512,15 @@
     box-shadow:0 2px 6px rgba(0,0,0,.2);
     font-weight:700;
   }
-  .my-card.turn-pulse:not(.dragging){
+  .my-card.turn-pulse:not(.dragging),
+  .mission-g-received-card.turn-pulse:not(.dragging){
     animation:myCardTurnPulse 1.05s ease-in-out infinite;
     transform-origin:center;
+    will-change:transform;
+  }
+  .mission-g-pending-mini.turn-pulse{
+    animation:missionGPendingMiniPulse 1.05s ease-in-out infinite;
+    transform-origin:50% 50%;
     will-change:transform;
   }
   .my-card.reserve-slide-in{
@@ -535,6 +543,10 @@
   @keyframes miniHandTurnPulse{
     0%,100%{transform:translate(-50%,3px) scale(1);}
     50%{transform:translate(-50%,3px) scale(1.12);}
+  }
+  @keyframes missionGPendingMiniPulse{
+    0%,100%{transform:translate(-50%,18px) scale(1);}
+    50%{transform:translate(-50%,18px) scale(1.14);}
   }
 
   .dialog-backdrop{
@@ -3275,7 +3287,7 @@ function renderMyHand(){
 
   if (missionGTransferForMe && !shouldHideInDiscussion){
     const receivedCard = document.createElement('div');
-    receivedCard.className = 'mission-g-received-card';
+    receivedCard.className = 'mission-g-received-card nextplayercard turn-pulse';
     const cardData = missionGTransferForMe.card || {};
     if (missionGTransferForMe.face === 'back'){
       receivedCard.textContent = '';
@@ -3951,6 +3963,9 @@ function applyCardVisual(el, cardData, face = 'face'){
   const color = cardData?.color || 'white';
   if (face === 'back'){
     el.textContent = '';
+    el.style.background = '';
+    el.style.color = '';
+    el.style.border = '';
     el.classList.add(color === 'black' ? 'back-black' : 'back-white');
     return;
   }
@@ -3958,6 +3973,7 @@ function applyCardVisual(el, cardData, face = 'face'){
   el.style.background = color === 'black' ? '#0b1530' : '#fff';
   el.style.color = color === 'black' ? '#fff' : '#111';
   el.style.border = color === 'black' ? '1px solid #0b1530' : '1px solid #ddd';
+  el.style.fontWeight = '700';
 }
 
 function findDropRoom(clientX, clientY, cardData = activeDrag?.cardData){
@@ -4651,7 +4667,7 @@ function renderPlayerCircle(players){
     const missionGTransfer = getMissionGTransfer();
     if (missionGTransfer && missionGTransfer.recipientId === p.id && missionGTransfer.recipientId !== state.userId){
       const pendingMini = document.createElement('div');
-      pendingMini.className = 'mission-g-pending-mini';
+      pendingMini.className = 'mission-g-pending-mini nextplayercard turn-pulse';
       applyCardVisual(pendingMini, missionGTransfer.card || {}, missionGTransfer.face === 'back' ? 'back' : 'face');
       tag.appendChild(pendingMini);
     }
@@ -8115,6 +8131,22 @@ function getPlayedCardTargetClient(layout){
   };
 }
 
+function getNextPlayerCardSourceCenter(playerId){
+  const scopedSelector = `.player-tag[data-player-id="${playerId}"] .nextplayercard`;
+  const cardEl = playerCircle.querySelector(scopedSelector)
+    || document.querySelector('.mission-g-received-card.nextplayercard');
+  if (!cardEl) return null;
+  const rect = cardEl.getBoundingClientRect();
+  cardEl.style.visibility = 'hidden';
+  requestAnimationFrame(() => {
+    if (cardEl.isConnected) cardEl.style.visibility = '';
+  });
+  return {
+    x: rect.left + rect.width / 2,
+    y: rect.top + rect.height / 2
+  };
+}
+
 function getRemoteCardSourceCenter(playerId){
   const tag = playerCircle.querySelector(`.player-tag[data-player-id="${playerId}"]`);
   if (!tag) return null;
@@ -8143,7 +8175,9 @@ function animateRemotePlayedCards(entries){
   const layoutMap = getPlayedCardLayouts(playedList);
   const targetCardSize = getPlayedCardPixelSize();
   entries.forEach((entry) => {
-    const source = getRemoteCardSourceCenter(entry.playerId);
+    const source = entry.placedBy && entry.placedBy !== entry.playerId
+      ? (getNextPlayerCardSourceCenter(entry.placedBy) || getRemoteCardSourceCenter(entry.placedBy))
+      : getRemoteCardSourceCenter(entry.playerId);
     const target = layoutMap.get(entry.key);
     if (!source || !target){
       inFlightPlayedCardKeys.delete(entry.key);
