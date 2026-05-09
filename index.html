@@ -3309,11 +3309,13 @@ function renderMyHand(){
 
   if (missionGTransferForMe
     && !pendingMissionGTransferIds.has(missionGTransferForMe.id)
-    && !animatingMissionGReceiveIds.has(missionGTransferForMe.id)
     && !shouldHideInDiscussion
   ){
     const receivedCard = document.createElement('div');
     receivedCard.className = 'mission-g-received-card nextplayercard turn-pulse';
+    if (animatingMissionGReceiveIds.has(missionGTransferForMe.id)){
+      receivedCard.style.visibility = 'hidden';
+    }
     const cardData = missionGTransferForMe.card || {};
     if (missionGTransferForMe.face === 'back'){
       receivedCard.textContent = '';
@@ -8216,6 +8218,7 @@ function animateMissionGTransferReceive(transfer){
   }
   if (!targetEl){
     animatingMissionGReceiveIds.delete(transfer.id);
+    renderHands();
     return;
   }
   const source = getRemoteCardSourceCenter(transfer.ownerId);
@@ -8238,7 +8241,10 @@ function animateMissionGTransferReceive(transfer){
   requestAnimationFrame(() => {
     flyer.style.transform = `translate(${target.x - source.x}px, ${target.y - source.y}px) rotate(0deg)`;
   });
+  let didCleanup = false;
   const cleanup = () => {
+    if (didCleanup) return;
+    didCleanup = true;
     flyer.removeEventListener('transitionend', cleanup);
     flyer.remove();
     animatingMissionGReceiveIds.delete(transfer.id);
