@@ -3449,7 +3449,7 @@ function evaluateTenSeriesLastCardAscending(stage, roomCardsMap){
   }
 
   for (let i = 1; i < lastNums.length; i++){
-    if (lastNums[i] <= lastNums[i - 1]) return false;
+    if (lastNums[i] < lastNums[i - 1]) return false;
   }
   return true;
 }
@@ -9001,7 +9001,7 @@ function renderRoomConditionHints(mission = currentStage){
       });
     }
     if (typeof mission === 'string' && mission.startsWith('10-')){
-      appendHintTable('各部屋の一番最後にプレイされたカードが短針から昇順になっていなければならない。', 0, 48, {
+      appendHintTable('各部屋の一番最後にプレイされたカードが短針から昇順になっていなければならない。同じ値でもよい。', 0, 48, {
         maxCharsPerLine: 12,
         maxLines: 6,
         boxW: 124,
