@@ -490,8 +490,8 @@
   .my-card.dragging{opacity:.45;cursor:grabbing;}
   .mission-g-received-card{
     position:absolute;
-    left:-32px;
-    top:-36px;
+    left:-48px;
+    top:-52px;
     width:60px;height:90px;
     border-radius:8px;border:1px solid #ddd;background:#fff;
     display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:600;
@@ -1578,6 +1578,7 @@ let lastPlayedCardKeys = new Set();
 let lastSeenMissionGTransferId = '';
 let twoPlayerReservedCardIds = [];
 const inFlightPlayedCardKeys = new Set();
+const pendingMissionGTransferIds = new Set();
 const placingCardIds = new Set();
 let hasPlayedCardsSnapshot = false;
 let currentSubgearCount = 0;
@@ -2442,6 +2443,7 @@ function clearLocalAfterStageRuntime(){
   placedCardIds.clear();
   pendingPlacedCardIds.clear();
   inFlightPlayedCardKeys.clear();
+  pendingMissionGTransferIds.clear();
   placingCardIds.clear();
   lastSeenPhaseTicks = { discussion: 0, placement: 0, reveal: 0 };
   lastShownPhaseEventTs = 0;
@@ -3302,7 +3304,7 @@ function renderMyHand(){
     myHandEl.appendChild(card);
   });
 
-  if (missionGTransferForMe && !shouldHideInDiscussion){
+  if (missionGTransferForMe && !pendingMissionGTransferIds.has(missionGTransferForMe.id) && !shouldHideInDiscussion){
     const receivedCard = document.createElement('div');
     receivedCard.className = 'mission-g-received-card nextplayercard turn-pulse';
     const cardData = missionGTransferForMe.card || {};
@@ -4342,7 +4344,10 @@ bindChoiceButton(btnChoiceFace, 'face');
 bindChoiceButton(btnChoiceBack, 'back');
 
 function cleanupCardDragGhost(){
-  if (!activeDrag) return;
+  if (!activeDrag){
+    document.querySelectorAll('.drag-ghost-card').forEach((el) => el.remove());
+    return;
+  }
   const drag = activeDrag;
   activeDrag = null;
   drag.srcEl.classList.remove('dragging');
@@ -4479,16 +4484,24 @@ function startCardDrag(ev, cardData){
     window.removeEventListener('pointercancel', onUp);
     window.removeEventListener('blur', onAbort);
     if (dropPlayerId){
+      pendingPlacedCardIds.add(droppedCardData.id);
+      renderHands();
       try {
         const choice = await openCardChoice(droppedCardData);
         await createMissionGTransfer(droppedCardData, dropPlayerId, choice);
       } catch (err){
+        pendingPlacedCardIds.delete(droppedCardData.id);
+        renderHands();
         console.error('Gカード受け渡しに失敗しました', err);
       }
     } else if (dropRoom){
       if (placingCardIds.has(droppedCardData.id)) return;
       placingCardIds.add(droppedCardData.id);
-      if (!droppedCardData.missionGTransferId) pendingPlacedCardIds.add(droppedCardData.id);
+      if (droppedCardData.missionGTransferId){
+        pendingMissionGTransferIds.add(droppedCardData.missionGTransferId);
+      } else {
+        pendingPlacedCardIds.add(droppedCardData.id);
+      }
       renderHands();
       try {
         const choice = droppedCardData.missionGTransferId ? (droppedCardData.missionGFace || 'face') : await openCardChoice(droppedCardData);
@@ -4496,6 +4509,7 @@ function startCardDrag(ev, cardData){
       } catch (err){
         console.error('カード配置に失敗しました', err);
       } finally {
+        if (droppedCardData.missionGTransferId) pendingMissionGTransferIds.delete(droppedCardData.missionGTransferId);
         placingCardIds.delete(droppedCardData.id);
       }
     }
