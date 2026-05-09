@@ -357,8 +357,12 @@
     box-sizing:border-box;
   }
   .player-tag.nextplayercircle::before{
-    border-width:4px;
-    box-shadow:0 0 0 5px rgba(17,17,17,.12);
+    border:none;
+    background:rgba(147, 197, 253, 0.2);
+    box-shadow:none;
+  }
+  .player-tag.nextplayercircle.turn-pulse::before{
+    background:rgba(96, 165, 250, 0.34);
   }
   .mission-g-pending-mini{
     position:absolute;
@@ -486,8 +490,8 @@
   .my-card.dragging{opacity:.45;cursor:grabbing;}
   .mission-g-received-card{
     position:absolute;
-    right:0;
-    top:-70px;
+    left:0;
+    top:0;
     width:60px;height:90px;
     border-radius:8px;border:1px solid #ddd;background:#fff;
     display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:600;
