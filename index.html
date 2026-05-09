@@ -527,6 +527,9 @@
     transform-origin:50% 50%;
     will-change:transform;
   }
+  .mission-g-pending-mini.mission-g-circle-animating{
+    visibility:hidden;
+  }
   .my-card.reserve-slide-in{
     animation:reserveSlideIn .42s cubic-bezier(.22,.8,.25,1) both;
   }
@@ -1580,6 +1583,7 @@ let twoPlayerReservedCardIds = [];
 const inFlightPlayedCardKeys = new Set();
 const pendingMissionGTransferIds = new Set();
 const animatingMissionGReceiveIds = new Set();
+const animatingMissionGCircleIds = new Set();
 const placingCardIds = new Set();
 let hasPlayedCardsSnapshot = false;
 let currentSubgearCount = 0;
@@ -2446,6 +2450,7 @@ function clearLocalAfterStageRuntime(){
   inFlightPlayedCardKeys.clear();
   pendingMissionGTransferIds.clear();
   animatingMissionGReceiveIds.clear();
+  animatingMissionGCircleIds.clear();
   placingCardIds.clear();
   lastSeenPhaseTicks = { discussion: 0, placement: 0, reveal: 0 };
   lastShownPhaseEventTs = 0;
@@ -2533,10 +2538,15 @@ function subscribeRoom(){
     state.room = snap.val() || {};
     state.isHost = (state.room.hostId === state.userId);
     const missionGTransfer = getMissionGTransfer(state.room);
-    const shouldAnimateMissionGReceive = !!missionGTransfer
-      && missionGTransfer.id !== lastSeenMissionGTransferId
+    const shouldAnimateMissionGTransfer = !!missionGTransfer
+      && missionGTransfer.id !== lastSeenMissionGTransferId;
+    const shouldAnimateMissionGReceive = shouldAnimateMissionGTransfer
       && missionGTransfer.recipientId === state.userId;
+    const shouldAnimateMissionGCircle = shouldAnimateMissionGTransfer
+      && missionGTransfer.ownerId !== state.userId
+      && missionGTransfer.recipientId !== state.userId;
     if (shouldAnimateMissionGReceive) animatingMissionGReceiveIds.add(missionGTransfer.id);
+    if (shouldAnimateMissionGCircle) animatingMissionGCircleIds.add(missionGTransfer.id);
     lastSeenMissionGTransferId = missionGTransfer?.id || '';
     updateHostUI();
 
@@ -2548,6 +2558,9 @@ function subscribeRoom(){
     if (latestPlayers.length) renderPlayerCircle(latestPlayers);
     if (shouldAnimateMissionGReceive){
       requestAnimationFrame(() => animateMissionGTransferReceive(missionGTransfer));
+    }
+    if (shouldAnimateMissionGCircle){
+      requestAnimationFrame(() => animateMissionGTransferToPlayerCircle(missionGTransfer));
     }
   });
 }
@@ -4690,7 +4703,7 @@ function renderPlayerCircle(players){
     const tag = document.createElement('div');
     tag.className = 'player-tag' + (isMe ? ' me' : '');
     const missionGNextPlayerId = canSendMissionGCard() ? getMissionGNextPlayerId() : '';
-    if (!isMe && canSendMissionGCard()) tag.classList.add('mission-g-circle');
+    if (!isMe && p.id === missionGNextPlayerId) tag.classList.add('mission-g-circle');
     if (!isMe && p.id === missionGNextPlayerId){
       tag.classList.add('nextplayercircle');
       if (dragHoverPlayerId === p.id) tag.classList.add('turn-pulse');
@@ -4746,6 +4759,7 @@ function renderPlayerCircle(players){
     if (missionGTransfer && missionGTransfer.recipientId === p.id && missionGTransfer.recipientId !== state.userId){
       const pendingMini = document.createElement('div');
       pendingMini.className = 'mission-g-pending-mini nextplayercard turn-pulse';
+      if (animatingMissionGCircleIds.has(missionGTransfer.id)) pendingMini.classList.add('mission-g-circle-animating');
       applyCardVisual(pendingMini, missionGTransfer.card || {}, missionGTransfer.face === 'back' ? 'back' : 'face');
       tag.appendChild(pendingMini);
     }
@@ -8248,6 +8262,52 @@ function animateMissionGTransferReceive(transfer){
     flyer.removeEventListener('transitionend', cleanup);
     flyer.remove();
     animatingMissionGReceiveIds.delete(transfer.id);
+    if (targetEl.isConnected) targetEl.style.visibility = '';
+    renderHands();
+  };
+  flyer.addEventListener('transitionend', cleanup);
+  setTimeout(cleanup, 1100);
+}
+
+function animateMissionGTransferToPlayerCircle(transfer){
+  if (!transfer || transfer.recipientId === state.userId) return;
+  let targetEl = playerCircle.querySelector(`.player-tag[data-player-id="${transfer.recipientId}"] .mission-g-pending-mini.nextplayercard`);
+  if (!targetEl){
+    renderHands();
+    targetEl = playerCircle.querySelector(`.player-tag[data-player-id="${transfer.recipientId}"] .mission-g-pending-mini.nextplayercard`);
+  }
+  if (!targetEl){
+    animatingMissionGCircleIds.delete(transfer.id);
+    renderHands();
+    return;
+  }
+  const source = getRemoteCardSourceCenter(transfer.ownerId);
+  if (!source){
+    animatingMissionGCircleIds.delete(transfer.id);
+    renderHands();
+    return;
+  }
+  const targetRect = targetEl.getBoundingClientRect();
+  const target = {
+    x: targetRect.left + targetRect.width / 2,
+    y: targetRect.top + targetRect.height / 2
+  };
+  targetEl.style.visibility = 'hidden';
+  const flyer = buildFlyingCard({ ...(transfer.card || {}), face: transfer.face }, targetRect.width, targetRect.height);
+  flyer.style.left = `${source.x - targetRect.width / 2}px`;
+  flyer.style.top = `${source.y - targetRect.height / 2}px`;
+  flyer.style.transform = 'translate(0,0) rotate(0deg)';
+  document.body.appendChild(flyer);
+  requestAnimationFrame(() => {
+    flyer.style.transform = `translate(${target.x - source.x}px, ${target.y - source.y}px) rotate(0deg)`;
+  });
+  let didCleanup = false;
+  const cleanup = () => {
+    if (didCleanup) return;
+    didCleanup = true;
+    flyer.removeEventListener('transitionend', cleanup);
+    flyer.remove();
+    animatingMissionGCircleIds.delete(transfer.id);
     if (targetEl.isConnected) targetEl.style.visibility = '';
     renderHands();
   };
