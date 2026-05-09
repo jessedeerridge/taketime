@@ -1579,6 +1579,7 @@ let lastSeenMissionGTransferId = '';
 let twoPlayerReservedCardIds = [];
 const inFlightPlayedCardKeys = new Set();
 const pendingMissionGTransferIds = new Set();
+const animatingMissionGReceiveIds = new Set();
 const placingCardIds = new Set();
 let hasPlayedCardsSnapshot = false;
 let currentSubgearCount = 0;
@@ -2444,6 +2445,7 @@ function clearLocalAfterStageRuntime(){
   pendingPlacedCardIds.clear();
   inFlightPlayedCardKeys.clear();
   pendingMissionGTransferIds.clear();
+  animatingMissionGReceiveIds.clear();
   placingCardIds.clear();
   lastSeenPhaseTicks = { discussion: 0, placement: 0, reveal: 0 };
   lastShownPhaseEventTs = 0;
@@ -2534,6 +2536,7 @@ function subscribeRoom(){
     const shouldAnimateMissionGReceive = !!missionGTransfer
       && missionGTransfer.id !== lastSeenMissionGTransferId
       && missionGTransfer.recipientId === state.userId;
+    if (shouldAnimateMissionGReceive) animatingMissionGReceiveIds.add(missionGTransfer.id);
     lastSeenMissionGTransferId = missionGTransfer?.id || '';
     updateHostUI();
 
@@ -3304,7 +3307,11 @@ function renderMyHand(){
     myHandEl.appendChild(card);
   });
 
-  if (missionGTransferForMe && !pendingMissionGTransferIds.has(missionGTransferForMe.id) && !shouldHideInDiscussion){
+  if (missionGTransferForMe
+    && !pendingMissionGTransferIds.has(missionGTransferForMe.id)
+    && !animatingMissionGReceiveIds.has(missionGTransferForMe.id)
+    && !shouldHideInDiscussion
+  ){
     const receivedCard = document.createElement('div');
     receivedCard.className = 'mission-g-received-card nextplayercard turn-pulse';
     const cardData = missionGTransferForMe.card || {};
@@ -8202,19 +8209,27 @@ function getPlayedCardTargetClient(layout){
 
 function animateMissionGTransferReceive(transfer){
   if (!transfer || transfer.recipientId !== state.userId) return;
-  const targetEl = document.querySelector('.mission-g-received-card.nextplayercard');
-  if (!targetEl) return;
+  let targetEl = document.querySelector('.mission-g-received-card.nextplayercard');
+  if (!targetEl){
+    renderHands();
+    targetEl = document.querySelector('.mission-g-received-card.nextplayercard');
+  }
+  if (!targetEl){
+    animatingMissionGReceiveIds.delete(transfer.id);
+    return;
+  }
   const source = getRemoteCardSourceCenter(transfer.ownerId);
-  if (!source) return;
+  if (!source){
+    animatingMissionGReceiveIds.delete(transfer.id);
+    renderHands();
+    return;
+  }
   const targetRect = targetEl.getBoundingClientRect();
   const target = {
     x: targetRect.left + targetRect.width / 2,
     y: targetRect.top + targetRect.height / 2
   };
   targetEl.style.visibility = 'hidden';
-  requestAnimationFrame(() => {
-    if (targetEl.isConnected) targetEl.style.visibility = '';
-  });
   const flyer = buildFlyingCard({ ...(transfer.card || {}), face: transfer.face }, targetRect.width, targetRect.height);
   flyer.style.left = `${source.x - targetRect.width / 2}px`;
   flyer.style.top = `${source.y - targetRect.height / 2}px`;
@@ -8226,6 +8241,9 @@ function animateMissionGTransferReceive(transfer){
   const cleanup = () => {
     flyer.removeEventListener('transitionend', cleanup);
     flyer.remove();
+    animatingMissionGReceiveIds.delete(transfer.id);
+    if (targetEl.isConnected) targetEl.style.visibility = '';
+    renderHands();
   };
   flyer.addEventListener('transitionend', cleanup);
   setTimeout(cleanup, 1100);
