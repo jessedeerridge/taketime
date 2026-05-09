@@ -3268,15 +3268,27 @@ function getRoomCardsMap(entries = getPlayedEntriesSorted(), rotationDeg = board
   return map;
 }
 
+function getMissionECardValue(card, roomCards = [], toggles = missionCircleToggles){
+  const num = Number(card?.num || 0);
+  if (!isMissionCircleActive('e', toggles)) return num;
+  const cardsInRoom = Array.isArray(roomCards) ? roomCards : [];
+  if (cardsInRoom.length < 2) return num;
+  return [10, 11, 12].includes(num) ? num - 10 : num;
+}
+
+function getRoomCardValue(card, cards = []){
+  return getMissionECardValue(card, cards);
+}
+
 function getRoomResultValue(stage, cards = []){
   if (typeof stage === 'string' && stage.startsWith('6-')){
     if (!cards.length) return 0;
-    const nums = cards.map((card) => Number(card.num || 0));
+    const nums = cards.map((card) => getRoomCardValue(card, cards));
     const maxNum = Math.max(...nums);
     const minNum = Math.min(...nums);
     return maxNum - minNum;
   }
-  return cards.reduce((acc, card) => acc + Number(card.num || 0), 0);
+  return cards.reduce((acc, card) => acc + getRoomCardValue(card, cards), 0);
 }
 
 function getPlusMinusColorForRoom(stage, room){
@@ -3320,7 +3332,10 @@ function evaluatePlusMinusSuccess(stage, entries, roomCardsMap){
     if (domainCards.length < requiredCount) return false;
 
     const sortedNums = domainCards
-      .map((card) => Number(card.num || 0))
+      .map((card) => {
+        const room = getCardCurrentRoom(card);
+        return getMissionECardValue(card, roomCardsMap.get(room) || []);
+      })
       .sort((a, b) => a - b);
     const threshold = group.sign === '-'
       ? sortedNums[requiredCount - 1]
@@ -3330,7 +3345,7 @@ function evaluatePlusMinusSuccess(stage, entries, roomCardsMap){
       const roomCards = roomCardsMap.get(room) || [];
       const hasRequiredCard = roomCards.some((card) => {
         if (group.color && String(card.color || 'white') !== group.color) return false;
-        const num = Number(card.num || 0);
+        const num = getMissionECardValue(card, roomCards);
         return group.sign === '-' ? num <= threshold : num >= threshold;
       });
       if (!hasRequiredCard) return false;
@@ -3360,16 +3375,20 @@ function evaluateDualColorExtremePlusSuccess(stage, entries, roomCardsMap){
   const whiteCards = entries.filter((card) => String(card.color || 'white') === 'white');
   if (!blackCards.length || !whiteCards.length) return false;
 
-  const maxBlack = Math.max(...blackCards.map((card) => Number(card.num || 0)));
-  const minWhite = Math.min(...whiteCards.map((card) => Number(card.num || 0)));
+  const getAdjustedEntryValue = (card) => {
+    const room = getCardCurrentRoom(card);
+    return getMissionECardValue(card, roomCardsMap.get(room) || []);
+  };
+  const maxBlack = Math.max(...blackCards.map(getAdjustedEntryValue));
+  const minWhite = Math.min(...whiteCards.map(getAdjustedEntryValue));
 
   for (const room of rooms){
     const roomCards = roomCardsMap.get(Number(room)) || [];
     const hasMaxBlack = roomCards.some((card) =>
-      String(card.color || 'white') === 'black' && Number(card.num || 0) === maxBlack
+      String(card.color || 'white') === 'black' && getMissionECardValue(card, roomCards) === maxBlack
     );
     const hasMinWhite = roomCards.some((card) =>
-      String(card.color || 'white') === 'white' && Number(card.num || 0) === minWhite
+      String(card.color || 'white') === 'white' && getMissionECardValue(card, roomCards) === minWhite
     );
     if (!hasMaxBlack || !hasMinWhite) return false;
   }
@@ -3445,7 +3464,7 @@ function evaluateTenSeriesLastCardAscending(stage, roomCardsMap){
     const cards = roomCardsMap.get(room) || [];
     if (!cards.length) return false;
     const lastCard = cards[cards.length - 1];
-    lastNums.push(Number(lastCard?.num || 0));
+    lastNums.push(getMissionECardValue(lastCard, cards));
   }
 
   for (let i = 1; i < lastNums.length; i++){
