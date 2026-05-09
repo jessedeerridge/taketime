@@ -3456,6 +3456,14 @@ function evaluateWhitePizzaGapSuccess(stage, roomCardsMap){
   return true;
 }
 
+function evaluateMissionFSuccess(roomSums){
+  if (!isMissionCircleActive('f')) return true;
+  if (!Array.isArray(roomSums) || roomSums.length <= 1) return true;
+  const firstValue = Number(roomSums[0]?.sum || 0);
+  const lastValue = Number(roomSums[roomSums.length - 1]?.sum || 0);
+  return (lastValue - firstValue) <= 11;
+}
+
 function evaluateTenSeriesLastCardAscending(stage, roomCardsMap){
   if (!(typeof stage === 'string' && stage.startsWith('10-'))) return true;
 
@@ -3515,9 +3523,10 @@ function evaluatePlacementResult(stage, roomCardsMap){
   const twoBlackWhiteOk = evaluateTwoBlackWhiteRoomSuccess(stage, roomCardsMap);
   const dualColorExtremePlusOk = evaluateDualColorExtremePlusSuccess(stage, getPlayedEntriesSorted(), roomCardsMap);
   const whitePizzaGapOk = evaluateWhitePizzaGapSuccess(stage, roomCardsMap);
+  const missionFOk = evaluateMissionFSuccess(roomSums);
   const tenSeriesLastCardAscendingOk = evaluateTenSeriesLastCardAscending(stage, roomCardsMap);
 
-  return isAscending && conditionsOk && room6Ok && plusMinusOk && twoBlackWhiteOk && dualColorExtremePlusOk && whitePizzaGapOk && tenSeriesLastCardAscendingOk;
+  return isAscending && conditionsOk && room6Ok && plusMinusOk && twoBlackWhiteOk && dualColorExtremePlusOk && whitePizzaGapOk && missionFOk && tenSeriesLastCardAscendingOk;
 }
 
 function getOrderedRoomsWithCardsByRevealStart(roomCardsMap, stage = currentStage){
