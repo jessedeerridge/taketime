@@ -490,8 +490,8 @@
   .my-card.dragging{opacity:.45;cursor:grabbing;}
   .mission-g-received-card{
     position:absolute;
-    left:-16px;
-    top:-20px;
+    left:-32px;
+    top:-36px;
     width:60px;height:90px;
     border-radius:8px;border:1px solid #ddd;background:#fff;
     display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:600;
@@ -4341,6 +4341,19 @@ function bindChoiceButton(button, choice){
 bindChoiceButton(btnChoiceFace, 'face');
 bindChoiceButton(btnChoiceBack, 'back');
 
+function cleanupCardDragGhost(){
+  if (!activeDrag) return;
+  const drag = activeDrag;
+  activeDrag = null;
+  drag.srcEl.classList.remove('dragging');
+  drag.srcEl.style.visibility = '';
+  if (typeof drag.srcEl.releasePointerCapture === 'function'){
+    try { drag.srcEl.releasePointerCapture(drag.pointerId); } catch (_) {}
+  }
+  if (drag.ghost?.isConnected) drag.ghost.remove();
+  document.querySelectorAll('.drag-ghost-card').forEach((el) => el.remove());
+}
+
 window.addEventListener('keydown', (ev) => {
   if (!state.joined || !currentStage) return;
   if (ev.repeat) return;
@@ -4369,6 +4382,7 @@ function startCardDrag(ev, cardData){
   }
   const srcEl = ev.currentTarget;
   if (!(srcEl instanceof HTMLElement)) return;
+  document.querySelectorAll('.drag-ghost-card').forEach((el) => el.remove());
   const srcRect = srcEl.getBoundingClientRect();
 
   srcEl.setPointerCapture(ev.pointerId);
@@ -4376,8 +4390,10 @@ function startCardDrag(ev, cardData){
   srcEl.style.visibility = 'hidden';
 
   const ghost = srcEl.cloneNode(true);
+  ghost.classList.add('drag-ghost-card');
   ghost.classList.remove('dragging');
   ghost.classList.remove('turn-pulse');
+  ghost.classList.remove('nextplayercard');
   ghost.style.visibility = 'visible';
   ghost.style.position = 'fixed';
   ghost.style.left = '0';
@@ -4392,7 +4408,15 @@ function startCardDrag(ev, cardData){
   ghost.style.transition = 'none';
   document.body.appendChild(ghost);
 
-  activeDrag = { pointerId: ev.pointerId, srcEl, ghost, cardData, mode: isMissionGSend ? 'mission-g-send' : (isMissionGPlacement ? 'mission-g-place' : 'normal') };
+  activeDrag = {
+    pointerId: ev.pointerId,
+    srcEl,
+    ghost,
+    cardData,
+    mode: isMissionGSend ? 'mission-g-send' : (isMissionGPlacement ? 'mission-g-place' : 'normal'),
+    clientX: ev.clientX,
+    clientY: ev.clientY
+  };
   syncMyHandPulseDom();
   dragHoverRoom = activeDrag.mode === 'mission-g-send' ? null : findDropRoom(ev.clientX, ev.clientY);
   dragHoverPlayerId = activeDrag.mode === 'mission-g-send' ? findMissionGDropPlayer(ev.clientX, ev.clientY) : null;
@@ -4408,6 +4432,8 @@ function startCardDrag(ev, cardData){
 
   const onMove = (mv) => {
     if (!activeDrag || mv.pointerId !== activeDrag.pointerId) return;
+    activeDrag.clientX = mv.clientX;
+    activeDrag.clientY = mv.clientY;
     move(mv.clientX, mv.clientY);
     if (activeDrag.mode === 'mission-g-send'){
       const nextHoverPlayerId = findMissionGDropPlayer(mv.clientX, mv.clientY);
@@ -4423,16 +4449,26 @@ function startCardDrag(ev, cardData){
       }
     }
   };
+  const onAbort = () => {
+    cleanupCardDragGhost();
+    dragHoverRoom = null;
+    dragHoverPlayerId = null;
+    renderRoomGuideCircles();
+    if (latestPlayers.length) renderPlayerCircle(latestPlayers);
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', onUp);
+    window.removeEventListener('pointercancel', onUp);
+    window.removeEventListener('blur', onAbort);
+  };
   const onUp = async (up) => {
     if (!activeDrag || up.pointerId !== activeDrag.pointerId) return;
+    const clientX = Number.isFinite(up.clientX) ? up.clientX : activeDrag.clientX;
+    const clientY = Number.isFinite(up.clientY) ? up.clientY : activeDrag.clientY;
     const dragMode = activeDrag.mode;
-    const dropRoom = dragMode === 'mission-g-send' ? null : findDropRoom(up.clientX, up.clientY);
-    const dropPlayerId = dragMode === 'mission-g-send' ? findMissionGDropPlayer(up.clientX, up.clientY) : '';
+    const dropRoom = dragMode === 'mission-g-send' ? null : findDropRoom(clientX, clientY);
+    const dropPlayerId = dragMode === 'mission-g-send' ? findMissionGDropPlayer(clientX, clientY) : '';
     const droppedCardData = activeDrag.cardData;
-    activeDrag.srcEl.classList.remove('dragging');
-    activeDrag.srcEl.style.visibility = '';
-    activeDrag.ghost.remove();
-    activeDrag = null;
+    cleanupCardDragGhost();
     syncMyHandPulseDom();
     dragHoverRoom = null;
     dragHoverPlayerId = null;
@@ -4441,6 +4477,7 @@ function startCardDrag(ev, cardData){
     window.removeEventListener('pointermove', onMove);
     window.removeEventListener('pointerup', onUp);
     window.removeEventListener('pointercancel', onUp);
+    window.removeEventListener('blur', onAbort);
     if (dropPlayerId){
       try {
         const choice = await openCardChoice(droppedCardData);
@@ -4466,6 +4503,7 @@ function startCardDrag(ev, cardData){
   window.addEventListener('pointermove', onMove);
   window.addEventListener('pointerup', onUp);
   window.addEventListener('pointercancel', onUp);
+  window.addEventListener('blur', onAbort);
 }
 
 function renderHands(){
