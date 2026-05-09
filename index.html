@@ -650,7 +650,16 @@
     display:flex;flex-direction:column;gap:8px;
   }
   .start-pop{right:16px;bottom:72px;}
-  .stage-pop{right:66px;bottom:72px;min-width:220px;}
+  .stage-pop{
+    left:50%;
+    top:50%;
+    right:auto;
+    bottom:auto;
+    transform:translate(-50%,-50%);
+    width:min(calc(100vw - 24px), 760px);
+    max-width:calc(100vw - 24px);
+    box-sizing:border-box;
+  }
   .db-pop{right:16px;bottom:72px;min-width:300px;max-width:calc(100vw - 32px);}
   .start-pop.hidden,
   .stage-pop.hidden,
@@ -671,7 +680,12 @@
   .db-pop-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:4px;flex-wrap:wrap;}
   .start-pop-actions{flex-wrap:nowrap;align-items:center;}
   .start-pop-actions .btn{white-space:nowrap;}
-  .stage-option-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;max-height:48vh;overflow:auto;}
+  .stage-option-grid{
+    display:grid;
+    grid-template-columns:repeat(10,minmax(0,1fr));
+    gap:clamp(4px, 1vw, 10px);
+    overflow:visible;
+  }
   .db-pop-field{display:flex;flex-direction:column;gap:4px;}
   .db-pop-field label{font-size:12px;font-weight:700;}
   .db-pop-field input,
@@ -685,7 +699,17 @@
   .db-pop-status{min-height:18px;font-size:12px;font-weight:700;}
   .db-pop-status.ok{color:#15803d;}
   .db-pop-status.error{color:#b91c1c;}
-  .stage-option-btn{border-radius:50%;aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;padding:0;font-weight:700;}
+  .stage-option-btn{
+    border-radius:50%;
+    aspect-ratio:1/1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:0;
+    font-size:clamp(11px, 2.4vw, 16px);
+    font-weight:700;
+    min-width:0;
+  }
   .stage-option-btn.active{background:#111;color:#fff;border-color:#111;}
   .stage-option-btn.stage-option-x4{background:#0b1f4d;border-color:#0b1f4d;color:#fff;}
   .stage-option-btn.mission-completed{
@@ -1551,6 +1575,7 @@ const REVEAL_ROOM_INTERVAL_MS = 1200;
 const ROOM_TOTAL_DISPLAY_DELAY_MS = 1200;
 const RESULT_POP_DELAY_AFTER_ROOM6_TOTAL_MS = 2000;
 const NEXT_BUTTON_DELAY_AFTER_RESULT_MS = 2000;
+const STAGE_SELECTION_DELAY_AFTER_SUCCESS_MS = 3000;
 let currentStage = '';
 let missionCircleToggles = {};
 let missionCircleDrags = {};
@@ -1584,6 +1609,8 @@ let revealFlipRetryTimer = null;
 let revealResultAnnouncedKey = '';
 let roomTotalsRefreshTimer = null;
 let revealResultDelayTimer = null;
+let missionSuccessStageSelectionTimer = null;
+let missionSuccessStageSelectionKey = '';
 let lastAutoSortedHandSignature = '';
 let lastPlayedCardKeys = new Set();
 let lastSeenMissionGTransferId = '';
@@ -3122,16 +3149,22 @@ function subscribeStage(){
       clearTimeout(revealResultDelayTimer);
       revealResultDelayTimer = null;
     }
+    if (missionSuccessStageSelectionTimer){
+      clearTimeout(missionSuccessStageSelectionTimer);
+      missionSuccessStageSelectionTimer = null;
+    }
+    missionSuccessStageSelectionKey = '';
 
     renderStageOptions();
     window.dispatchEvent(new CustomEvent('mission:change', { detail:{ value: currentStage }}));
   });
 }
 
-async function setStageSelectionOpen(isOpen){
+async function setStageSelectionOpen(isOpen, { source = 'settings' } = {}){
   if (!state.roomCode) return;
   const payload = {
     open: !!isOpen,
+    source,
     ts: Date.now(),
     actorId: state.userId || ''
   };
@@ -3153,11 +3186,7 @@ function subscribeStageSelectionOpen(){
     isStageSelectionOpenByHost = openedByHost;
 
     if (openedByHost && state.joined){
-      stageSelectionSource = 'settings';
-      renderStageOptions();
-      startPop.classList.add('hidden');
-      dbPop.classList.add('hidden');
-      stagePop.classList.remove('hidden');
+      openStageSelectionPop(evt?.source === 'mission' ? 'mission' : 'settings');
       return;
     }
 
@@ -3838,6 +3867,7 @@ function maybeAnnounceRevealResult(){
     void recordMissionCompletionForPlayers(currentStage).catch((err) => {
       console.error('ミッション達成ステージの保存に失敗しました', err);
     });
+    scheduleMissionSuccessStageSelection({ stageCode: currentStage, revealTick });
   }
   void publishRevealResultNextAction({ stageCode: currentStage, success, revealTick });
   revealResultAnnouncedKey = phaseKey;
@@ -5155,9 +5185,42 @@ btnResetRoom.addEventListener('click', async () => {
 });
 
 /* ===== ステージ選択UI ===== */
+function getStageOptionDisplayCodes(){
+  const baseCodes = [];
+  for (let colIndex = 1; colIndex <= 4; colIndex += 1){
+    for (let rowIndex = 1; rowIndex <= 10; rowIndex += 1){
+      baseCodes.push(`${rowIndex}-${colIndex}`);
+    }
+  }
+  return state.isHost ? [...baseCodes, AFTER_STAGE_CODE] : baseCodes;
+}
+
+function openStageSelectionPop(source = 'settings'){
+  stageSelectionSource = source;
+  renderStageOptions();
+  startPop.classList.add('hidden');
+  dbPop.classList.add('hidden');
+  stagePop.classList.remove('hidden');
+}
+
+function scheduleMissionSuccessStageSelection({ stageCode, revealTick }){
+  const key = `${stageCode}:${revealTick}`;
+  if (missionSuccessStageSelectionKey === key) return;
+  missionSuccessStageSelectionKey = key;
+  if (missionSuccessStageSelectionTimer){
+    clearTimeout(missionSuccessStageSelectionTimer);
+  }
+  missionSuccessStageSelectionTimer = setTimeout(() => {
+    missionSuccessStageSelectionTimer = null;
+    if (!state.joined || currentStage !== stageCode) return;
+    openStageSelectionPop('mission');
+    if (state.isHost) void setStageSelectionOpen(true, { source: 'mission' });
+  }, STAGE_SELECTION_DELAY_AFTER_SUCCESS_MS);
+}
+
 function renderStageOptions(){
   stageOptionGrid.innerHTML = '';
-  const optionCodes = state.isHost ? STAGE_CODES_WITH_AFTER : STAGE_CODES;
+  const optionCodes = getStageOptionDisplayCodes();
   optionCodes.forEach(code => {
     const btn = document.createElement('button');
     const isX4 = /-4$/.test(code);
@@ -5229,12 +5292,8 @@ async function setStage(code, { retryFailureCount = null, preserveMissionCircleT
 }
 
 btnOpenStagePop.addEventListener('click', () => {
-  stageSelectionSource = 'settings';
-  renderStageOptions();
-  startPop.classList.add('hidden');
-  dbPop.classList.add('hidden');
-  stagePop.classList.remove('hidden');
-  if (state.isHost) void setStageSelectionOpen(true);
+  openStageSelectionPop('settings');
+  if (state.isHost) void setStageSelectionOpen(true, { source: 'settings' });
 });
 missionUnselected?.addEventListener('click', (e) => {
   if (Date.now() < suppressMissionCircleClickUntil){
@@ -5246,11 +5305,8 @@ missionUnselected?.addEventListener('click', (e) => {
   if (!btn) return;
   const key = btn.getAttribute('data-mission-circle');
   if (key === 'a'){
-    stageSelectionSource = 'mission';
-    renderStageOptions();
-    startPop.classList.add('hidden');
-    stagePop.classList.remove('hidden');
-    if (state.isHost) void setStageSelectionOpen(true);
+    openStageSelectionPop('mission');
+    if (state.isHost) void setStageSelectionOpen(true, { source: 'mission' });
     return;
   }
   if (/^[c-h]$/.test(key || '') && missionCircleToggles[key]){
