@@ -661,6 +661,7 @@
   .stage-pop-header,
   .db-pop-header{display:flex;justify-content:space-between;align-items:center;gap:8px;}
   .stage-pop-header{justify-content:center;}
+  .stage-pop.stage-pop-after .stage-pop-header{display:none;}
   .stage-pop-header #btnStagePopClose{position:absolute;top:10px;right:12px;}
   .start-pop-title,
   .stage-pop-title,
@@ -5189,8 +5190,8 @@ btnResetRoom.addEventListener('click', async () => {
 function getStageOptionDisplayCodes(){
   const baseCodes = [];
   for (let rowPairIndex = 0; rowPairIndex < 5; rowPairIndex += 1){
-    const leftStageNumber = rowPairIndex * 2 + 1;
-    const rightStageNumber = leftStageNumber + 1;
+    const leftStageNumber = rowPairIndex + 1;
+    const rightStageNumber = leftStageNumber + 5;
     for (let colIndex = 1; colIndex <= 4; colIndex += 1){
       baseCodes.push(`${leftStageNumber}-${colIndex}`);
     }
@@ -5211,6 +5212,8 @@ function positionStageOptionButton(btn, index){
 
 function openStageSelectionPop(source = 'settings'){
   stageSelectionSource = source;
+  const isAfterMissionStagePop = currentStage === AFTER_STAGE_CODE && source === 'mission';
+  stagePop.classList.toggle('stage-pop-after', isAfterMissionStagePop);
   renderStageOptions();
   startPop.classList.add('hidden');
   dbPop.classList.add('hidden');
@@ -5331,7 +5334,7 @@ missionCircleButtons.forEach(btn => {
   }
 });
 btnStagePopClose.addEventListener('click', () => {
-  if (currentStage === AFTER_STAGE_CODE && state.joined){
+  if (stagePop.classList.contains('stage-pop-after')){
     openStageSelectionPop('mission');
     return;
   }
