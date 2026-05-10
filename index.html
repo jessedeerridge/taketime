@@ -223,7 +223,7 @@
   }
   .mission-unselected{position:absolute;inset:0;z-index:260;display:flex;align-items:center;justify-content:center;pointer-events:none;}
   .mission-unselected.hidden{display:none;}
-  .mission-circle-layout{width:min(92vw,480px);display:flex;flex-direction:column;gap:24px;align-items:center;pointer-events:auto;}
+  .mission-circle-layout{width:min(92vw,480px);display:flex;flex-direction:column;gap:24px;align-items:center;pointer-events:auto;transform:translateY(-36px);}
   .mission-circle-row{display:flex;gap:24px;justify-content:center;}
   .mission-circle-btn{position:relative;overflow:hidden;width:93px;height:93px;border-radius:50%;border:2px solid #111;background:rgba(255,255,255,.92);color:#111;font-size:27px;font-weight:700;cursor:pointer;background-size:contain;background-position:center;background-repeat:no-repeat;}
   .mission-circle-btn[data-mission-circle="a"]{
@@ -651,13 +651,14 @@
   }
   .start-pop{right:16px;bottom:72px;}
   .stage-pop{
-    --stage-option-gap:clamp(4px, .7vh, 8px);
+    --stage-option-gap:clamp(4px, 1vw, 10px);
+    --stage-option-center-gap:clamp(28px, 10vw, 96px);
     left:50%;
-    top:50%;
+    top:auto;
     right:auto;
-    bottom:auto;
-    transform:translate(-50%,-50%);
-    width:min(calc(100vw - 24px), 420px, 32vh);
+    bottom:16px;
+    transform:translateX(-50%);
+    width:min(calc(100vw - 24px), 760px);
     max-width:calc(100vw - 24px);
     box-sizing:border-box;
   }
@@ -683,7 +684,7 @@
   .start-pop-actions .btn{white-space:nowrap;}
   .stage-option-grid{
     display:grid;
-    grid-template-columns:repeat(4,minmax(0,1fr));
+    grid-template-columns:repeat(4,minmax(0,1fr)) var(--stage-option-center-gap) repeat(4,minmax(0,1fr));
     gap:var(--stage-option-gap);
     overflow:visible;
   }
@@ -712,6 +713,13 @@
     min-width:0;
   }
   .stage-option-btn.active{background:#111;color:#fff;border-color:#111;}
+  .stage-option-btn.stage-option-after{
+    grid-column:4 / 7;
+    grid-row:6;
+    aspect-ratio:auto;
+    min-height:32px;
+    border-radius:999px;
+  }
   .stage-option-btn.stage-option-x4{background:#0b1f4d;border-color:#0b1f4d;color:#fff;}
   .stage-option-btn.mission-completed{
     border:3px solid #111;
@@ -3103,7 +3111,7 @@ function subscribeStage(){
     const sharedStageRaw = snap.val();
     const sharedStage = STAGE_CODES_WITH_AFTER.includes(sharedStageRaw) ? sharedStageRaw : '';
     if (sharedStage){
-      stagePop.classList.add('hidden');
+      if (sharedStage !== AFTER_STAGE_CODE) stagePop.classList.add('hidden');
       startPop.classList.add('hidden');
       dbPop.classList.add('hidden');
     }
@@ -3193,6 +3201,10 @@ function subscribeStageSelectionOpen(){
 
     if (!evt?.open){
       isStageSelectionOpenByHost = false;
+      if (currentStage === AFTER_STAGE_CODE && state.joined){
+        openStageSelectionPop('mission');
+        return;
+      }
       stagePop.classList.add('hidden');
       if (!state.isHost) startPop.classList.add('hidden');
     }
@@ -3206,7 +3218,7 @@ function subscribeStageSelectionEvents(){
     const ts = Number(evt?.ts || 0);
     if (!ts || ts <= lastSeenStageSelectionTs) return;
     lastSeenStageSelectionTs = ts;
-    stagePop.classList.add('hidden');
+    if (evt?.stage !== AFTER_STAGE_CODE) stagePop.classList.add('hidden');
     startPop.classList.add('hidden');
     dbPop.classList.add('hidden');
     if (state.isHost && evt?.stage && evt.stage === currentStage){
@@ -5188,12 +5200,25 @@ btnResetRoom.addEventListener('click', async () => {
 /* ===== ステージ選択UI ===== */
 function getStageOptionDisplayCodes(){
   const baseCodes = [];
-  for (let rowIndex = 1; rowIndex <= 10; rowIndex += 1){
+  for (let rowPairIndex = 0; rowPairIndex < 5; rowPairIndex += 1){
+    const leftStageNumber = rowPairIndex * 2 + 1;
+    const rightStageNumber = leftStageNumber + 1;
     for (let colIndex = 1; colIndex <= 4; colIndex += 1){
-      baseCodes.push(`${rowIndex}-${colIndex}`);
+      baseCodes.push(`${leftStageNumber}-${colIndex}`);
+    }
+    for (let colIndex = 1; colIndex <= 4; colIndex += 1){
+      baseCodes.push(`${rightStageNumber}-${colIndex}`);
     }
   }
   return state.isHost ? [...baseCodes, AFTER_STAGE_CODE] : baseCodes;
+}
+
+function positionStageOptionButton(btn, index){
+  if (index >= 40) return;
+  const rowIndex = Math.floor(index / 8) + 1;
+  const columnIndex = (index % 8) + 1;
+  btn.style.gridRow = String(rowIndex);
+  btn.style.gridColumn = String(columnIndex <= 4 ? columnIndex : columnIndex + 1);
 }
 
 function openStageSelectionPop(source = 'settings'){
@@ -5222,7 +5247,7 @@ function scheduleMissionSuccessStageSelection({ stageCode, revealTick }){
 function renderStageOptions(){
   stageOptionGrid.innerHTML = '';
   const optionCodes = getStageOptionDisplayCodes();
-  optionCodes.forEach(code => {
+  optionCodes.forEach((code, index) => {
     const btn = document.createElement('button');
     const isX4 = /-4$/.test(code);
     const isCompletedMission = isMissionCompletedByMe(code);
@@ -5231,10 +5256,12 @@ function renderStageOptions(){
     btn.className = 'btn stage-option-btn'
       + (code === currentStage ? ' active' : '')
       + (isX4 ? ' stage-option-x4' : '')
+      + (code === AFTER_STAGE_CODE ? ' stage-option-after' : '')
       + (isCompletedMission ? ' mission-completed' : '')
       + (isIncompleteMission ? ' mission-incomplete' : '')
       + (isMissionHDisabled ? ' mission-h-disabled' : '');
     btn.textContent = code;
+    positionStageOptionButton(btn, index);
     if (isMissionHDisabled){
       btn.disabled = true;
       btn.setAttribute('aria-disabled', 'true');
@@ -5244,7 +5271,7 @@ function renderStageOptions(){
         const preserveMissionCircleToggles = stageSelectionSource === 'mission' || getActiveMissionCircleKeys().length > 0;
         currentStage = code;
         renderStageOptions();
-        stagePop.classList.add('hidden');
+        if (code !== AFTER_STAGE_CODE) stagePop.classList.add('hidden');
         stageSelectionSource = 'settings';
         void setStage(code, { preserveMissionCircleToggles });
       });
@@ -5321,6 +5348,10 @@ missionCircleButtons.forEach(btn => {
   }
 });
 btnStagePopClose.addEventListener('click', () => {
+  if (currentStage === AFTER_STAGE_CODE && state.joined){
+    openStageSelectionPop('mission');
+    return;
+  }
   stagePop.classList.add('hidden');
   if (state.isHost){
     dbPop.classList.add('hidden');
@@ -9671,6 +9702,9 @@ function redrawAll(m){
   if (missionUnselected){
     missionUnselected.classList.toggle('hidden', !showMissionButtons);
     if (showMissionButtons) syncMissionCircleButtons();
+  }
+  if (showMissionButtons){
+    openStageSelectionPop('mission');
   }
   renderMissionStageSelectedButtons();
   renderMissionStageHintTables();
