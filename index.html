@@ -223,7 +223,7 @@
   }
   .mission-unselected{position:absolute;inset:0;z-index:260;display:flex;align-items:center;justify-content:center;pointer-events:none;}
   .mission-unselected.hidden{display:none;}
-  .mission-circle-layout{width:min(92vw,480px);display:flex;flex-direction:column;gap:24px;align-items:center;pointer-events:auto;transform:translateY(-48px);}
+  .mission-circle-layout{width:min(92vw,480px);display:flex;flex-direction:column;gap:24px;align-items:center;pointer-events:auto;}
   .mission-circle-row{display:flex;gap:24px;justify-content:center;}
   .mission-circle-btn{position:relative;overflow:hidden;width:93px;height:93px;border-radius:50%;border:2px solid #111;background:rgba(255,255,255,.92);color:#111;font-size:27px;font-weight:700;cursor:pointer;background-size:contain;background-position:center;background-repeat:no-repeat;}
   .mission-circle-btn[data-mission-circle="c"],
@@ -674,12 +674,33 @@
   .db-pop-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:4px;flex-wrap:wrap;}
   .start-pop-actions{flex-wrap:nowrap;align-items:center;}
   .start-pop-actions .btn{white-space:nowrap;}
+  .stage-pop-body{position:relative;}
   .stage-option-grid{
     display:grid;
     grid-template-columns:repeat(4,minmax(0,1fr)) var(--stage-option-center-gap) repeat(4,minmax(0,1fr));
     gap:var(--stage-option-gap);
     overflow:visible;
   }
+  .stage-pop .mission-unselected{
+    position:absolute;
+    inset:auto;
+    left:50%;
+    top:50%;
+    transform:translate(-50%,-50%);
+    z-index:1;
+    pointer-events:none;
+  }
+  .stage-pop .mission-circle-layout{
+    width:auto;
+    gap:8px;
+    padding:8px 10px;
+    border:1px solid #ddd;
+    border-radius:14px;
+    background:rgba(255,255,255,.96);
+    box-shadow:0 8px 20px rgba(0,0,0,.14);
+  }
+  .stage-pop .mission-circle-row{gap:8px;}
+  .stage-pop .mission-circle-btn{width:54px;height:54px;}
   .db-pop-field{display:flex;flex-direction:column;gap:4px;}
   .db-pop-field label{font-size:12px;font-weight:700;}
   .db-pop-field input,
@@ -1335,20 +1356,6 @@
         <g id="roomTotals" style="pointer-events:none"></g>
         <g id="rotationHandles" transform="translate(150,150)"></g>
       </svg>
-      <div id="missionUnselected" class="mission-unselected hidden" aria-label="ミッション未選択ボタン">
-        <div class="mission-circle-layout">
-          <div class="mission-circle-row">
-            <button type="button" class="mission-circle-btn" data-mission-circle="c" aria-label="C" aria-pressed="false">c</button>
-            <button type="button" class="mission-circle-btn" data-mission-circle="d" aria-label="D" aria-pressed="false">d</button>
-            <button type="button" class="mission-circle-btn" data-mission-circle="e" aria-label="E" aria-pressed="false">e</button>
-          </div>
-          <div class="mission-circle-row">
-            <button type="button" class="mission-circle-btn" data-mission-circle="f" aria-label="F" aria-pressed="false">f</button>
-            <button type="button" class="mission-circle-btn" data-mission-circle="g" aria-label="G" aria-pressed="false">g</button>
-            <button type="button" class="mission-circle-btn" data-mission-circle="h" aria-label="H" aria-pressed="false">h</button>
-          </div>
-        </div>
-      </div>
     </div>
   </div>
 
@@ -1422,7 +1429,23 @@
   <div class="stage-pop-header">
     <button id="btnStagePopClose" class="btn ghost" style="padding:2px 6px;font-size:12px;">×</button>
   </div>
-  <div class="stage-option-grid" id="stageOptionGrid"></div>
+  <div class="stage-pop-body">
+    <div class="stage-option-grid" id="stageOptionGrid"></div>
+    <div id="missionUnselected" class="mission-unselected hidden" aria-label="ミッション未選択ボタン">
+      <div class="mission-circle-layout">
+        <div class="mission-circle-row">
+          <button type="button" class="mission-circle-btn" data-mission-circle="c" aria-label="C" aria-pressed="false">c</button>
+          <button type="button" class="mission-circle-btn" data-mission-circle="d" aria-label="D" aria-pressed="false">d</button>
+          <button type="button" class="mission-circle-btn" data-mission-circle="e" aria-label="E" aria-pressed="false">e</button>
+        </div>
+        <div class="mission-circle-row">
+          <button type="button" class="mission-circle-btn" data-mission-circle="f" aria-label="F" aria-pressed="false">f</button>
+          <button type="button" class="mission-circle-btn" data-mission-circle="g" aria-label="G" aria-pressed="false">g</button>
+          <button type="button" class="mission-circle-btn" data-mission-circle="h" aria-label="H" aria-pressed="false">h</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div id="dbPop" class="db-pop hidden">
@@ -3111,6 +3134,7 @@ function subscribeStage(){
         syncHostStageReadyButton();
         renderHands();
       }
+      ensureAfterStageSelectionVisible();
       return;
     }
 
@@ -3190,10 +3214,7 @@ function subscribeStageSelectionOpen(){
 
     if (!evt?.open){
       isStageSelectionOpenByHost = false;
-      if (currentStage === AFTER_STAGE_CODE && state.joined){
-        openStageSelectionPop('mission');
-        return;
-      }
+      if (ensureAfterStageSelectionVisible()) return;
       stagePop.classList.add('hidden');
       if (!state.isHost) startPop.classList.add('hidden');
     }
@@ -5218,6 +5239,15 @@ function openStageSelectionPop(source = 'settings'){
   startPop.classList.add('hidden');
   dbPop.classList.add('hidden');
   stagePop.classList.remove('hidden');
+}
+
+
+function ensureAfterStageSelectionVisible(){
+  if (state.joined && currentStage === AFTER_STAGE_CODE){
+    openStageSelectionPop('mission');
+    return true;
+  }
+  return false;
 }
 
 function scheduleMissionSuccessStageSelection({ stageCode, revealTick }){
@@ -9690,7 +9720,7 @@ function redrawAll(m){
     if (showMissionButtons) syncMissionCircleButtons();
   }
   if (showMissionButtons){
-    openStageSelectionPop('mission');
+    ensureAfterStageSelectionVisible();
   }
   renderMissionStageSelectedButtons();
   renderMissionStageHintTables();
