@@ -243,7 +243,7 @@
   .mission-circle-btn[data-mission-circle="f"],
   .mission-circle-btn[data-mission-circle="g"],
   .mission-circle-btn[data-mission-circle="h"]{
-    touch-action:none;
+    touch-action:manipulation;
   }
   .mission-circle-btn.mission-circle-on[data-mission-circle="c"],
   .mission-circle-btn.mission-circle-on[data-mission-circle="d"],
@@ -252,21 +252,6 @@
   .mission-circle-btn.mission-circle-on[data-mission-circle="g"],
   .mission-circle-btn.mission-circle-on[data-mission-circle="h"]{
     opacity:.38;
-  }
-  .mission-circle-btn.mission-circle-dragging-source{
-    visibility:hidden;
-  }
-  .mission-circle-drag-ghost{
-    position:fixed;
-    left:0;
-    top:0;
-    margin:0;
-    z-index:520;
-    pointer-events:none;
-    opacity:.92;
-    box-shadow:0 12px 28px rgba(0,0,0,.22);
-    transition:none;
-    will-change:transform;
   }
   .mission-circle-btn[data-mission-circle="c"]{background-image:url('c.png');}
   .mission-circle-btn[data-mission-circle="d"]{background-image:url('d.png');}
@@ -1576,10 +1561,6 @@ const NEXT_BUTTON_DELAY_AFTER_RESULT_MS = 2000;
 const STAGE_SELECTION_DELAY_AFTER_SUCCESS_MS = 3000;
 let currentStage = '';
 let missionCircleToggles = {};
-let missionCircleDrags = {};
-let activeMissionCircleDrag = null;
-let suppressMissionCircleClickUntil = 0;
-const remoteMissionCircleDragGhosts = new Map();
 let myCompletedMissionSelectionsByStage = new Map();
 let stageSelectionSource = 'settings';
 
@@ -2830,7 +2811,6 @@ function syncMissionCircleButtons(){
     btn.classList.toggle('mission-circle-on', isOn);
     if (isToggleButton) btn.setAttribute('aria-pressed', isOn ? 'true' : 'false');
   });
-  syncMissionCircleDragSources();
   renderMissionStageSelectedButtons();
   renderMissionStageHintTables();
 }
@@ -2884,214 +2864,10 @@ function subscribeMyMissionCompletions(){
   });
 }
 
-async function setMissionCircleSelected(key, isSelected){
-  if (!state.roomCode || !/^[c-h]$/.test(key || '')) return;
-  const toggleRef = ref(db, `rooms/${state.roomCode}/missionCircleToggles/${key}`);
-  if (isSelected){
-    await set(toggleRef, true);
-  } else {
-    await remove(toggleRef);
-  }
-}
-
 async function toggleMissionCircle(key){
   if (!state.roomCode || !/^[c-h]$/.test(key || '')) return;
   const toggleRef = ref(db, `rooms/${state.roomCode}/missionCircleToggles/${key}`);
   await runTransaction(toggleRef, current => !current);
-}
-
-function getMissionCircleDragRef(){
-  if (!state.roomCode || !state.userId) return null;
-  return ref(db, `rooms/${state.roomCode}/missionCircleDrags/${state.userId}`);
-}
-
-function getMissionCircleDropTarget(){
-  return null;
-}
-
-function isPointInsideElement(x, y, el){
-  if (!el) return false;
-  const rect = el.getBoundingClientRect();
-  return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
-}
-
-function isPointInsideMissionSelectButton(x, y){
-  return isPointInsideElement(x, y, getMissionCircleDropTarget());
-}
-
-function getActiveMissionCircleDragKeys(){
-  const keys = new Set();
-  if (activeMissionCircleDrag?.key) keys.add(activeMissionCircleDrag.key);
-  const now = Date.now();
-  Object.entries(missionCircleDrags || {}).forEach(([actorId, drag]) => {
-    if (actorId === state.userId) return;
-    const key = String(drag?.key || '').toLowerCase();
-    const ts = Number(drag?.ts || 0);
-    if (/^[c-h]$/.test(key) && (!ts || now - ts < 15000)) keys.add(key);
-  });
-  return keys;
-}
-
-function makeMissionCircleGhost(sourceButton, { remote = false } = {}){
-  const rect = sourceButton.getBoundingClientRect();
-  const ghost = sourceButton.cloneNode(true);
-  ghost.classList.remove('mission-circle-dragging-source');
-  ghost.classList.add('mission-circle-drag-ghost');
-  ghost.style.width = `${rect.width}px`;
-  ghost.style.height = `${rect.height}px`;
-  ghost.style.opacity = remote ? '0.82' : '0.92';
-  ghost.setAttribute('aria-hidden', 'true');
-  document.body.appendChild(ghost);
-  return { ghost, width: rect.width, height: rect.height };
-}
-
-function positionMissionCircleGhost(ghost, x, y, width, height){
-  ghost.style.transform = `translate(${x - width / 2}px, ${y - height / 2}px)`;
-}
-
-function removeRemoteMissionCircleGhost(actorId){
-  const entry = remoteMissionCircleDragGhosts.get(actorId);
-  if (!entry) return;
-  entry.ghost.remove();
-  remoteMissionCircleDragGhosts.delete(actorId);
-}
-
-function getRemoteMissionCircleGhost(actorId, key, width, height){
-  const current = remoteMissionCircleDragGhosts.get(actorId);
-  if (current?.key === key){
-    current.width = width;
-    current.height = height;
-    current.ghost.style.width = `${width}px`;
-    current.ghost.style.height = `${height}px`;
-    return current;
-  }
-  removeRemoteMissionCircleGhost(actorId);
-  const src = missionUnselected?.querySelector(`[data-mission-circle="${key}"]`);
-  if (!(src instanceof HTMLElement)) return null;
-  const { ghost } = makeMissionCircleGhost(src, { remote: true });
-  ghost.dataset.remoteMissionDrag = 'true';
-  ghost.style.transition = 'transform 90ms linear';
-  const next = { key, ghost, width, height };
-  remoteMissionCircleDragGhosts.set(actorId, next);
-  return next;
-}
-
-function renderRemoteMissionCircleDrags(){
-  const now = Date.now();
-  const activeActorIds = new Set();
-  Object.entries(missionCircleDrags || {}).forEach(([actorId, drag]) => {
-    if (actorId === state.userId) return;
-    const key = String(drag?.key || '').toLowerCase();
-    const x = Number(drag?.x);
-    const y = Number(drag?.y);
-    const width = Math.max(1, Number(drag?.w) || 93);
-    const height = Math.max(1, Number(drag?.h) || 93);
-    const ts = Number(drag?.ts || 0);
-    if (!/^[c-h]$/.test(key) || !Number.isFinite(x) || !Number.isFinite(y)) return;
-    if (ts && now - ts >= 15000) return;
-    const entry = getRemoteMissionCircleGhost(actorId, key, width, height);
-    if (!entry) return;
-    activeActorIds.add(actorId);
-    positionMissionCircleGhost(entry.ghost, x, y, entry.width, entry.height);
-  });
-  Array.from(remoteMissionCircleDragGhosts.keys()).forEach(actorId => {
-    if (!activeActorIds.has(actorId)) removeRemoteMissionCircleGhost(actorId);
-  });
-}
-
-function syncMissionCircleDragSources(){
-  const dragKeys = getActiveMissionCircleDragKeys();
-  missionCircleButtons.forEach(btn => {
-    const key = btn.getAttribute('data-mission-circle');
-    btn.classList.toggle('mission-circle-dragging-source', /^[c-h]$/.test(key || '') && dragKeys.has(key));
-  });
-}
-
-function syncMissionCircleDragUi(){
-  syncMissionCircleDragSources();
-  renderRemoteMissionCircleDrags();
-}
-
-function subscribeMissionCircleDrags(){
-  const dragsRef = ref(db, `rooms/${state.roomCode}/missionCircleDrags`);
-  onValue(dragsRef, snap => {
-    missionCircleDrags = snap.val() || {};
-    syncMissionCircleDragUi();
-  });
-  const ownDragRef = getMissionCircleDragRef();
-  if (ownDragRef) onDisconnect(ownDragRef).remove();
-}
-
-function writeMissionCircleDrag(key, x, y, width, height){
-  const dragRef = getMissionCircleDragRef();
-  if (!dragRef) return;
-  void set(dragRef, {
-    key,
-    x,
-    y,
-    w: Math.round(width),
-    h: Math.round(height),
-    actorId: state.userId || '',
-    actorName: state.userName || '',
-    ts: Date.now()
-  });
-}
-
-function clearMissionCircleDrag(){
-  const dragRef = getMissionCircleDragRef();
-  if (dragRef) void remove(dragRef);
-}
-
-function startMissionCircleDrag(ev){
-  const srcEl = ev.currentTarget;
-  if (!(srcEl instanceof HTMLElement)) return;
-  const key = String(srcEl.getAttribute('data-mission-circle') || '').toLowerCase();
-  if (!/^[c-h]$/.test(key) || activeMissionCircleDrag || missionCircleToggles[key]) return;
-  ev.preventDefault();
-  const rect = srcEl.getBoundingClientRect();
-  const startX = ev.clientX;
-  const startY = ev.clientY;
-  srcEl.setPointerCapture(ev.pointerId);
-  const { ghost, width, height } = makeMissionCircleGhost(srcEl);
-  activeMissionCircleDrag = { pointerId: ev.pointerId, key, srcEl, ghost, width, height };
-  syncMissionCircleDragSources();
-  const move = (x, y) => {
-    positionMissionCircleGhost(ghost, x, y, width, height);
-    writeMissionCircleDrag(key, x, y, width, height);
-  };
-  move(ev.clientX, ev.clientY);
-
-  const onMove = (mv) => {
-    if (!activeMissionCircleDrag || mv.pointerId !== activeMissionCircleDrag.pointerId) return;
-    move(mv.clientX, mv.clientY);
-  };
-  const onUp = async (up) => {
-    if (!activeMissionCircleDrag || up.pointerId !== activeMissionCircleDrag.pointerId) return;
-    const droppedKey = activeMissionCircleDrag.key;
-    const movedDistance = Math.hypot(up.clientX - startX, up.clientY - startY);
-    const isClickRelease = movedDistance <= 4;
-    const shouldSelect = up.type !== 'pointercancel' && !isClickRelease && isPointInsideMissionSelectButton(up.clientX, up.clientY);
-    if (shouldSelect || !isClickRelease){
-      suppressMissionCircleClickUntil = Date.now() + 350;
-    }
-    activeMissionCircleDrag.ghost.remove();
-    activeMissionCircleDrag = null;
-    clearMissionCircleDrag();
-    syncMissionCircleDragSources();
-    window.removeEventListener('pointermove', onMove);
-    window.removeEventListener('pointerup', onUp);
-    window.removeEventListener('pointercancel', onUp);
-    if (shouldSelect){
-      try {
-        await setMissionCircleSelected(droppedKey, true);
-      } catch (err){
-        console.error('ミッション選択に失敗しました', err);
-      }
-    }
-  };
-  window.addEventListener('pointermove', onMove);
-  window.addEventListener('pointerup', onUp);
-  window.addEventListener('pointercancel', onUp);
 }
 
 function subscribeStage(){
@@ -3111,12 +2887,14 @@ function subscribeStage(){
         syncHostStageReadyButton();
         renderHands();
       }
+      keepAfterStageSelectionVisibleForGuest();
       return;
     }
 
     currentStage = sharedStage;
     if (currentStage === AFTER_STAGE_CODE){
       clearLocalAfterStageRuntime();
+      keepAfterStageSelectionVisibleForGuest();
     }
     lastAutoSortedHandSignature = '';
     resetBoardAndNeedleRotations();
@@ -4899,7 +4677,6 @@ btnJoin.addEventListener('click', async () => {
     subscribePhaseEvents();
     subscribeSubgearCount();
     subscribeMissionCircleToggles();
-    subscribeMissionCircleDrags();
     subscribeMyMissionCompletions();
     subscribeNextAction();
     subscribeBoardRotation();
@@ -5220,6 +4997,12 @@ function openStageSelectionPop(source = 'settings'){
   stagePop.classList.remove('hidden');
 }
 
+function keepAfterStageSelectionVisibleForGuest(){
+  if (state.joined && !state.isHost && currentStage === AFTER_STAGE_CODE){
+    openStageSelectionPop('mission');
+  }
+}
+
 function scheduleMissionSuccessStageSelection({ stageCode, revealTick }){
   const key = `${stageCode}:${revealTick}`;
   if (missionSuccessStageSelectionKey === key) return;
@@ -5315,22 +5098,11 @@ btnOpenStagePop.addEventListener('click', () => {
   if (state.isHost) void setStageSelectionOpen(true, { source: 'settings' });
 });
 missionUnselected?.addEventListener('click', (e) => {
-  if (Date.now() < suppressMissionCircleClickUntil){
-    e.preventDefault();
-    e.stopPropagation();
-    return;
-  }
   const btn = e.target.closest('[data-mission-circle]');
   if (!btn) return;
   const key = btn.getAttribute('data-mission-circle');
   if (/^[c-h]$/.test(key || '')){
     void toggleMissionCircle(key);
-  }
-});
-missionCircleButtons.forEach(btn => {
-  const key = btn.getAttribute('data-mission-circle');
-  if (/^[c-h]$/.test(key || '')){
-    btn.addEventListener('pointerdown', startMissionCircleDrag);
   }
 });
 btnStagePopClose.addEventListener('click', () => {
