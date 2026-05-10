@@ -2184,6 +2184,10 @@ function shouldOpenGuestStageSelectionForUnselectedMission(){
   return state.joined && !state.isHost && !currentStage && !shouldShowAfterForUnselectedMission();
 }
 
+function shouldKeepUnselectedMissionStageSelectionVisible(){
+  return shouldShowAfterForUnselectedMission() || shouldOpenGuestStageSelectionForUnselectedMission();
+}
+
 function shouldDimMissionStage(stageCode){
   if (!STAGE_CODES.includes(stageCode)) return false;
   if (isMissionCompletedByMe(stageCode)) return false;
@@ -2317,7 +2321,7 @@ function updateHostUI(){
   } else {
     hostSettingsBtn.classList.remove('visible');
     startPop.classList.add('hidden');
-    if (!isStageSelectionOpenByHost){
+    if (!isStageSelectionOpenByHost && !shouldKeepUnselectedMissionStageSelectionVisible()){
       stagePop.classList.add('hidden');
     }
     dbPop.classList.add('hidden');
@@ -5018,15 +5022,9 @@ function openStageSelectionPop(source = 'settings'){
 }
 
 function syncUnselectedMissionStageSelection(){
-  if (shouldShowAfterForUnselectedMission()){
-    openStageSelectionPop('mission');
-    return true;
-  }
-  if (shouldOpenGuestStageSelectionForUnselectedMission()){
-    openStageSelectionPop('settings');
-    return true;
-  }
-  return false;
+  if (!shouldKeepUnselectedMissionStageSelectionVisible()) return false;
+  openStageSelectionPop(shouldShowAfterForUnselectedMission() ? 'mission' : 'settings');
+  return true;
 }
 
 function keepAfterStageSelectionVisibleForGuest(){
