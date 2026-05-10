@@ -223,18 +223,9 @@
   }
   .mission-unselected{position:absolute;inset:0;z-index:260;display:flex;align-items:center;justify-content:center;pointer-events:none;}
   .mission-unselected.hidden{display:none;}
-  .mission-circle-layout{width:min(92vw,480px);display:flex;flex-direction:column;gap:24px;align-items:center;pointer-events:auto;transform:translateY(-36px);}
+  .mission-circle-layout{width:min(92vw,480px);display:flex;flex-direction:column;gap:24px;align-items:center;pointer-events:auto;transform:translateY(-48px);}
   .mission-circle-row{display:flex;gap:24px;justify-content:center;}
   .mission-circle-btn{position:relative;overflow:hidden;width:93px;height:93px;border-radius:50%;border:2px solid #111;background:rgba(255,255,255,.92);color:#111;font-size:27px;font-weight:700;cursor:pointer;background-size:contain;background-position:center;background-repeat:no-repeat;}
-  .mission-circle-btn[data-mission-circle="a"]{
-    overflow:visible;
-    border:none;
-    border-radius:0;
-    background-color:transparent;
-    background-image:url('whitecircle.png');
-    color:transparent;
-    font-size:0;
-  }
   .mission-circle-btn[data-mission-circle="c"],
   .mission-circle-btn[data-mission-circle="d"],
   .mission-circle-btn[data-mission-circle="e"],
@@ -1345,9 +1336,6 @@
       </svg>
       <div id="missionUnselected" class="mission-unselected hidden" aria-label="ミッション未選択ボタン">
         <div class="mission-circle-layout">
-          <div class="mission-circle-row">
-            <button type="button" class="mission-circle-btn" data-mission-circle="a" aria-label="S">S</button>
-          </div>
           <div class="mission-circle-row">
             <button type="button" class="mission-circle-btn" data-mission-circle="c" aria-label="C" aria-pressed="false">c</button>
             <button type="button" class="mission-circle-btn" data-mission-circle="d" aria-label="D" aria-pressed="false">d</button>
@@ -2917,7 +2905,7 @@ function getMissionCircleDragRef(){
 }
 
 function getMissionCircleDropTarget(){
-  return missionUnselected?.querySelector('[data-mission-circle="a"]') || null;
+  return null;
 }
 
 function isPointInsideElement(x, y, el){
@@ -5332,13 +5320,8 @@ missionUnselected?.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-mission-circle]');
   if (!btn) return;
   const key = btn.getAttribute('data-mission-circle');
-  if (key === 'a'){
-    openStageSelectionPop('mission');
-    if (state.isHost) void setStageSelectionOpen(true, { source: 'mission' });
-    return;
-  }
-  if (/^[c-h]$/.test(key || '') && missionCircleToggles[key]){
-    void setMissionCircleSelected(key, false);
+  if (/^[c-h]$/.test(key || '')){
+    void toggleMissionCircle(key);
   }
 });
 missionCircleButtons.forEach(btn => {
