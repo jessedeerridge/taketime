@@ -651,12 +651,13 @@
   }
   .start-pop{right:16px;bottom:72px;}
   .stage-pop{
+    --stage-option-gap:clamp(4px, .7vh, 8px);
     left:50%;
     top:50%;
     right:auto;
     bottom:auto;
     transform:translate(-50%,-50%);
-    width:min(calc(100vw - 24px), 760px);
+    width:min(calc(100vw - 24px), 420px, 32vh);
     max-width:calc(100vw - 24px);
     box-sizing:border-box;
   }
@@ -682,8 +683,8 @@
   .start-pop-actions .btn{white-space:nowrap;}
   .stage-option-grid{
     display:grid;
-    grid-template-columns:repeat(10,minmax(0,1fr));
-    gap:clamp(4px, 1vw, 10px);
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:var(--stage-option-gap);
     overflow:visible;
   }
   .db-pop-field{display:flex;flex-direction:column;gap:4px;}
@@ -5187,8 +5188,8 @@ btnResetRoom.addEventListener('click', async () => {
 /* ===== ステージ選択UI ===== */
 function getStageOptionDisplayCodes(){
   const baseCodes = [];
-  for (let colIndex = 1; colIndex <= 4; colIndex += 1){
-    for (let rowIndex = 1; rowIndex <= 10; rowIndex += 1){
+  for (let rowIndex = 1; rowIndex <= 10; rowIndex += 1){
+    for (let colIndex = 1; colIndex <= 4; colIndex += 1){
       baseCodes.push(`${rowIndex}-${colIndex}`);
     }
   }
