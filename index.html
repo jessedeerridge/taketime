@@ -2168,6 +2168,22 @@ function getNextSequentialMissionStage(){
   return STAGE_CODES[completedPrefixCount] || '';
 }
 
+function hasClearedFinalMission(){
+  return isMissionCompletedByMe('10-4');
+}
+
+function shouldShowAfterForUnselectedMission(){
+  return state.joined && !currentStage && hasClearedFinalMission();
+}
+
+function getDisplayStageCode(){
+  return shouldShowAfterForUnselectedMission() ? AFTER_STAGE_CODE : currentStage;
+}
+
+function shouldOpenGuestStageSelectionForUnselectedMission(){
+  return state.joined && !state.isHost && !currentStage && !shouldShowAfterForUnselectedMission();
+}
+
 function shouldDimMissionStage(stageCode){
   if (!STAGE_CODES.includes(stageCode)) return false;
   if (isMissionCompletedByMe(stageCode)) return false;
@@ -2861,6 +2877,8 @@ function subscribeMyMissionCompletions(){
 
     myCompletedMissionSelectionsByStage = nextCompletionMap;
     renderStageOptions();
+    redrawAll(currentStage);
+    syncUnselectedMissionStageSelection();
   });
 }
 
@@ -2888,6 +2906,7 @@ function subscribeStage(){
         renderHands();
       }
       keepAfterStageSelectionVisibleForGuest();
+      syncUnselectedMissionStageSelection();
       return;
     }
 
@@ -2968,7 +2987,8 @@ function subscribeStageSelectionOpen(){
 
     if (!evt?.open){
       isStageSelectionOpenByHost = false;
-      if (currentStage === AFTER_STAGE_CODE && state.joined){
+      if (syncUnselectedMissionStageSelection()) return;
+      if (getDisplayStageCode() === AFTER_STAGE_CODE && state.joined){
         openStageSelectionPop('mission');
         return;
       }
@@ -4989,7 +5009,7 @@ function positionStageOptionButton(btn, index){
 
 function openStageSelectionPop(source = 'settings'){
   stageSelectionSource = source;
-  const isAfterMissionStagePop = currentStage === AFTER_STAGE_CODE && source === 'mission';
+  const isAfterMissionStagePop = getDisplayStageCode() === AFTER_STAGE_CODE && source === 'mission';
   stagePop.classList.toggle('stage-pop-after', isAfterMissionStagePop);
   renderStageOptions();
   startPop.classList.add('hidden');
@@ -4997,8 +5017,20 @@ function openStageSelectionPop(source = 'settings'){
   stagePop.classList.remove('hidden');
 }
 
+function syncUnselectedMissionStageSelection(){
+  if (shouldShowAfterForUnselectedMission()){
+    openStageSelectionPop('mission');
+    return true;
+  }
+  if (shouldOpenGuestStageSelectionForUnselectedMission()){
+    openStageSelectionPop('settings');
+    return true;
+  }
+  return false;
+}
+
 function keepAfterStageSelectionVisibleForGuest(){
-  if (state.joined && !state.isHost && currentStage === AFTER_STAGE_CODE){
+  if (state.joined && !state.isHost && getDisplayStageCode() === AFTER_STAGE_CODE){
     openStageSelectionPop('mission');
   }
 }
@@ -9452,10 +9484,11 @@ function renderRoomConditionHints(mission = currentStage){
 
 function redrawAll(m){
   if (typeof m === 'string') currentStage = m;
-  const hasStage = STAGE_CODES.includes(currentStage);
-  const renderStage = hasStage ? currentStage : '';
+  const displayStage = getDisplayStageCode();
+  const hasStage = STAGE_CODES.includes(displayStage);
+  const renderStage = hasStage ? displayStage : '';
   stageSvg.style.visibility = hasStage ? 'visible' : 'hidden';
-  const showMissionButtons = state.joined && currentStage === AFTER_STAGE_CODE;
+  const showMissionButtons = state.joined && displayStage === AFTER_STAGE_CODE;
   document.body.classList.toggle('mission-buttons-visible', showMissionButtons);
   if (missionUnselected){
     missionUnselected.classList.toggle('hidden', !showMissionButtons);
@@ -9463,6 +9496,8 @@ function redrawAll(m){
   }
   if (showMissionButtons){
     openStageSelectionPop('mission');
+  } else {
+    syncUnselectedMissionStageSelection();
   }
   renderMissionStageSelectedButtons();
   renderMissionStageHintTables();
