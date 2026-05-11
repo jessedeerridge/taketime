@@ -3974,11 +3974,9 @@ async function placeDroppedCard(cardData, room, face = 'face'){
       }
 
       if (!isMissionGPlacement) myHand.splice(removeIndex, 1);
-      const boardRotInTx = Number(roomData.boardRotation?.deg ?? boardRotationDeg);
       const blockedRoomsInTx = getGreenneedleBlockedRoomsFromDeg(
         Number(roomData.greenneedleRotation?.deg ?? greenHandRotationDeg),
-        stageCode,
-        boardRotInTx
+        stageCode
       );
       if (blockedRoomsInTx && blockedRoomsInTx.has(Number(room))) return;
       if (isBDeckRoomForMission(stageCode, room)){
@@ -4047,7 +4045,12 @@ async function placeDroppedCard(cardData, room, face = 'face'){
       throw new Error('カード配置トランザクションがコミットされませんでした');
     }
     if (isGreenneedleActiveForMission(currentStage)){
-      applyGreenHandRotation(normalizeDeg(greenHandRotationDeg + greenneedle.stepDeg), { animate: true, useShortestPath: true });
+      const committedRoomData = txResult.snapshot?.val?.();
+      const committedGreenneedleDeg = Number(committedRoomData?.greenneedleRotation?.deg);
+      const nextGreenneedleDeg = Number.isFinite(committedGreenneedleDeg)
+        ? committedGreenneedleDeg
+        : normalizeDeg(greenHandRotationDeg + greenneedle.stepDeg);
+      applyGreenHandRotation(nextGreenneedleDeg, { animate: true, useShortestPath: true });
     }
     placedCardIds.add(cardData.id);
   } catch (err){
@@ -5222,20 +5225,16 @@ function getNearestGreenSnapDeg(deg){
   return normalizeDeg(best);
 }
 
-function getGreenneedleBlockedRooms(stage = currentStage){
+function getGreenneedleBlockedRoomsFromDeg(deg, stage = currentStage){
   if (!isGreenneedleActiveForMission(stage)) return null;
-  const logicalDeg = normalizeDeg(greenHandRotationDeg - boardRotationDeg + 90);
+  const logicalDeg = normalizeDeg(Number(deg || 0) + 90);
   const idxA = ((Math.floor(logicalDeg / 60) % 6) + 6) % 6;
   const idxB = (idxA + 3) % 6;
   return new Set([idxA + 1, idxB + 1]);
 }
 
-function getGreenneedleBlockedRoomsFromDeg(deg, stage = currentStage, boardRot = boardRotationDeg){
-  if (!isGreenneedleActiveForMission(stage)) return null;
-  const logicalDeg = normalizeDeg(deg - boardRot + 90);
-  const idxA = ((Math.floor(logicalDeg / 60) % 6) + 6) % 6;
-  const idxB = (idxA + 3) % 6;
-  return new Set([idxA + 1, idxB + 1]);
+function getGreenneedleBlockedRooms(stage = currentStage){
+  return getGreenneedleBlockedRoomsFromDeg(greenHandRotationDeg, stage);
 }
 
 function publishGreenneedleRotation(deg, { isFinal = false, force = false } = {}){
