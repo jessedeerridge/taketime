@@ -5222,18 +5222,21 @@ function getNearestGreenSnapDeg(deg){
   return normalizeDeg(best);
 }
 
+function getGreenneedlePointedRoomIndex(deg){
+  const endpointDeg = normalizeDeg(deg + 90);
+  return ((Math.floor(endpointDeg / 60) % 6) + 6) % 6;
+}
+
 function getGreenneedleBlockedRooms(stage = currentStage){
   if (!isGreenneedleActiveForMission(stage)) return null;
-  const logicalDeg = normalizeDeg(greenHandRotationDeg - boardRotationDeg + 90);
-  const idxA = ((Math.floor(logicalDeg / 60) % 6) + 6) % 6;
+  const idxA = getGreenneedlePointedRoomIndex(greenHandRotationDeg);
   const idxB = (idxA + 3) % 6;
   return new Set([idxA + 1, idxB + 1]);
 }
 
-function getGreenneedleBlockedRoomsFromDeg(deg, stage = currentStage, boardRot = boardRotationDeg){
+function getGreenneedleBlockedRoomsFromDeg(deg, stage = currentStage){
   if (!isGreenneedleActiveForMission(stage)) return null;
-  const logicalDeg = normalizeDeg(deg - boardRot + 90);
-  const idxA = ((Math.floor(logicalDeg / 60) % 6) + 6) % 6;
+  const idxA = getGreenneedlePointedRoomIndex(deg);
   const idxB = (idxA + 3) % 6;
   return new Set([idxA + 1, idxB + 1]);
 }
