@@ -646,7 +646,8 @@
   .stage-pop-header,
   .db-pop-header{display:flex;justify-content:space-between;align-items:center;gap:8px;}
   .stage-pop-header{justify-content:center;}
-  .stage-pop.stage-pop-after .stage-pop-header{display:none;}
+  .stage-pop.stage-pop-after .stage-pop-header,
+  .stage-pop.stage-pop-unselected-mission .stage-pop-header{display:none;}
   .stage-pop-header #btnStagePopClose{position:absolute;top:10px;right:12px;}
   .start-pop-title,
   .stage-pop-title,
@@ -2184,8 +2185,14 @@ function shouldOpenGuestStageSelectionForUnselectedMission(){
   return state.joined && !state.isHost && !currentStage && !shouldShowAfterForUnselectedMission();
 }
 
+function shouldShowGuestAfterStageSelection(){
+  return state.joined && !state.isHost && currentStage === AFTER_STAGE_CODE;
+}
+
 function shouldKeepUnselectedMissionStageSelectionVisible(){
-  return shouldShowAfterForUnselectedMission() || shouldOpenGuestStageSelectionForUnselectedMission();
+  return shouldShowAfterForUnselectedMission()
+    || shouldOpenGuestStageSelectionForUnselectedMission()
+    || shouldShowGuestAfterStageSelection();
 }
 
 function shouldDimMissionStage(stageCode){
@@ -5016,8 +5023,10 @@ function positionStageOptionButton(btn, index){
 
 function openStageSelectionPop(source = 'settings'){
   stageSelectionSource = source;
-  const isAfterMissionStagePop = getDisplayStageCode() === AFTER_STAGE_CODE && source === 'mission';
+  const isAfterMissionStagePop = getDisplayStageCode() === AFTER_STAGE_CODE && (source === 'mission' || !state.isHost);
+  const isUnselectedMissionStagePop = shouldOpenGuestStageSelectionForUnselectedMission();
   stagePop.classList.toggle('stage-pop-after', isAfterMissionStagePop);
+  stagePop.classList.toggle('stage-pop-unselected-mission', isUnselectedMissionStagePop);
   renderStageOptions();
   startPop.classList.add('hidden');
   dbPop.classList.add('hidden');
@@ -5031,7 +5040,7 @@ function syncUnselectedMissionStageSelection(){
 }
 
 function keepAfterStageSelectionVisibleForGuest(){
-  if (state.joined && !state.isHost && getDisplayStageCode() === AFTER_STAGE_CODE){
+  if (shouldShowGuestAfterStageSelection()){
     openStageSelectionPop('mission');
   }
 }
