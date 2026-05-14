@@ -5023,7 +5023,7 @@ function positionStageOptionButton(btn, index){
 
 function openStageSelectionPop(source = 'settings'){
   stageSelectionSource = source;
-  const isAfterMissionStagePop = getDisplayStageCode() === AFTER_STAGE_CODE && source === 'mission';
+  const isAfterMissionStagePop = getDisplayStageCode() === AFTER_STAGE_CODE && (source === 'mission' || !state.isHost);
   const isUnselectedMissionStagePop = shouldOpenGuestStageSelectionForUnselectedMission();
   stagePop.classList.toggle('stage-pop-after', isAfterMissionStagePop);
   stagePop.classList.toggle('stage-pop-unselected-mission', isUnselectedMissionStagePop);
