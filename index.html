@@ -7884,6 +7884,40 @@ function renderRoomCards(mission = currentStage){
     appendBrowncardsRequirement(5, 2);
   }
   if (mission === '9-1') {
+    const appendShortHand = (cx, cy, baseDeg, handLen) => {
+      const shortHandDeg = baseDeg + 10;
+      const tip = {
+        x: cx + polar(handLen, shortHandDeg).x,
+        y: cy + polar(handLen, shortHandDeg).y
+      };
+      const grad = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+      const gradId = `shortHandGrad-${mission}-${Math.random().toString(36).slice(2, 9)}`;
+      grad.setAttribute('id', gradId);
+      grad.setAttribute('gradientUnits', 'userSpaceOnUse');
+      grad.setAttribute('x1', cx.toFixed(2));
+      grad.setAttribute('y1', cy.toFixed(2));
+      grad.setAttribute('x2', tip.x.toFixed(2));
+      grad.setAttribute('y2', tip.y.toFixed(2));
+      const stop0 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+      stop0.setAttribute('offset', '0%');
+      stop0.setAttribute('stop-color', '#000000');
+      grad.appendChild(stop0);
+      const stop1 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+      stop1.setAttribute('offset', '100%');
+      stop1.setAttribute('stop-color', '#d4af37');
+      grad.appendChild(stop1);
+      defs.appendChild(grad);
+
+      const shortHand = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      shortHand.setAttribute('x1', cx.toFixed(2));
+      shortHand.setAttribute('y1', cy.toFixed(2));
+      shortHand.setAttribute('x2', tip.x.toFixed(2));
+      shortHand.setAttribute('y2', tip.y.toFixed(2));
+      shortHand.setAttribute('stroke', `url(#${gradId})`);
+      shortHand.setAttribute('stroke-width', '2.8');
+      shortHand.setAttribute('stroke-linecap', 'round');
+      g.appendChild(shortHand);
+    };
     appendPlusMinusCards(4, { sign: '+' });
   }
   if (mission === '9-3') {
@@ -8483,6 +8517,39 @@ function renderRoomTexts(mission){
       }
     });
   }
+  const appendMissionShortHand = (cx, cy, baseDeg, handLen) => {
+    const shortHandDeg = baseDeg + 10;
+    const tip = {
+      x: cx + polar(handLen, shortHandDeg).x,
+      y: cy + polar(handLen, shortHandDeg).y
+    };
+    const grad = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+    const gradId = `shortHandGrad-${mission}-${Math.random().toString(36).slice(2, 9)}`;
+    grad.setAttribute('id', gradId);
+    grad.setAttribute('gradientUnits', 'userSpaceOnUse');
+    grad.setAttribute('x1', cx.toFixed(2));
+    grad.setAttribute('y1', cy.toFixed(2));
+    grad.setAttribute('x2', tip.x.toFixed(2));
+    grad.setAttribute('y2', tip.y.toFixed(2));
+    const stop0 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+    stop0.setAttribute('offset', '0%');
+    stop0.setAttribute('stop-color', '#000000');
+    grad.appendChild(stop0);
+    const stop1 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+    stop1.setAttribute('offset', '100%');
+    stop1.setAttribute('stop-color', '#d4af37');
+    grad.appendChild(stop1);
+    defs.appendChild(grad);
+    const shortHand = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    shortHand.setAttribute('x1', cx.toFixed(2));
+    shortHand.setAttribute('y1', cy.toFixed(2));
+    shortHand.setAttribute('x2', tip.x.toFixed(2));
+    shortHand.setAttribute('y2', tip.y.toFixed(2));
+    shortHand.setAttribute('stroke', `url(#${gradId})`);
+    shortHand.setAttribute('stroke-width', '2.8');
+    shortHand.setAttribute('stroke-linecap', 'round');
+    g.appendChild(shortHand);
+  };
   if (mission === '9-1') {
     const whitepizza = {
       betweenDeg: 180,
@@ -8535,6 +8602,7 @@ function renderRoomTexts(mission){
     innerCircle.setAttribute('fill', '#ebc39f');
     innerCircle.setAttribute('stroke', 'none');
     g.appendChild(innerCircle);
+    appendMissionShortHand(innerCircleCenter.x, innerCircleCenter.y, betweenDeg, innerCircleR * 1.55);
     const whitepizzanumber = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     whitepizzanumber.textContent = '6';
     whitepizzanumber.setAttribute('x', innerCircleCenter.x.toFixed(2));
@@ -8643,6 +8711,7 @@ function renderRoomTexts(mission){
       innerCircle.setAttribute('fill', '#ebc39f');
       innerCircle.setAttribute('stroke', 'none');
       g.appendChild(innerCircle);
+      appendMissionShortHand(innerCircleCenter.x, innerCircleCenter.y, betweenDeg, innerCircleR * 1.55);
 
       const whitepizzanumber = document.createElementNS('http://www.w3.org/2000/svg', 'text');
       whitepizzanumber.textContent = '2';
@@ -8753,6 +8822,7 @@ function renderRoomTexts(mission){
       innerCircle.setAttribute('fill', '#ebc39f');
       innerCircle.setAttribute('stroke', 'none');
       g.appendChild(innerCircle);
+      appendMissionShortHand(innerCircleCenter.x, innerCircleCenter.y, betweenDeg, innerCircleR * 1.55);
 
       const whitepizzaequal = document.createElementNS('http://www.w3.org/2000/svg', 'text');
       const equalTextOffset = polar(1, betweenDeg + 180);
@@ -8829,6 +8899,7 @@ function renderRoomTexts(mission){
     centerCircle.setAttribute('fill', '#ebc39f');
     centerCircle.setAttribute('stroke', 'none');
     g.appendChild(centerCircle);
+    appendMissionShortHand(0, 0, 0, centerCircleR * 1.65);
 
     const centerText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     centerText.textContent = '4';
