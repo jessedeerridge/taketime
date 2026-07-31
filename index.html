@@ -9564,6 +9564,12 @@ function redrawAll(m){
   renderInnerTinyDiv();
   renderCenterTopDiamond();
   if (centerTopLineG && centerTopDiamondG){
+    const showCenterShape = hasStage;
+    centerTopLineG.style.display = showCenterShape ? '' : 'none';
+    centerTopDiamondG.style.display = showCenterShape ? '' : 'none';
+    if (!showCenterShape){
+      while (centerTopDiamondG.firstChild) centerTopDiamondG.removeChild(centerTopDiamondG.firstChild);
+    }
     if (centerTopLineG.nextSibling !== centerTopDiamondG){
       stageSvg.insertBefore(centerTopLineG, centerTopDiamondG);
     }
