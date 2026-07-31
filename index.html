@@ -7883,6 +7883,47 @@ function renderRoomCards(mission = currentStage){
     appendBrowncardsRequirement(1, 1);
     appendBrowncardsRequirement(5, 2);
   }
+
+  const addMissionShortHand = ({ center, angleDeg }) => {
+    const svgRoot = g.ownerSVGElement || g;
+    let defs = svgRoot.querySelector('defs');
+    if (!defs){
+      defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+      svgRoot.insertBefore(defs, svgRoot.firstChild);
+    }
+    const gradId = 'missionShortHandGrad';
+    let grad = defs.querySelector(`#${gradId}`);
+    if (!grad){
+      grad = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+      grad.setAttribute('id', gradId);
+      grad.setAttribute('x1', '0%');
+      grad.setAttribute('y1', '100%');
+      grad.setAttribute('x2', '0%');
+      grad.setAttribute('y2', '0%');
+      const stopInner = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+      stopInner.setAttribute('offset', '0%');
+      stopInner.setAttribute('stop-color', '#111111');
+      const stopOuter = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+      stopOuter.setAttribute('offset', '100%');
+      stopOuter.setAttribute('stop-color', '#d4af37');
+      grad.append(stopInner, stopOuter);
+      defs.appendChild(grad);
+    }
+    const tip = {
+      x: center.x + polar(Math.max(4.6, rBg * 1.05), angleDeg).x,
+      y: center.y + polar(Math.max(4.6, rBg * 1.05), angleDeg).y
+    };
+    const hand = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    hand.setAttribute('x1', center.x.toFixed(2));
+    hand.setAttribute('y1', center.y.toFixed(2));
+    hand.setAttribute('x2', tip.x.toFixed(2));
+    hand.setAttribute('y2', tip.y.toFixed(2));
+    hand.setAttribute('stroke', `url(#${gradId})`);
+    hand.setAttribute('stroke-width', '2.8');
+    hand.setAttribute('stroke-linecap', 'round');
+    g.appendChild(hand);
+  };
+
   if (mission === '9-1') {
     appendPlusMinusCards(4, { sign: '+' });
   }
@@ -8589,6 +8630,7 @@ function renderRoomTexts(mission){
 
     addArrowHead(arrowArcStart, betweenDeg + 130);
     addArrowHead(arrowArcEnd, betweenDeg + 55);
+    addMissionShortHand({ center: innerCircleCenter, angleDeg: 10 });
   }
   if (mission === '9-2') {
     const whitepizza = {
@@ -8699,6 +8741,7 @@ function renderRoomTexts(mission){
 
       addArrowHead(arrowArcStart, betweenDeg + 130);
       addArrowHead(arrowArcEnd, betweenDeg + 55);
+      addMissionShortHand({ center: innerCircleCenter, angleDeg: 10 });
     });
   }
   if (mission === '9-3') {
@@ -8810,6 +8853,7 @@ function renderRoomTexts(mission){
 
       addArrowHead(arrowArcStart, betweenDeg + 130);
       addArrowHead(arrowArcEnd, betweenDeg + 55);
+      addMissionShortHand({ center: innerCircleCenter, angleDeg: 10 });
     });
   }
   if (mission === '9-4') {
@@ -8887,6 +8931,7 @@ function renderRoomTexts(mission){
     const arcEndHeadAdjustDeg = centerArrowTuning.endHeadAdjustDeg;
     addArrowHeadFromPrev(arcStart, arcStartPrev, arcStartHeadAdjustDeg);
     addArrowHeadFromPrev(arcEnd, arcEndPrev, arcEndHeadAdjustDeg);
+    addMissionShortHand({ center: { x: 0, y: 0 }, angleDeg: 10 });
   }
 
   if (textSpecs.length === 0 && mission !== '9-1' && mission !== '9-2' && mission !== '9-3') return;
