@@ -970,9 +970,45 @@
     touch-action:none;
   }
   #missionText{display:none;}
+
+  body.entrance-screen{overflow:hidden;}
+  body.entrance-screen header{display:none;}
+  body.entrance-screen main{
+    width:100%;height:100dvh;min-height:100dvh;padding:0;position:relative;overflow:hidden;
+    background:none;
+  }
+  body.entrance-screen main::before{
+    content:'';position:absolute;inset:0;background:url('taketimetop.jpg') center/cover no-repeat;
+    opacity:.4;pointer-events:none;
+  }
+  .room-browser{
+    position:absolute;left:50%;top:calc(44% + 150px);transform:translate(-50%,-50%);
+    width:min(88vw,420px);height:min(70dvh,590px);display:flex;flex-direction:column;
+    align-items:center;z-index:2;
+  }
+  .entrance-card{
+    box-sizing:border-box;position:relative;width:100%;height:76px;min-height:76px;margin:0 0 10px;
+    border:1px solid rgba(0,0,0,.7);border-radius:10px;padding:10px 12px;
+    box-shadow:0 3px 12px rgba(0,0,0,.1);font-family:"Noto Sans JP","Yu Gothic",sans-serif;color:#111;
+  }
+  .create-room-card{background:rgba(0,0,0,.72);color:#fff;display:grid;place-items:center;font-size:21px;font-weight:700;letter-spacing:.08em;cursor:pointer;}
+  .room-card{background:rgba(255,255,255,.72);text-align:left;display:block;cursor:pointer;}
+  #createRoomSlot{width:100%;}
+  .entrance-loading{height:28px;flex:0 0 auto;display:grid;place-items:center;font-size:13px;color:#555;}
+  .entrance-loading.hidden{display:none;}
+  .room-list{width:100%;max-height:430px;flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-width:none;-ms-overflow-style:none;}
+  .room-list::-webkit-scrollbar{display:none;}
+  .room-members{display:block;padding-right:2px;font-size:15px;font-weight:650;color:#111;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .room-meta{position:absolute;right:10px;bottom:7px;font-size:11px;color:#111;white-space:nowrap;}
+  .entrance-name-form{display:flex;align-items:center;justify-content:center;width:100%;height:100%;padding:0;}
+  .entrance-name-form input{box-sizing:border-box;min-width:0;flex:1;height:40px;border:1px solid rgba(0,0,0,.55);border-radius:7px 0 0 7px;padding:7px 10px;background:rgba(255,255,255,.9);font-family:"Noto Sans JP","Yu Gothic",sans-serif;font-size:16px;font-weight:500;color:#111;}
+  .entrance-name-form input::placeholder{color:rgba(17,17,17,.3);}
+  .entrance-name-form button{height:40px;min-width:62px;padding:0 14px;border:1px solid rgba(0,0,0,.75);border-left:0;border-radius:0 7px 7px 0;background:#111;color:#fff;font-family:"Noto Sans JP","Yu Gothic",sans-serif;font-size:15px;font-weight:700;cursor:pointer;}
+  .entrance-name-form button:disabled{opacity:.7;cursor:default;}
+  body:not(.entrance-screen) .room-browser{display:none;}
 </style>
 </head>
-<body>
+<body class="entrance-screen">
 
 <header>
   <h1>TAKE TIME</h1>
@@ -1124,10 +1160,10 @@
     <tr><td id="stageNameText">1-1</td></tr>
   </table>
 
-  <div class="join-box" id="joinBox">
-    <input id="userName" placeholder="名前（未入力で自動）" maxlength="4" />
-    <input id="roomCode" placeholder="ルームコード（未入力で自動生成）" maxlength="12" />
-    <button class="btn primary" id="btnJoin">入室</button>
+  <div class="room-browser" id="joinBox">
+    <div id="createRoomSlot"></div>
+    <div id="entranceLoading" class="entrance-loading">loading...</div>
+    <div id="roomList" class="room-list" aria-label="部屋一覧"></div>
   </div>
 
   <div id="lobby" class="hidden">
@@ -1473,9 +1509,12 @@ const state = {
 
 const mainEl = document.getElementById('main');
 const joinBox = document.getElementById('joinBox');
-const inputName = document.getElementById('userName');
-const inputCode = document.getElementById('roomCode');
-const btnJoin = document.getElementById('btnJoin');
+const inputName = document.createElement('input');
+const inputCode = document.createElement('input');
+const btnJoin = document.createElement('button');
+const createRoomSlot = document.getElementById('createRoomSlot');
+const entranceLoading = document.getElementById('entranceLoading');
+const roomList = document.getElementById('roomList');
 const lobby = document.getElementById('lobby');
 const roomInfo = document.getElementById('roomInfo');
 const roomInfoLobby = document.getElementById('roomInfoLobby');
@@ -1548,7 +1587,11 @@ const STAGE_CODES = Array.from({ length: 10 }, (_, rowIndex) =>
 const AFTER_STAGE_CODE = 'After';
 const STAGE_CODES_WITH_AFTER = [...STAGE_CODES, AFTER_STAGE_CODE];
 const STAGE_KEY = 'stageCode';
-const USER_NAME_KEY = 'takeTimeUserName';
+const USER_NAME_KEY = 'savedUserName';
+const visibleRoomCount = 5;
+let entranceRooms = [];
+let activeEntranceCode = null;
+let entranceRoomsLoaded = false;
 const STAGE_ROOM_SUCCESS_CONDITIONS = {
   '1-2': [{ room: 3, min: 8, max: 12, label: '8-12エリア' }],
   '1-3': [{ room: 6, min: 20, max: 30, label: '20-30エリア' }],
@@ -2566,6 +2609,7 @@ async function emitPhaseEvent(type){
 function enterLobbyUI(){
   mainEl.classList.remove('prejoin');
   mainEl.classList.add('joined');
+  document.body.classList.remove('entrance-screen');
 
   joinBox.classList.add('hidden');
   lobby.classList.remove('hidden');
@@ -4643,21 +4687,118 @@ if (cachedUserName){
   inputName.value = cachedUserName;
 }
 
-btnJoin.addEventListener('click', async () => {
+function formatEntranceTime(createdAt){
+  const date = new Date(Number(createdAt) || 0);
+  const pad = value => String(value).padStart(2, '0');
+  return `${date.getMonth() + 1}/${date.getDate()} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function getEntranceInitialName(){
+  return (localStorage.getItem(USER_NAME_KEY) || state.userName || '').slice(0, 4);
+}
+
+function createEntranceNameForm(code){
+  const form = document.createElement('form');
+  form.className = 'entrance-name-form';
+  const nameField = document.createElement('input');
+  nameField.type = 'text';
+  nameField.maxLength = 4;
+  nameField.setAttribute('aria-label', '名前');
+  nameField.placeholder = 'name';
+  nameField.value = getEntranceInitialName();
+  nameField.addEventListener('input', () => {
+    nameField.value = nameField.value.slice(0, 4);
+    if (nameField.value.trim()) localStorage.setItem(USER_NAME_KEY, nameField.value);
+    else localStorage.removeItem(USER_NAME_KEY);
+  });
+  const submitButton = document.createElement('button');
+  submitButton.type = 'submit';
+  submitButton.textContent = '決定';
+  form.append(nameField, submitButton);
+  form.addEventListener('submit', async event => {
+    event.preventDefault();
+    if (joinInProgress) return;
+    submitButton.disabled = true;
+    try {
+      let targetCode = code;
+      if (code === '__create__') targetCode = await generateUniqueRoomCode();
+      await enterRoom(targetCode, nameField.value);
+    } finally {
+      if (!state.joined) submitButton.disabled = false;
+    }
+  });
+  queueMicrotask(() => nameField.focus());
+  return form;
+}
+
+function renderCreateRoomCard(){
+  createRoomSlot.replaceChildren();
+  if (!entranceRoomsLoaded) return;
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.id = 'btnCreateRoom';
+  button.className = 'entrance-card create-room-card';
+  if (activeEntranceCode === '__create__') button.appendChild(createEntranceNameForm('__create__'));
+  else button.textContent = 'CREATE ROOM';
+  button.addEventListener('click', event => {
+    if (event.target.closest('.entrance-name-form')) return;
+    activeEntranceCode = '__create__';
+    renderCreateRoomCard();
+    renderEntranceRooms();
+  });
+  createRoomSlot.appendChild(button);
+}
+
+function renderEntranceRooms(){
+  roomList.replaceChildren();
+  entranceRooms.forEach(room => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'entrance-card room-card';
+    if (activeEntranceCode === room.code){
+      button.appendChild(createEntranceNameForm(room.code));
+    } else {
+      const members = document.createElement('span');
+      members.className = 'room-members';
+      members.textContent = room.names.join('・');
+      const meta = document.createElement('span');
+      meta.className = 'room-meta';
+      meta.textContent = `${room.code}\u00a0\u00a0${formatEntranceTime(room.createdAt)}`;
+      button.append(members, meta);
+    }
+    button.addEventListener('click', event => {
+      if (event.target.closest('.entrance-name-form')) return;
+      activeEntranceCode = room.code;
+      renderCreateRoomCard();
+      renderEntranceRooms();
+    });
+    roomList.appendChild(button);
+  });
+}
+
+async function generateUniqueRoomCode(){
+  for (let attempt = 0; attempt < 20; attempt += 1){
+    const code = generateRoomCode(5);
+    if (!(await get(ref(db, `rooms/${code}`))).exists()) return code;
+  }
+  throw new Error('重複しない部屋コードを生成できませんでした。');
+}
+
+async function enterRoom(roomCode, rawName){
   if (joinInProgress) return;
   joinInProgress = true;
-  setJoinButtonBusy(true);
 
   try {
-    const finalName = normalizeName(inputName.value);
-    const finalRoomCode = normalizeRoomCode(inputCode.value);
+    const enteredName = String(rawName || '').trim().slice(0, 4);
+    const finalName = enteredName || generateRandomHiraganaName(4);
+    const finalRoomCode = normalizeRoomCode(roomCode);
 
     inputName.value = finalName;
     inputCode.value = finalRoomCode;
 
     state.userName = finalName;
     state.roomCode = finalRoomCode;
-    localStorage.setItem(USER_NAME_KEY, finalName);
+    if (enteredName) localStorage.setItem(USER_NAME_KEY, finalName);
 
     const roomRef = ref(db, `rooms/${state.roomCode}`);
     const roomSnap = await get(roomRef);
@@ -4673,6 +4814,7 @@ btnJoin.addEventListener('click', async () => {
     };
     if (!roomData.hostId) {
       updates.hostId = state.userId;
+      updates.createdAt = Date.now();
     }
 
     await update(roomRef, updates);
@@ -4724,8 +4866,28 @@ btnJoin.addEventListener('click', async () => {
     alert('入室に失敗しました。もう一度試してください。');
   } finally {
     joinInProgress = false;
-    setJoinButtonBusy(false);
   }
+}
+
+onValue(ref(db, 'rooms'), snapshot => {
+  const now = Date.now();
+  const sixHoursAgo = now - 6 * 60 * 60 * 1000;
+  const sortedRooms = Object.entries(snapshot.val() || {}).map(([code, room]) => {
+    const players = room.players || room.users || {};
+    const playerEntries = Object.entries(players).filter(([, player]) => String(player?.name || '').trim());
+    playerEntries.sort(([leftId], [rightId]) => (leftId === room.hostId ? -1 : rightId === room.hostId ? 1 : 0));
+    return {
+      code,
+      createdAt: Number(room.createdAt || 0),
+      names: playerEntries.map(([, player]) => String(player.name).trim())
+    };
+  }).sort((a, b) => b.createdAt - a.createdAt);
+  entranceRooms = sortedRooms.filter((room, index) => index < 3 || room.createdAt >= sixHoursAgo);
+  entranceRoomsLoaded = true;
+  entranceLoading.classList.add('hidden');
+  if (roomFromUrl && entranceRooms.some(room => room.code === roomFromUrl.toUpperCase())) activeEntranceCode = roomFromUrl.toUpperCase();
+  renderCreateRoomCard();
+  renderEntranceRooms();
 });
 
 copyLinkBtn.addEventListener('click', async () => {
